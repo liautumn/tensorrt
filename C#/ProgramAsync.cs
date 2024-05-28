@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using OpenCvSharp;
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
@@ -18,10 +15,14 @@ public struct Box
 
 class ProgramAsync
 {
-    private const string DllName = @"D:\autumn\Documents\JetBrainsProjects\CLion\infer\cmake-build-debug\yolo.dll";
+    private const string DllName = @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\cmake-build-release\yolo.dll";
 
     [DllImport(DllName, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool TensorRT_INIT_ASYNC([MarshalAs(UnmanagedType.LPStr)] string engine_file);
+    public static extern bool TensorRT_INIT_ASYNC([MarshalAs(UnmanagedType.LPStr)] string engine_file,
+        float confidence,
+        float nms,
+        int width,
+        int height);
 
 
     [DllImport(DllName, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
@@ -46,7 +47,7 @@ class ProgramAsync
         FreeMemory_ASYNC(resultPtr);
         return boxes;
     }
-    
+
     static byte[] ReadImageToBytes(string imagePath)
     {
         if (!File.Exists(imagePath))
@@ -68,17 +69,22 @@ class ProgramAsync
         return imageBytes;
     }
 
-    static void Main()
+    static void Main1()
     {
+        const float confidence = (float)0.5;
+        const float nms = (float)0.5;
+        const int width = 1920;
+        const int height = 1200;
         const string engine_file =
             @"D:\autumn\Desktop\cuda\TensorRT-8.6.1.6\bin\best.engine";
-        bool ok = TensorRT_INIT_ASYNC(engine_file);
+
+        bool ok = TensorRT_INIT_ASYNC(engine_file, confidence, nms, width, height);
         if (!ok)
         {
             return;
         }
-        
-        string image_src = @"D:/autumn/Documents/JetBrainsProjects/CLion/infer/workspace/inference/bl.jpg";
+
+        string image_src = @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\inference\bl.jpg";
         byte[] bytes = ReadImageToBytes(image_src);
         Mat imRead = Cv2.ImDecode(bytes, ImreadModes.Color);
         

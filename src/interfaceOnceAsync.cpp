@@ -2,18 +2,22 @@
 #include "infer.hpp"
 #include "cpm.hpp"
 #include "yolo.hpp"
+#include "interface.h"
 
 using namespace std;
 
-const int width = 1920;
-const int height = 1200;
-
 cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
-bool initAsync(const string &engine_file) {
-    bool ok = cpmi.start([&engine_file] {
-        return yolo::load(engine_file, yolo::Type::V8);
-    }, 1);
+bool initAsync(const string &engine_file,
+               const float &confidence,
+               const float &nms,
+               const int &width,
+               const int &height) {
+    img_width = width;
+    img_height = height;
+    bool ok = cpmi.start([&engine_file, &confidence, &nms] {
+        return yolo::load(engine_file, yolo::Type::V8, confidence, nms);
+    });
     if (!ok) {
         cout << "================================= TensorRT INIT FAIL =================================" << endl;
         return false;
@@ -25,15 +29,19 @@ bool initAsync(const string &engine_file) {
 
 vector<yolo::Box> inferAsync(uchar *image) {
     trt::Timer timer;
-    auto img = yolo::Image(image, width, height);
+    auto img = yolo::Image(image, img_width, img_height);
     timer.start();
     auto objs = cpmi.commit(img).get();
-    timer.stop("BATCH1");
+    timer.stop("batch 1");
     return objs;
 }
 
-extern "C" __declspec(dllexport) bool TensorRT_INIT_ASYNC(const char *engine_file) {
-    return initAsync(engine_file);
+extern "C" __declspec(dllexport) bool TensorRT_INIT_ASYNC(const char *engine_file,
+                                                          const float confidence,
+                                                          const float nms,
+                                                          const int width,
+                                                          const int height) {
+    return initAsync(engine_file, confidence, nms, width, height);
 }
 extern "C" __declspec(dllexport) yolo::Box *TensorRT_INFER_ASYNC(uchar *image, int *size) {
     vector<yolo::Box> boxes = inferAsync(image);

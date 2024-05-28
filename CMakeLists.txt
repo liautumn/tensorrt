@@ -46,6 +46,8 @@ add_library(${PROJECT_NAME} SHARED
         src/yolo.hpp
         src/interfaceOnceSync.cpp
         src/interfaceOnceAsync.cpp
+        src/interface.h
+        src/interface.cpp
 )
 
 # 添加可执行文件
@@ -58,6 +60,8 @@ add_library(${PROJECT_NAME} SHARED
 #        src/yolo.hpp
 #        src/interfaceOnceSync.cpp
 #        src/interfaceOnceAsync.cpp
+#        src/interface.h
+#        src/interface.cpp
 #)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
