@@ -1,0 +1,10 @@
+./trtexec.exe --onnx=best.onnx `
+    --saveEngine=best.engine `
+    --fp16 `
+    --useCudaGraph `
+    --noTF32 `
+    --best `
+
+    --minShapes=images:1x3x640x640 `
+    --maxShapes=images:12x3x640x640 `
+    --optShapes=images:1x3x640x640 `

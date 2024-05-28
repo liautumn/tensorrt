@@ -1,0 +1,2 @@
+#pragma code_page(65001)
+2 /* CREATEPROCESS_MANIFEST_RESOURCE_ID */ 24 /* RT_MANIFEST */ "D:/autumn/Documents/JetBrainsProjects/CLion/infer/cmake-build-debug/CMakeFiles/yolo.dir/embed.manifest"
