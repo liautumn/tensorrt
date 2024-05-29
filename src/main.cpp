@@ -126,7 +126,7 @@ void single_inference() {
     });
     if (!ok) return;
 
-    cv::Mat mat = cv::imread("../workspace/inference/car.jpg");
+    cv::Mat mat = cv::imread("../workspace/inference/bl.jpg");
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
 
     trt::Timer timer;
@@ -146,6 +146,6 @@ void single_inference() {
 
 int main() {
 //    syncInfer();
-//    asyncInfer();
+    // asyncInfer();
     return 0;
 }

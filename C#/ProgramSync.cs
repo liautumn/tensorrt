@@ -1,24 +1,22 @@
 ﻿using System.Runtime.InteropServices;
+using ConsoleApp1;
 using OpenCvSharp;
 
 
 class ProgramSync
 {
-    private const string DllName = @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\cmake-build-release\yolo.dll";
-
-    [DllImport(DllName, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool TensorRT_INIT_SYNC([MarshalAs(UnmanagedType.LPStr)] string engine_file,
         float confidence,
         float nms,
         int width,
         int height);
 
-
-    [DllImport(DllName, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr TensorRT_INFER_SYNC(IntPtr image, out int size);
 
 
-    [DllImport(DllName, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
     private static extern void FreeMemory_SYNC(IntPtr ptr);
 
     // 辅助函数将 IntPtr 转换为 List<Box>
@@ -58,23 +56,12 @@ class ProgramSync
         return imageBytes;
     }
 
-    static void Main()
+    static void Main1()
     {
-        const float confidence = (float)0.5;
-        const float nms = (float)0.5;
-        const int width = 1920;
-        const int height = 1200;
-        const string engine_file =
-            @"D:\autumn\Desktop\cuda\TensorRT-8.6.1.6\bin\best.engine";
+        bool ok = TensorRT_INIT_SYNC(Config.MODEL, Config.CONFIDENCE, Config.NMS, Config.WIDTH, Config.HEIGHT);
+        if (!ok) return;
 
-        bool ok = TensorRT_INIT_SYNC(engine_file, confidence, nms, width, height);
-        if (!ok)
-        {
-            return;
-        }
-
-        string image_src = @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\inference\bl.jpg";
-        byte[] bytes = ReadImageToBytes(image_src);
+        byte[] bytes = ReadImageToBytes(Config.IMAGE_SRC);
         Mat imRead = Cv2.ImDecode(bytes, ImreadModes.Color);
 
         while (true)
