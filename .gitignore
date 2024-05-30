@@ -39,3 +39,7 @@ objs
 /.idea
 /cmake-build-release
 /cmake-build-debug
+
+*.pt
+*.onnx
+*.engine
