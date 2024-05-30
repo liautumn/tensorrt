@@ -8,21 +8,19 @@ class ProgramSync
     [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool TensorRT_INIT_SYNC([MarshalAs(UnmanagedType.LPStr)] string engine_file,
         float confidence,
-        float nms,
-        int width,
-        int height);
+        float nms);
 
     [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr TensorRT_INFER_SYNC(IntPtr image, out int size);
+    private static extern IntPtr TensorRT_INFER_SYNC(IntPtr image, ref int width, ref int height, out int size);
 
 
     [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
     private static extern void FreeMemory_SYNC(IntPtr ptr);
 
     // 辅助函数将 IntPtr 转换为 List<Box>
-    public static List<Box> TensorRT_INFER_WRAPPER(IntPtr image)
+    public static List<Box> TensorRT_INFER_WRAPPER(IntPtr image, int width, int height)
     {
-        IntPtr resultPtr = TensorRT_INFER_SYNC(image, out int size);
+        IntPtr resultPtr = TensorRT_INFER_SYNC(image, ref width, ref height, out int size);
         List<Box> boxes = new List<Box>(size);
         for (int i = 0; i < size; i++)
         {
@@ -56,9 +54,9 @@ class ProgramSync
         return imageBytes;
     }
 
-    static void Main1()
+    static void Main()
     {
-        bool ok = TensorRT_INIT_SYNC(Config.MODEL, Config.CONFIDENCE, Config.NMS, Config.WIDTH, Config.HEIGHT);
+        bool ok = TensorRT_INIT_SYNC(Config.MODEL, Config.CONFIDENCE, Config.NMS);
         if (!ok) return;
 
         byte[] bytes = ReadImageToBytes(Config.IMAGE_SRC);
@@ -66,7 +64,7 @@ class ProgramSync
 
         while (true)
         {
-            List<Box> boxes = TensorRT_INFER_WRAPPER(imRead.Data);
+            List<Box> boxes = TensorRT_INFER_WRAPPER(imRead.Data, imRead.Cols, imRead.Rows);
             // foreach (var box in boxes)
             // {
             //     Console.WriteLine(

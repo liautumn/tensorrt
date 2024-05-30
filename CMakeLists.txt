@@ -38,13 +38,13 @@ add_library(${PROJECT_NAME} SHARED
         src/cpm.hpp
         src/infer.cu
         src/infer.hpp
-        src/main.cpp
         src/yolo.cu
         src/yolo.hpp
-        src/interfaceOnceSync.cpp
-        src/interfaceOnceAsync.cpp
-        src/interface.h
-        src/interface.cpp
+        src/Config.cpp
+        src/main.cpp
+        src/ExportOnceAsync.cpp
+        src/ExportOnceAsync.cpp
+        src/ExportOnceSync.cpp
 )
 
 # 添加可执行文件
@@ -52,13 +52,12 @@ add_library(${PROJECT_NAME} SHARED
 #        src/cpm.hpp
 #        src/infer.cu
 #        src/infer.hpp
-#        src/main.cpp
 #        src/yolo.cu
 #        src/yolo.hpp
+#        src/Config.cpp
+#        src/main.cpp
 #        src/interfaceOnceSync.cpp
 #        src/interfaceOnceAsync.cpp
-#        src/interface.h
-#        src/interface.cpp
 #)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

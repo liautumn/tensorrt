@@ -1,0 +1,10 @@
+D:\cuda\TensorRT-8.6.1.6\bin\trtexec.exe --onnx=D:/dev/code/CLion/tensorrt/workspace/model/transdOnnx/yolov8l.transd.onnx `
+    --saveEngine=D:/dev/code/CLion/tensorrt/workspace/model/engine/yolov8l.transd.engine `
+    --fp16 `
+    --useCudaGraph `
+    --noTF32 `
+    --best `
+
+    --minShapes=images:1x3x640x640 `
+    --maxShapes=images:12x3x640x640 `
+    --optShapes=images:1x3x640x640 `

@@ -1,4 +1,4 @@
-Ôªøusing System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using ConsoleApp1;
 using OpenCvSharp;
 
@@ -6,24 +6,27 @@ using OpenCvSharp;
 class ProgramAsync
 {
     [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool TensorRT_INIT_ASYNC([MarshalAs(UnmanagedType.LPStr)] string engine_file,
+    public static extern bool TensorRT_INIT_ASYNC(
+        [MarshalAs(UnmanagedType.LPStr)] string engineFile,
         float confidence,
-        float nms,
-        int width,
-        int height);
-
+        float nms);
 
     [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr TensorRT_INFER_ASYNC(IntPtr image, out int size);
+    private static extern IntPtr TensorRT_INFER_ASYNC(
+        IntPtr image,
+        ref int width,
+        ref int height,
+        out int size);
 
 
     [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
     private static extern void FreeMemory_ASYNC(IntPtr ptr);
 
-    // ËæÖÂä©ÂáΩÊï∞Â∞Ü IntPtr ËΩ¨Êç¢‰∏∫ List<Box>
-    public static List<Box> TensorRT_INFER_WRAPPER(IntPtr image)
+    // ∏®÷˙∫Ø ˝Ω´ IntPtr ◊™ªªŒ™ List<Box>
+    public static List<Box> TensorRT_INFER_WRAPPER(IntPtr image, int width,
+        int height)
     {
-        IntPtr resultPtr = TensorRT_INFER_ASYNC(image, out int size);
+        IntPtr resultPtr = TensorRT_INFER_ASYNC(image, ref width, ref height, out int size);
         List<Box> boxes = new List<Box>(size);
         for (int i = 0; i < size; i++)
         {
@@ -31,7 +34,7 @@ class ProgramAsync
             boxes.Add(Marshal.PtrToStructure<Box>(boxPtr));
         }
 
-        // ÈáäÊîæC++‰∏≠ÂàÜÈÖçÁöÑÂÜÖÂ≠ò
+        //  Õ∑≈C++÷–∑÷≈‰µƒƒ⁄¥Ê
         FreeMemory_ASYNC(resultPtr);
         return boxes;
     }
@@ -57,9 +60,9 @@ class ProgramAsync
         return imageBytes;
     }
 
-    static void Main()
+    static void Main1()
     {
-        bool ok = TensorRT_INIT_ASYNC(Config.MODEL, Config.CONFIDENCE, Config.NMS, Config.WIDTH, Config.HEIGHT);
+        bool ok = TensorRT_INIT_ASYNC(Config.MODEL, Config.CONFIDENCE, Config.NMS);
         if (!ok) return;
 
         byte[] bytes = ReadImageToBytes(Config.IMAGE_SRC);
@@ -67,8 +70,7 @@ class ProgramAsync
 
         while (true)
         {
-            List<Box> boxes = TensorRT_INFER_WRAPPER(imRead.Data);
-            Thread.Sleep(50);
+            List<Box> boxes = TensorRT_INFER_WRAPPER(imRead.Data, imRead.Cols, imRead.Rows);
             // foreach (var box in boxes)
             // {
             //     Console.WriteLine(
