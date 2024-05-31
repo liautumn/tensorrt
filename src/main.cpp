@@ -76,7 +76,7 @@ void single_inference() {
     cv::imwrite("Result.jpg", image);
 }
 
-[[noreturn]] void syncInfer() {
+void syncInfer() {
     Config config;
     auto yolo = yolo::load(config.MODEL,
                            yolo::Type::V8);
@@ -89,12 +89,12 @@ void single_inference() {
 
     while (true) {
         timer.start();
-        auto batched_result = yolo->forward(image);
+        auto objs = yolo->forward(image);
         timer.stop("batch 1");
     }
 }
 
-[[noreturn]] void asyncInfer() {
+void asyncInfer() {
     Config config;
     cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
@@ -108,17 +108,18 @@ void single_inference() {
 
     trt::Timer timer;
 
-    while (true) {
-        timer.start();
-        auto objs = cpmi.commit(image).get();
-        //        for (auto &obj: objs) {
-        //            auto name = cocolabels[obj.class_label];
-        //            auto caption = cv::format("%s %.2f", name, obj.confidence);
-        //            cout << "class_label: " << name << " caption: " << caption << " (L T R D B): (" << obj.left << ", "
-        //                 << obj.top << ", " << obj.right << ", " << obj.bottom << ")" <<
-        //                 endl;
-        timer.stop("batch 1");
+    // while (true) {
+    timer.start();
+    auto objs = cpmi.commit(image).get();
+    for (auto &obj: objs) {
+        // auto name = cocolabels[obj.class_label];
+        auto name = obj.class_label;
+        // auto caption = cv::format("%s %.2f", name, obj.confidence);
+        cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R D B): (" << obj.left << ", "
+                << obj.top << ", " << obj.right << ", " << obj.bottom << ")" <<
+                endl;
     }
+    timer.stop("batch 1");
 }
 
 int main() {

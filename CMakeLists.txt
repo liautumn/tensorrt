@@ -44,6 +44,7 @@ add_library(${PROJECT_NAME} SHARED
         src/main.cpp
         src/ExportOnceAsync.cpp
         src/ExportOnceSync.cpp
+        src/interfaceOnceAsync.cpp
 )
 
 #add_executable(${PROJECT_NAME}
