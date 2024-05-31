@@ -40,11 +40,10 @@ add_library(${PROJECT_NAME} SHARED
         src/infer.hpp
         src/yolo.cu
         src/yolo.hpp
-        src/Config.cpp
         src/main.cpp
-        src/ExportOnceAsync.cpp
-        src/ExportOnceSync.cpp
-        src/interfaceOnceAsync.cpp
+        src/Config.cpp
+        src/exportOnceAsync.cpp
+        src/exportOnceSync.cpp
 )
 
 #add_executable(${PROJECT_NAME}
@@ -53,10 +52,10 @@ add_library(${PROJECT_NAME} SHARED
 #        src/infer.hpp
 #        src/yolo.cu
 #        src/yolo.hpp
-#        src/Config.cpp
 #        src/main.cpp
-#        src/ExportOnceAsync.cpp
-#        src/ExportOnceSync.cpp
+#        src/Config.cpp
+#        src/exportOnceAsync.cpp
+#        src/exportOnceSync.cpp
 #)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
