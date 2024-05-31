@@ -123,6 +123,6 @@ void single_inference() {
 
 int main() {
     // syncInfer();
-    // asyncInfer();
+    asyncInfer();
     return 0;
 }

@@ -43,11 +43,9 @@ add_library(${PROJECT_NAME} SHARED
         src/Config.cpp
         src/main.cpp
         src/ExportOnceAsync.cpp
-        src/ExportOnceAsync.cpp
         src/ExportOnceSync.cpp
 )
 
-# 添加可执行文件
 #add_executable(${PROJECT_NAME}
 #        src/cpm.hpp
 #        src/infer.cu
@@ -56,8 +54,8 @@ add_library(${PROJECT_NAME} SHARED
 #        src/yolo.hpp
 #        src/Config.cpp
 #        src/main.cpp
-#        src/interfaceOnceSync.cpp
-#        src/interfaceOnceAsync.cpp
+#        src/ExportOnceAsync.cpp
+#        src/ExportOnceSync.cpp
 #)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
