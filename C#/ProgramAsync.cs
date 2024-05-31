@@ -1,43 +1,41 @@
+Ôªøusing System;
+using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
-using ConsoleApp1;
+using System.Threading;
 using OpenCvSharp;
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+public struct Box
+{
+    public float left;
+    public float top;
+    public float right;
+    public float bottom;
+    public float confidence;
+    public int class_label;
+}
 
 
 class ProgramAsync
 {
-    [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool TensorRT_INIT_ASYNC(
-        [MarshalAs(UnmanagedType.LPStr)] string engineFile,
-        float confidence,
-        float nms);
+    private const string DllName = @"D:\dev\code\CLion\tensorrt\cmake-build-release\yolo.dll";
 
-    [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr TensorRT_INFER_ASYNC(
-        IntPtr image,
-        ref int width,
-        ref int height,
-        out int size);
+    [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool TensorRT_INIT_ASYNC([MarshalAs(UnmanagedType.LPStr)] string engine_file);
 
 
-    [DllImport(Config.YOLODLL, CharSet = CharSet.Unicode, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void FreeMemory_ASYNC(IntPtr ptr);
+    [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int TensorRT_INFER_ASYNC(IntPtr image, out int size);
 
-    // ∏®÷˙∫Ø ˝Ω´ IntPtr ◊™ªªŒ™ List<Box>
-    public static List<Box> TensorRT_INFER_WRAPPER(IntPtr image, int width,
-        int height)
-    {
-        IntPtr resultPtr = TensorRT_INFER_ASYNC(image, ref width, ref height, out int size);
-        List<Box> boxes = new List<Box>(size);
-        for (int i = 0; i < size; i++)
-        {
-            IntPtr boxPtr = IntPtr.Add(resultPtr, i * Marshal.SizeOf(typeof(Box)));
-            boxes.Add(Marshal.PtrToStructure<Box>(boxPtr));
-        }
 
-        //  Õ∑≈C++÷–∑÷≈‰µƒƒ⁄¥Ê
-        FreeMemory_ASYNC(resultPtr);
-        return boxes;
-    }
+    [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int GetListBoxData(int boxLabel, ref float left, ref float top, ref float right,
+        ref float bottom, ref float confidence, ref int classLabel);
+
+    [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void EndGetListBoxData();
+
 
     static byte[] ReadImageToBytes(string imagePath)
     {
@@ -60,22 +58,71 @@ class ProgramAsync
         return imageBytes;
     }
 
-    static void Main1()
-    {
-        bool ok = TensorRT_INIT_ASYNC(Config.MODEL, Config.CONFIDENCE, Config.NMS);
-        if (!ok) return;
+    // static void Main()
+    // {
+    //     const string engine_file =
+    //         @"D:\dev\code\CLion\tensorrt\workspace\model\engine\best.engine";
+    //     bool ok = TensorRT_INIT_ASYNC(engine_file);
+    //     if (!ok)
+    //     {
+    //         return;
+    //     }
+    //
+    //     string image_src = @"D:\dev\code\CLion\tensorrt\workspace\images\d_0000100_2024-05-31-15-25-00_c02.jpg";
+    //     byte[] bytes = ReadImageToBytes(image_src);
+    //
+    //     Mat imRead = Cv2.ImDecode(bytes, ImreadModes.Color);
+    //
+    //     List<Box> boxes = TensorRT_INFER_WRAPPER(imRead.Data);
+    //
+    //     foreach (var box in boxes)
+    //     {
+    //         Console.WriteLine(
+    //             $"Box: left={box.left}, top={box.top}, right={box.right}, bottom={box.bottom}, confidence={box.confidence}, class_label={box.class_label}");
+    //     }
+    // }
 
-        byte[] bytes = ReadImageToBytes(Config.IMAGE_SRC);
+
+    static void Main()
+    {
+        const string engine_file =
+            @"D:\dev\code\CLion\tensorrt\workspace\model\engine\best.engine";
+        bool ok = TensorRT_INIT_ASYNC(engine_file);
+        if (!ok)
+        {
+            return;
+        }
+
+        string image_src = @"D:\dev\code\CLion\tensorrt\workspace\images\d_0000100_2024-05-31-15-25-00_c02.jpg";
+        byte[] bytes = ReadImageToBytes(image_src);
+
         Mat imRead = Cv2.ImDecode(bytes, ImreadModes.Color);
 
-        while (true)
+        int boxCount = TensorRT_INFER_ASYNC(imRead.Data, out int size);
+
+        // int boxCount = BeiginGetListBoxData();
+        if (boxCount <= 0)
         {
-            List<Box> boxes = TensorRT_INFER_WRAPPER(imRead.Data, imRead.Cols, imRead.Rows);
-            // foreach (var box in boxes)
-            // {
-            //     Console.WriteLine(
-            //         $"Box: left={box.left}, top={box.top}, right={box.right}, bottom={box.bottom}, confidence={box.confidence}, class_label={box.class_label}");
-            // }
+            Console.WriteLine("Ëé∑ÂèñboxÂàóË°®Â§ßÂ∞èÂ§±Ë¥•!");
+            return;
         }
+
+        for (int i = 0; i < boxCount; ++i)
+        {
+            float left = 0, top = 0, right = 0, bottom = 0, confidence = 0;
+            int classLabel = 0;
+
+            if (GetListBoxData(i, ref left, ref top, ref right, ref bottom, ref confidence, ref classLabel) != 0)
+            {
+                Console.WriteLine($"Ëé∑ÂèñboxÊï∞ÊçÆÂ§±Ë¥•! Á¥¢Âºï: {i}");
+                EndGetListBoxData();
+                return;
+            }
+
+            Console.WriteLine(
+                $"Box {i}: Â∑¶: {left}, ‰∏ä: {top}, Âè≥: {right}, ‰∏ã: {bottom}, ÁΩÆ‰ø°Â∫¶: {confidence}, Á±ªÂà´: {classLabel}");
+        }
+
+        EndGetListBoxData();
     }
 }
