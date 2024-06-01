@@ -4,7 +4,7 @@ using namespace std;
 class Config {
 public:
     const string MODEL = R"(D:\dev\code\CLion\tensorrt\workspace\model\engine\best.engine)";
-    const string TEST_IMG = R"(D:\dev\code\CLion\tensorrt\workspace\images\d_0000100_2024-05-31-15-25-00_c02.jpg)";
+    const string TEST_IMG = R"(D:\dev\code\CLion\tensorrt\workspace\images\bl.jpg)";
 
     const char *cocolabels[80] = {
         "person", "bicycle", "car",

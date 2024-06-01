@@ -70,21 +70,21 @@ class ProgramAsync
                 return;
             }
 
-            for (int i = 0; i < boxCount; ++i)
-            {
-                float left = 0, top = 0, right = 0, bottom = 0, confidence = 0;
-                int classLabel = 0;
-
-                if (GET_LISTBOX_DATA(i, ref left, ref top, ref right, ref bottom, ref confidence, ref classLabel) != 0)
-                {
-                    Console.WriteLine($"获取box数据失败! 索引: {i}");
-                    END_GET_LISTBOX_DATA();
-                    return;
-                }
-
-                Console.WriteLine(
-                    $"Box {i}: 左: {left}, 上: {top}, 右: {right}, 下: {bottom}, 置信度: {confidence}, 类别: {classLabel}");
-            }
+            // for (int i = 0; i < boxCount; ++i)
+            // {
+            //     float left = 0, top = 0, right = 0, bottom = 0, confidence = 0;
+            //     int classLabel = 0;
+            //
+            //     if (GET_LISTBOX_DATA(i, ref left, ref top, ref right, ref bottom, ref confidence, ref classLabel) != 0)
+            //     {
+            //         Console.WriteLine($"获取box数据失败! 索引: {i}");
+            //         END_GET_LISTBOX_DATA();
+            //         return;
+            //     }
+            //
+            //     Console.WriteLine(
+            //         $"Box {i}: 左: {left}, 上: {top}, 右: {right}, 下: {bottom}, 置信度: {confidence}, 类别: {classLabel}");
+            // }
 
             END_GET_LISTBOX_DATA();
         }
