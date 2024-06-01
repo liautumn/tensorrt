@@ -5,7 +5,7 @@ import os
 
 
 def main():
-    file = "model/onnx/best.onnx"
+    file = "yolov8s.onnx"
     if not os.path.exists(file):
         print(f"Not exist path: {file}")
         return 1

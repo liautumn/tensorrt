@@ -1,5 +1,5 @@
-D:\cuda\TensorRT-8.6.1.6\bin\trtexec.exe --onnx=D:/dev/code/CLion/tensorrt/workspace/model/transdOnnx/best.transd.onnx `
-    --saveEngine=D:/dev/code/CLion/tensorrt/workspace/model/engine/best.transd.engine `
+D:\cuda\TensorRT-8.6.1.6\bin\trtexec.exe --onnx=D:/dev/code/CLion/tensorrt/workspace/model/transdOnnx/yolov8s.transd.onnx `
+    --saveEngine=D:/dev/code/CLion/tensorrt/workspace/model/engine/yolov8s.transd.engine `
     --fp16 `
     --useCudaGraph `
     --noTF32 `

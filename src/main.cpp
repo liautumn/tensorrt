@@ -108,22 +108,23 @@ void asyncInfer() {
 
     trt::Timer timer;
 
-    // while (true) {
-    timer.start();
-    auto objs = cpmi.commit(image).get();
-    for (auto &obj: objs) {
-        // auto name = cocolabels[obj.class_label];
-        auto name = obj.class_label;
-        // auto caption = cv::format("%s %.2f", name, obj.confidence);
-        cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R D B): (" << obj.left << ", "
-                << obj.top << ", " << obj.right << ", " << obj.bottom << ")" <<
-                endl;
+    while (true) {
+        timer.start();
+        auto objs = cpmi.commit(image).get();
+        // for (auto &obj: objs) {
+        //     // auto name = cocolabels[obj.class_label];
+        //     auto name = obj.class_label;
+        //     // auto caption = cv::format("%s %.2f", name, obj.confidence);
+        //     cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R D B): (" << obj.left << ", "
+        //             << obj.top << ", " << obj.right << ", " << obj.bottom << ")" <<
+        //             endl;
+        // }
+        timer.stop("batch 1");
     }
-    timer.stop("batch 1");
 }
 
 int main() {
     // syncInfer();
-    asyncInfer();
+    // asyncInfer();
     return 0;
 }
