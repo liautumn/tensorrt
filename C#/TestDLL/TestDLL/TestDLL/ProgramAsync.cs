@@ -6,7 +6,8 @@ using OpenCvSharp;
 class ProgramAsync
 {
     [DllImport(Config.YOLODLL, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool TensorRT_INIT_ASYNC([MarshalAs(UnmanagedType.LPStr)] string engine_file);
+    public static extern bool TensorRT_INIT_ASYNC([MarshalAs(UnmanagedType.LPStr)] string engine_file, float confidence,
+        float nms);
 
 
     [DllImport(Config.YOLODLL, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
@@ -49,7 +50,7 @@ class ProgramAsync
 
     static void Main()
     {
-        bool ok = TensorRT_INIT_ASYNC(Config.MODEL);
+        bool ok = TensorRT_INIT_ASYNC(Config.MODEL, Config.CONFIDENCE, Config.NMS);
         if (!ok)
         {
             return;
