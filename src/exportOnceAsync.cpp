@@ -7,9 +7,9 @@ using namespace std;
 
 static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
-bool initAsync(const string &engine_file) {
-    bool ok = cpmi.start([&engine_file] {
-        return yolo::load(engine_file, yolo::Type::V8);
+bool initAsync(const string &engine_file, const float &confidence, const float &nms) {
+    bool ok = cpmi.start([&engine_file, &confidence, &nms] {
+        return yolo::load(engine_file, yolo::Type::V8, confidence, nms);
     }, 1);
     if (!ok) {
         cout << "================================= TensorRT INIT FAIL =================================" << endl;
@@ -20,7 +20,7 @@ bool initAsync(const string &engine_file) {
     }
 }
 
-vector<yolo::Box> inferAsync(uchar *image, int width, int height) {
+vector<yolo::Box> inferAsync(uchar *image, const int &width, const int &height) {
     trt::Timer timer;
     auto img = yolo::Image(image, width, height);
     timer.start();
@@ -29,24 +29,27 @@ vector<yolo::Box> inferAsync(uchar *image, int width, int height) {
     return objs;
 }
 
-extern "C" __declspec(dllexport) bool TensorRT_INIT_ASYNC(const char *engine_file) {
-    return initAsync(engine_file);
+extern "C" __declspec(dllexport) bool
+TensorRT_INIT_ASYNC(const char *engine_file, const float confidence, const float nms) {
+    return initAsync(engine_file, confidence, nms);
 }
 
 static std::vector<yolo::Box> g_boxes;
 
-extern "C" __declspec(dllexport) int TensorRT_INFER_NUM_ASYNC(uchar *image, int width, int height) {
+extern "C" __declspec(dllexport) int
+TensorRT_INFER_NUM_ASYNC(uchar *image, int width, int height) {
     g_boxes = inferAsync(image, width, height);
     return g_boxes.size();
 }
 
-extern "C" __declspec(dllexport) int GET_LISTBOX_DATA(int boxLabel,
-                                                      float *left,
-                                                      float *top,
-                                                      float *right,
-                                                      float *bottom,
-                                                      float *confidence,
-                                                      int *classLabel) {
+extern "C" __declspec(dllexport) int
+GET_LISTBOX_DATA(int boxLabel,
+                 float *left,
+                 float *top,
+                 float *right,
+                 float *bottom,
+                 float *confidence,
+                 int *classLabel) {
     if (boxLabel < 0 || boxLabel >= g_boxes.size()) {
         return -1;
     }
@@ -60,6 +63,7 @@ extern "C" __declspec(dllexport) int GET_LISTBOX_DATA(int boxLabel,
     return 0;
 }
 
-extern "C" __declspec(dllexport) void END_GET_LISTBOX_DATA() {
+extern "C" __declspec(dllexport) void
+END_GET_LISTBOX_DATA() {
     g_boxes.clear();
 }

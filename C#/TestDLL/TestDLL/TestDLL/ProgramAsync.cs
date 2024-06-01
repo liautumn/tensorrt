@@ -1,44 +1,28 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Threading;
+﻿using System.Runtime.InteropServices;
+using ConsoleApp1;
 using OpenCvSharp;
-
-[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-public struct Box
-{
-    public float left;
-    public float top;
-    public float right;
-    public float bottom;
-    public float confidence;
-    public int class_label;
-}
 
 
 class ProgramAsync
 {
-    private const string DllName = @"D:\dev\code\CLion\tensorrt\cmake-build-release\yolo.dll";
-
-    [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(Config.YOLODLL, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool TensorRT_INIT_ASYNC([MarshalAs(UnmanagedType.LPStr)] string engine_file);
 
 
-    [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(Config.YOLODLL, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
     private static extern int TensorRT_INFER_NUM_ASYNC(IntPtr image, int width, int height);
 
 
-    [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(Config.YOLODLL, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
     public static extern int GET_LISTBOX_DATA(int boxLabel,
-                                            ref float left,
-                                            ref float top,
-                                            ref float right,
-                                            ref float bottom,
-                                            ref float confidence,
-                                            ref int classLabel);
+        ref float left,
+        ref float top,
+        ref float right,
+        ref float bottom,
+        ref float confidence,
+        ref int classLabel);
 
-    [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(Config.YOLODLL, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
     public static extern void END_GET_LISTBOX_DATA();
 
 
@@ -65,20 +49,17 @@ class ProgramAsync
 
     static void Main()
     {
-        const string engine_file =
-            @"D:\dev\code\CLion\tensorrt\workspace\model\engine\best.engine";
-        bool ok = TensorRT_INIT_ASYNC(engine_file);
+        bool ok = TensorRT_INIT_ASYNC(Config.MODEL);
         if (!ok)
         {
             return;
         }
 
-        string image_src = @"D:\dev\code\CLion\tensorrt\workspace\images\d_0000100_2024-05-31-15-25-00_c02.jpg";
-        byte[] bytes = ReadImageToBytes(image_src);
+        byte[] bytes = ReadImageToBytes(Config.IMAGE_SRC);
 
         Mat imRead = Cv2.ImDecode(bytes, ImreadModes.Color);
 
-        int boxCount = TensorRT_INFER_ASYNC(imRead.Data, imRead.Cols, imRead.Rows);
+        int boxCount = TensorRT_INFER_NUM_ASYNC(imRead.Data, imRead.Cols, imRead.Rows);
 
         if (boxCount <= 0)
         {
