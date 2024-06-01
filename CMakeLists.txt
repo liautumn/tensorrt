@@ -56,6 +56,7 @@ add_executable(${PROJECT_NAME}
         src/Config.cpp
         src/exportOnceAsync.cpp
         src/exportOnceSync.cpp
+        src/exportBatchAsync.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
