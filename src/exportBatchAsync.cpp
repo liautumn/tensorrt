@@ -8,12 +8,10 @@ using namespace std;
 
 static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
-static yolo::Image cvimg(const cv::Mat &image) { return yolo::Image(image.data, image.cols, image.rows); }
-
-bool initBatchAsync(const string &engine_file, const float &confidence, const float &nms, const int &batch) {
+bool initBatchAsync(const string &engine_file, const float &confidence, const float &nms, const int &max_batch) {
     bool ok = cpmi.start([&engine_file, &confidence, &nms] {
         return yolo::load(engine_file, yolo::Type::V8, confidence, nms);
-    }, batch);
+    }, max_batch);
     if (!ok) {
         cout << "================================= TensorRT INIT FAIL =================================" << endl;
         return false;
@@ -23,35 +21,45 @@ bool initBatchAsync(const string &engine_file, const float &confidence, const fl
     }
 }
 
-vector<yolo::Box> inferBatchAsync(vector<cv::Mat> &images) {
+vector<yolo::BoxArray> inferBatchAsync(vector<uchar> &images) {
     trt::Timer timer;
     vector<yolo::Image> yoloimages(images.size());
-    transform(images.begin(), images.end(), yoloimages.begin(), cvimg);
+    std::for_each(images.begin(), images.end(), [&](const auto &item) {
+        yoloimages.push_back(yolo::Image(&item, 1920, 1200));
+    });
     timer.start();
-    auto objs = cpmi.commits(yoloimages).back().get();
-    timer.stop("batch 1");
-    return objs;
+    auto objs = cpmi.commits(yoloimages);
+    vector<yolo::BoxArray> res(objs.size());
+    for (int i = 0; i < objs.size(); ++i) {
+        res.push_back(objs[i].get());
+    }
+    timer.stop("batch 12");
+    return res;
 }
 
 int main() {
     Config config;
     initBatchAsync(config.MODEL, 0.45, 0.5, 3);
 
-    vector<cv::Mat> images{
-            cv::imread(config.TEST_IMG),
-            cv::imread(config.TEST_IMG),
-            cv::imread(config.TEST_IMG)
-    };
+//    vector<cv::Mat> images{
+//            cv::imread(config.TEST_IMG),
+//            cv::imread(config.TEST_IMG),
+//            cv::imread(config.TEST_IMG)
+//    };
+//
+//    vector<yolo::BoxArray> list = inferBatchAsync(images);
+//
+//    std::for_each(list.begin(), list.end(), [&](const auto &item) {
+//        for (const auto &obj: item) {
+//            cout << "class_label: " << obj.class_label
+//                 << " caption: " << obj.confidence
+//                 << " (L T R B): (" << obj.left
+//                 << ", " << obj.top << ", "
+//                 << obj.right << ", "
+//                 << obj.bottom << ")" << endl;
+//        }
+//    })
 
-    vector<yolo::Box> list = inferBatchAsync(images);
-
-
-    for (const auto &obj: list) {
-        auto name = obj.class_label;
-        cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R B): (" << obj.left << ", "
-             << obj.top << ", " << obj.right << ", " << obj.bottom << ")" <<
-             endl;
-    }
 }
 
 //extern "C" __declspec(dllexport) bool
