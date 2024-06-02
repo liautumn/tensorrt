@@ -34,19 +34,7 @@ set(LIBS
         cudnn
 )
 
-#add_library(${PROJECT_NAME} SHARED
-#        src/cpm.hpp
-#        src/infer.cu
-#        src/infer.hpp
-#        src/yolo.cu
-#        src/yolo.hpp
-#        src/main.cpp
-#        src/Config.cpp
-#        src/exportOnceAsync.cpp
-#        src/exportOnceSync.cpp
-#)
-
-add_executable(${PROJECT_NAME}
+add_library(${PROJECT_NAME} SHARED
         src/cpm.hpp
         src/infer.cu
         src/infer.hpp
@@ -58,6 +46,18 @@ add_executable(${PROJECT_NAME}
         src/exportOnceSync.cpp
         src/exportBatchAsync.cpp
 )
+
+#add_executable(${PROJECT_NAME}
+#        src/cpm.hpp
+#        src/infer.cu
+#        src/infer.hpp
+#        src/yolo.cu
+#        src/yolo.hpp
+#        src/Config.cpp
+#        src/main.cpp
+#        src/exportOnceAsync.cpp
+#        src/exportOnceSync.cpp
+#)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)

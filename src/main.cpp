@@ -125,6 +125,6 @@ void asyncInfer() {
 
 int main1() {
     // syncInfer();
-    asyncInfer();
+    // asyncInfer();
     return 0;
 }

@@ -3,8 +3,8 @@ using namespace std;
 
 class Config {
 public:
-    const string MODEL = R"(D:\dev\code\CLion\tensorrt\workspace\model\engine\best.engine)";
-    const string TEST_IMG = R"(D:\dev\code\CLion\tensorrt\workspace\images\bl.jpg)";
+    const string MODEL = R"(D:\dev\code\CLion\tensorrt\workspace\model\engine\yolov8s.transd.engine)";
+    const string TEST_IMG = R"(D:\dev\code\CLion\tensorrt\workspace\images\bl2.jpg)";
 
     const char *cocolabels[80] = {
         "person", "bicycle", "car",

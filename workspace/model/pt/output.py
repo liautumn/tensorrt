@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 
 # Load a model
-model = YOLO('model/pt/best.pt')  # load an official model
+model = YOLO('yolov8n.pt')  # load an official model
 
 # Export the model
 # ONNX ===> imgsz, half, dynamic, simplify, opset, batch
