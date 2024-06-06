@@ -11,9 +11,9 @@ yolo::Image cvimg(const cv::Mat &image) { return yolo::Image(image.data, image.c
 void batch_inference() {
     Config config;
     vector<cv::Mat> images{
-            cv::imread("1.jpg"),
-            cv::imread("2.jpg"),
-            cv::imread("3.jpg")
+        cv::imread("1.jpg"),
+        cv::imread("2.jpg"),
+        cv::imread("3.jpg")
     };
     auto yolo = yolo::load(config.MODEL,
                            yolo::Type::V8);
@@ -109,17 +109,14 @@ void asyncInfer() {
     trt::Timer timer;
 
     // while (true) {
-        timer.start();
-        auto objs = cpmi.commit(image).get();
+    timer.start();
+    auto objs = cpmi.commit(image).get();
     for (auto &obj: objs) {
-        // auto name = cocolabels[obj.class_label];
         auto name = obj.class_label;
-        // auto caption = cv::format("%s %.2f", name, obj.confidence);
-        cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R D B): (" << obj.left << ", "
-                << obj.top << ", " << obj.right << ", " << obj.bottom << ")" <<
-                endl;
+        cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R B): (" << obj.left << ", "
+                << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
     }
-        timer.stop("batch 1");
+    timer.stop("batch 1");
     // }
 }
 
