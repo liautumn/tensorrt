@@ -37,9 +37,9 @@ vector<yolo::BoxArray> inferBatchAsync(vector<uchar> &images) {
     return res;
 }
 
-int main() {
-    Config config;
-    initBatchAsync(config.MODEL, 0.45, 0.5, 3);
+// int main() {
+//     Config config;
+//     initBatchAsync(config.MODEL, 0.45, 0.5, 3);
 
 //    vector<cv::Mat> images{
 //            cv::imread(config.TEST_IMG),
@@ -60,7 +60,7 @@ int main() {
 //        }
 //    })
 
-}
+// }
 
 //extern "C" __declspec(dllexport) bool
 //TensorRT_INIT_ASYNC(const char *engine_file, const float confidence, const float nms, const int batch) {

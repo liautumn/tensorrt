@@ -99,7 +99,7 @@ void asyncInfer() {
     cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
     bool ok = cpmi.start([config] {
-        return yolo::load(config.MODEL, yolo::Type::V8);
+        return yolo::load(config.MODEL, yolo::Type::V8, 0.2, 0.3);
     });
     if (!ok) return;
 
@@ -108,23 +108,23 @@ void asyncInfer() {
 
     trt::Timer timer;
 
-    while (true) {
+    // while (true) {
         timer.start();
         auto objs = cpmi.commit(image).get();
-//    for (auto &obj: objs) {
-//        // auto name = cocolabels[obj.class_label];
-//        auto name = obj.class_label;
-//        // auto caption = cv::format("%s %.2f", name, obj.confidence);
-//        cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R D B): (" << obj.left << ", "
-//                << obj.top << ", " << obj.right << ", " << obj.bottom << ")" <<
-//                endl;
-//    }
-        timer.stop("batch 1");
+    for (auto &obj: objs) {
+        // auto name = cocolabels[obj.class_label];
+        auto name = obj.class_label;
+        // auto caption = cv::format("%s %.2f", name, obj.confidence);
+        cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R D B): (" << obj.left << ", "
+                << obj.top << ", " << obj.right << ", " << obj.bottom << ")" <<
+                endl;
     }
+        timer.stop("batch 1");
+    // }
 }
 
-int main1() {
+int main() {
     // syncInfer();
-    // asyncInfer();
+    asyncInfer();
     return 0;
 }
