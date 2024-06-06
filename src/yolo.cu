@@ -5,7 +5,7 @@ namespace yolo {
 
 using namespace std;
 
-#define GPU_BLOCK_THREADS 512
+#define GPU_BLOCK_THREADS 1024
 #define checkRuntime(call)                                                                 \
   do {                                                                                     \
     auto ___call__ret_code__ = (call);                                                     \
