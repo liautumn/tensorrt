@@ -7,7 +7,7 @@ model = YOLO('yolov8n.pt')  # load an official model
 # ONNX ===> imgsz, half, dynamic, simplify, opset, batch
 # TensorRT ===> imgsz, half, dynamic, simplify, workspace, int8, batch
 model.export(format='onnx',
-             imgsz=(1024, 1024),
+             imgsz=(640, 640),
              half=True,
              dynamic=False,
              simplify=True,
