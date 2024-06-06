@@ -2,7 +2,6 @@
 #include "infer.hpp"
 #include "cpm.hpp"
 #include "yolo.hpp"
-#include "Config.cpp"
 
 using namespace std;
 

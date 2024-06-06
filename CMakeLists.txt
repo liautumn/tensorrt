@@ -4,6 +4,9 @@ project(yolo CUDA CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
 
+# 定义头文件目录
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 # 查找 OpenCV 库
 set(OpenCV_DIR "D:/cuda/opencv/build")
 find_package(OpenCV REQUIRED)
@@ -35,11 +38,11 @@ set(LIBS
 )
 
 #add_library(${PROJECT_NAME} SHARED
-#        src/cpm.hpp
+#        include/cpm.hpp
 #        src/infer.cu
-#        src/infer.hpp
+#        include/infer.hpp
 #        src/yolo.cu
-#        src/yolo.hpp
+#        include/yolo.hpp
 #        src/main.cpp
 #        src/Config.cpp
 #        src/exportOnceAsync.cpp
@@ -48,11 +51,11 @@ set(LIBS
 #)
 
 add_executable(${PROJECT_NAME}
-        src/cpm.hpp
+        include/cpm.hpp
         src/infer.cu
-        src/infer.hpp
+        include/infer.hpp
         src/yolo.cu
-        src/yolo.hpp
+        include/yolo.hpp
         src/main.cpp
         src/Config.cpp
         src/exportOnceAsync.cpp

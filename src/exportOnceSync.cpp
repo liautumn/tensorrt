@@ -1,6 +1,5 @@
 #include <opencv2/opencv.hpp>
 #include "infer.hpp"
-#include "cpm.hpp"
 #include "yolo.hpp"
 
 using namespace std;
