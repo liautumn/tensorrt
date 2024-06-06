@@ -99,20 +99,20 @@ void asyncInfer() {
     cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
     bool ok = cpmi.start([config] {
-        return yolo::load(config.MODEL, yolo::Type::V8, 0.2, 0.3);
+        return yolo::load(config.MODEL, yolo::Type::V8, 0.25, 0.7);
     });
     if (!ok) return;
 
-    cv::Mat mat = cv::imread(config.TEST_IMG);
-    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
+    const cv::Mat mat = cv::imread(config.TEST_IMG);
+    const auto image = yolo::Image(mat.data, mat.cols, mat.rows);
 
     trt::Timer timer;
 
     // while (true) {
     timer.start();
-    auto objs = cpmi.commit(image).get();
+    const auto objs = cpmi.commit(image).get();
     for (auto &obj: objs) {
-        auto name = obj.class_label;
+        const auto name = obj.class_label;
         cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R B): (" << obj.left << ", "
                 << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
     }
