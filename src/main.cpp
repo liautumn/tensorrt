@@ -121,9 +121,9 @@ void asyncInfer() {
     // }
 }
 
-int main11() {
-    // syncInfer();
-//    asyncInfer();
-    batch_inference();
-    return 0;
-}
+//int main() {
+//    // syncInfer();
+////    asyncInfer();
+//    batch_inference();
+//    return 0;
+//}

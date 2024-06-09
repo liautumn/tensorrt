@@ -45,38 +45,38 @@ namespace ConsoleApp1
         }
 
 
-        static void Main(string[] args)
-        {
-            int maxBatch = 12;
-
-            bool initSuccess = initBatchAsync(Config.MODEL, Config.CONFIDENCE, Config.NMS, maxBatch);
-            if (initSuccess)
-            {
-                int size = 5;
-                IntPtr[] imagesPtr = new IntPtr[size];
-                for (int i = 0; i < size; i++)
-                {
-                    byte[] bytes = Utils.ReadImageToBytes(Config.IMAGE_SRC);
-                    Mat imRead = Cv2.ImDecode(bytes, ImreadModes.Color);
-                    imagesPtr[i] = imRead.CvPtr;
-                }
-
-                while (true)
-                {
-                    // 调用推理函数
-                    Box[][] results = InferBatchAsync(imagesPtr, size);
-                    // 处理结果
-                    foreach (var boxes in results)
-                    {
-                        Console.WriteLine(boxes.Length);
-                        foreach (var box in boxes)
-                        {
-                            Console.WriteLine(
-                                $"Box: left={box.left}, top={box.top}, right={box.right}, bottom={box.bottom}, confidence={box.confidence}, class_label={box.class_label}");
-                        }
-                    }
-                }
-            }
-        }
+        // static void Main(string[] args)
+        // {
+        //     int maxBatch = 12;
+        //
+        //     bool initSuccess = initBatchAsync(Config.MODEL, Config.CONFIDENCE, Config.NMS, maxBatch);
+        //     if (initSuccess)
+        //     {
+        //         int size = 5;
+        //         IntPtr[] imagesPtr = new IntPtr[size];
+        //         for (int i = 0; i < size; i++)
+        //         {
+        //             byte[] bytes = Utils.ReadImageToBytes(Config.IMAGE_SRC);
+        //             Mat imRead = Cv2.ImDecode(bytes, ImreadModes.Color);
+        //             imagesPtr[i] = imRead.CvPtr;
+        //         }
+        //
+        //         while (true)
+        //         {
+        //             // 调用推理函数
+        //             Box[][] results = InferBatchAsync(imagesPtr, size);
+        //             // 处理结果
+        //             foreach (var boxes in results)
+        //             {
+        //                 Console.WriteLine(boxes.Length);
+        //                 foreach (var box in boxes)
+        //                 {
+        //                     Console.WriteLine(
+        //                         $"Box: left={box.left}, top={box.top}, right={box.right}, bottom={box.bottom}, confidence={box.confidence}, class_label={box.class_label}");
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
     }
 }

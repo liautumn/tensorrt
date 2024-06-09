@@ -45,10 +45,11 @@ add_library(${PROJECT_NAME} SHARED
         include/yolo.hpp
         src/main.cpp
         src/Config.cpp
-        src/exportOnceAsync.cpp
-        src/exportOnceSync.cpp
-        src/exportBatchAsync.cpp
-        src/exportBatchAsync2.cpp
+        src/barchDemo.cpp
+        src/export/exportOnceSync.cpp
+        src/export/exportOnceAsync.cpp
+        src/export/exportBatchAsync.cpp
+        src/export/exportOnceAsync2.cpp
 )
 
 #add_executable(${PROJECT_NAME}

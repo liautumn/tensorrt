@@ -21,7 +21,7 @@ public class Config
         @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\model\engine\yolov8s.transd.engine";
 
     public const string IMAGE_SRC =
-        @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\images\test_bl.jpg";
+        @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\images\car.jpg";
 
     public const float CONFIDENCE = (float)0.25;
     public const float NMS = (float)0.7;
