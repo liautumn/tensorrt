@@ -40,8 +40,6 @@ objs
 /cmake-build-release
 /cmake-build-debug
 
-*.pt
-*.onnx
 *.engine
 /C\#/TestDLL/TestDLL/.idea
 /C\#/TestDLL/TestDLL/TestDLL/obj

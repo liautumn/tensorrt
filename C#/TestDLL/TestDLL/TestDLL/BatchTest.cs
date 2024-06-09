@@ -45,14 +45,14 @@ namespace ConsoleApp1
         }
 
 
-        // static void Main(string[] args)
+        // static void Main()
         // {
         //     int maxBatch = 12;
         //
         //     bool initSuccess = initBatchAsync(Config.MODEL, Config.CONFIDENCE, Config.NMS, maxBatch);
         //     if (initSuccess)
         //     {
-        //         int size = 5;
+        //         int size = 6;
         //         IntPtr[] imagesPtr = new IntPtr[size];
         //         for (int i = 0; i < size; i++)
         //         {

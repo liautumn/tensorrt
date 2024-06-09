@@ -37,34 +37,35 @@ set(LIBS
         cudnn
 )
 
-add_library(${PROJECT_NAME} SHARED
-        include/cpm.hpp
-        src/infer.cu
-        include/infer.hpp
-        src/yolo.cu
-        include/yolo.hpp
-        src/main.cpp
-        src/Config.cpp
-        src/barchDemo.cpp
-        src/export/exportOnceSync.cpp
-        src/export/exportOnceAsync.cpp
-        src/export/exportBatchAsync.cpp
-        src/export/exportOnceAsync2.cpp
-)
-
-#add_executable(${PROJECT_NAME}
+#add_library(${PROJECT_NAME} SHARED
 #        include/cpm.hpp
 #        src/infer.cu
 #        include/infer.hpp
 #        src/yolo.cu
 #        include/yolo.hpp
-#        src/main.cpp
-#        src/Config.cpp
-#        src/exportOnceAsync.cpp
-#        src/exportOnceSync.cpp
-#        src/exportBatchAsync.cpp
-#        src/exportBatchAsync2.cpp
+#        src/demo/main.cpp
+#        src/demo/config.cpp
+#        src/demo/barchDemo.cpp
+#        src/export/exportOnceSync.cpp
+#        src/export/exportOnceAsync_old.cpp
+#        src/export/exportBatch.cpp
+#        src/export/exportOnceAsync_new.cpp
 #)
+
+add_executable(${PROJECT_NAME}
+        include/cpm.hpp
+        src/infer.cu
+        include/infer.hpp
+        src/yolo.cu
+        include/yolo.hpp
+        src/demo/main.cpp
+        src/demo/config.cpp
+        src/demo/barchDemo.cpp
+        src/export/exportOnceSync.cpp
+        src/export/exportOnceAsync_old.cpp
+        src/export/exportBatch.cpp
+        src/export/exportOnceAsync_new.cpp
+)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)

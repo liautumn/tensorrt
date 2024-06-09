@@ -2,7 +2,7 @@
 
 using System.Runtime.InteropServices;
 
-[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+[StructLayout(LayoutKind.Sequential)]
 public struct Box
 {
     public float left;
@@ -18,10 +18,10 @@ public class Config
     public const string YOLODLL = @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\cmake-build-release\yolo.dll";
 
     public const string MODEL =
-        @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\model\engine\yolov8s.transd.engine";
+        @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\model\engine\yolov8s_640_1024.transd.engine";
 
     public const string IMAGE_SRC =
-        @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\images\car.jpg";
+        @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\images\test_bl.jpg";
 
     public const float CONFIDENCE = (float)0.25;
     public const float NMS = (float)0.7;
