@@ -2,10 +2,13 @@
 #include "infer.hpp"
 #include "cpm.hpp"
 #include "yolo.hpp"
+#include "Config.cpp"
 
 using namespace std;
 
 static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
+
+static yolo::Image cvimg(const cv::Mat &image) { return yolo::Image(image.data, image.cols, image.rows); }
 
 bool initBatchAsync(const string &engine_file, const float &confidence, const float &nms, const int &max_batch) {
     bool ok = cpmi.start([&engine_file, &confidence, &nms] {
@@ -20,82 +23,55 @@ bool initBatchAsync(const string &engine_file, const float &confidence, const fl
     }
 }
 
-vector<yolo::BoxArray> inferBatchAsync(vector<uchar> &images) {
+vector<vector<yolo::Box>> inferBatchAsync(const vector<cv::Mat> &mats) {
     trt::Timer timer;
-    vector<yolo::Image> yoloimages(images.size());
-    std::for_each(images.begin(), images.end(), [&](const auto &item) {
-        yoloimages.push_back(yolo::Image(&item, 1920, 1200));
-    });
+    vector<yolo::Image> yoloimages(mats.size());
+    transform(mats.begin(), mats.end(), yoloimages.begin(), cvimg);
     timer.start();
     auto objs = cpmi.commits(yoloimages);
-    vector<yolo::BoxArray> res(objs.size());
+    vector<vector<yolo::Box>> res;
     for (int i = 0; i < objs.size(); ++i) {
-        res.push_back(objs[i].get());
+        res.emplace_back(objs[i].get());
     }
     timer.stop("batch 12");
     return res;
 }
 
-// int main() {
-//     Config config;
-//     initBatchAsync(config.MODEL, 0.45, 0.5, 3);
+int main() {
+    Config config;
+    initBatchAsync(config.MODEL, 0.25, 0.7, 12);
 
-//    vector<cv::Mat> images{
-//            cv::imread(config.TEST_IMG),
-//            cv::imread(config.TEST_IMG),
-//            cv::imread(config.TEST_IMG)
-//    };
-//
-//    vector<yolo::BoxArray> list = inferBatchAsync(images);
-//
-//    std::for_each(list.begin(), list.end(), [&](const auto &item) {
-//        for (const auto &obj: item) {
-//            cout << "class_label: " << obj.class_label
-//                 << " caption: " << obj.confidence
-//                 << " (L T R B): (" << obj.left
-//                 << ", " << obj.top << ", "
-//                 << obj.right << ", "
-//                 << obj.bottom << ")" << endl;
+    vector<cv::Mat> images{
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+            cv::imread(config.TEST_IMG),
+    };
+
+
+    while (true) {
+        vector<vector<yolo::Box>> batched_result = inferBatchAsync(images);
+//        for (int ib = 0; ib < (int) batched_result.size(); ++ib) {
+//            auto &objs = batched_result[ib];
+//            for (auto &obj: objs) {
+//                auto name = config.cocolabels[obj.class_label];
+//                auto caption = cv::format("%s %.2f", name, obj.confidence);
+//                cout << "class_label: " << name << " confidence: " << caption << " (L T R B): (" << obj.left << ", "
+//                     << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
+//            }
+//            printf("all: %d objects\n", (int) objs.size());
 //        }
-//    })
+    }
 
-// }
+    return 0;
 
-//extern "C" __declspec(dllexport) bool
-//TensorRT_INIT_ASYNC(const char *engine_file, const float confidence, const float nms, const int batch) {
-//    return initBatchAsync(engine_file, confidence, nms, batch);
-//}
+}
 
-//static std::vector<yolo::Box> g_boxes;
-
-//extern "C" __declspec(dllexport) int
-//TensorRT_INFER_NUM_ASYNC(uchar *image, int width, int height) {
-//    g_boxes = inferBatchAsync(image, width, height);
-//    return g_boxes.size();
-//}
-//
-//extern "C" __declspec(dllexport) int
-//GET_LISTBOX_DATA(int boxLabel,
-//                 float *left,
-//                 float *top,
-//                 float *right,
-//                 float *bottom,
-//                 float *confidence,
-//                 int *classLabel) {
-//    if (boxLabel < 0 || boxLabel >= g_boxes.size()) {
-//        return -1;
-//    }
-//    const yolo::Box &box = g_boxes[boxLabel];
-//    *left = box.left;
-//    *top = box.top;
-//    *right = box.right;
-//    *bottom = box.bottom;
-//    *confidence = box.confidence;
-//    *classLabel = box.class_label;
-//    return 0;
-//}
-//
-//extern "C" __declspec(dllexport) void
-//END_GET_LISTBOX_DATA() {
-//    g_boxes.clear();
-//}

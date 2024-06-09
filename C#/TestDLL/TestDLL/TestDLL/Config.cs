@@ -15,9 +15,38 @@ public struct Box
 
 public class Config
 {
-    public const string YOLODLL = @"D:\dev\code\CLion\tensorrt\cmake-build-release\yolo.dll";
-    public const string MODEL = @"D:\dev\code\CLion\tensorrt\workspace\model\engine\new_class_best.engine";
-    public const string IMAGE_SRC = @"D:\dev\code\CLion\tensorrt\workspace\images\d_0000138_2024-06-05-14-02-42_c08.jpg";
+    public const string YOLODLL = @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\cmake-build-release\yolo.dll";
+
+    public const string MODEL =
+        @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\model\engine\yolov8s.transd.engine";
+
+    public const string IMAGE_SRC =
+        @"D:\autumn\Documents\JetBrainsProjects\CLion\tensorrt\workspace\images\test_bl.jpg";
+
     public const float CONFIDENCE = (float)0.25;
     public const float NMS = (float)0.7;
+}
+
+public class Utils
+{
+    public static byte[] ReadImageToBytes(string imagePath)
+    {
+        if (!File.Exists(imagePath))
+        {
+            throw new FileNotFoundException("Image file not found.", imagePath);
+        }
+
+        byte[] imageBytes;
+        try
+        {
+            imageBytes = File.ReadAllBytes(imagePath);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred while reading the image: {ex.Message}");
+            throw;
+        }
+
+        return imageBytes;
+    }
 }

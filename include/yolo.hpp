@@ -28,7 +28,7 @@ namespace yolo {
     struct Box {
         float left, top, right, bottom, confidence;
         int class_label;
-        std::shared_ptr<InstanceSegmentMap> seg; // valid only in segment task
+//        std::shared_ptr<InstanceSegmentMap> seg; // valid only in segment task
 
         Box() = default;
 

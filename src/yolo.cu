@@ -626,50 +626,50 @@ class InferImpl : public Infer {
         int keepflag = pbox[6];
         if (keepflag == 1) {
           Box result_object_box(pbox[0], pbox[1], pbox[2], pbox[3], pbox[4], label);
-          if (has_segment_) {
-            int row_index = pbox[7];
-            int mask_dim = segment_head_dims_[1];
-            float *mask_weights = bbox_output_device +
-                                  (ib * bbox_head_dims_[1] + row_index) * bbox_head_dims_[2] +
-                                  num_classes_ + 4;
-
-            float *mask_head_predict = segment_predict_.gpu();
-            float left, top, right, bottom;
-            float *i2d = affine_matrixs[ib].i2d;
-            affine_project(i2d, pbox[0], pbox[1], &left, &top);
-            affine_project(i2d, pbox[2], pbox[3], &right, &bottom);
-
-            float box_width = right - left;
-            float box_height = bottom - top;
-
-            float scale_to_predict_x = segment_head_dims_[3] / (float)network_input_width_;
-            float scale_to_predict_y = segment_head_dims_[2] / (float)network_input_height_;
-            int mask_out_width = box_width * scale_to_predict_x + 0.5f;
-            int mask_out_height = box_height * scale_to_predict_y + 0.5f;
-
-            if (mask_out_width > 0 && mask_out_height > 0) {
-              if (imemory >= (int)box_segment_cache_.size()) {
-                box_segment_cache_.push_back(std::make_shared<trt::Memory<unsigned char>>());
-              }
-
-              int bytes_of_mask_out = mask_out_width * mask_out_height;
-              auto box_segment_output_memory = box_segment_cache_[imemory];
-              result_object_box.seg =
-                  make_shared<InstanceSegmentMap>(mask_out_width, mask_out_height);
-
-              unsigned char *mask_out_device = box_segment_output_memory->gpu(bytes_of_mask_out);
-              unsigned char *mask_out_host = result_object_box.seg->data;
-              decode_single_mask(left * scale_to_predict_x, top * scale_to_predict_y, mask_weights,
-                                 mask_head_predict + ib * segment_head_dims_[1] *
-                                                         segment_head_dims_[2] *
-                                                         segment_head_dims_[3],
-                                 segment_head_dims_[3], segment_head_dims_[2], mask_out_device,
-                                 mask_dim, mask_out_width, mask_out_height, stream_);
-              checkRuntime(cudaMemcpyAsync(mask_out_host, mask_out_device,
-                                           box_segment_output_memory->gpu_bytes(),
-                                           cudaMemcpyDeviceToHost, stream_));
-            }
-          }
+//          if (has_segment_) {
+//            int row_index = pbox[7];
+//            int mask_dim = segment_head_dims_[1];
+//            float *mask_weights = bbox_output_device +
+//                                  (ib * bbox_head_dims_[1] + row_index) * bbox_head_dims_[2] +
+//                                  num_classes_ + 4;
+//
+//            float *mask_head_predict = segment_predict_.gpu();
+//            float left, top, right, bottom;
+//            float *i2d = affine_matrixs[ib].i2d;
+//            affine_project(i2d, pbox[0], pbox[1], &left, &top);
+//            affine_project(i2d, pbox[2], pbox[3], &right, &bottom);
+//
+//            float box_width = right - left;
+//            float box_height = bottom - top;
+//
+//            float scale_to_predict_x = segment_head_dims_[3] / (float)network_input_width_;
+//            float scale_to_predict_y = segment_head_dims_[2] / (float)network_input_height_;
+//            int mask_out_width = box_width * scale_to_predict_x + 0.5f;
+//            int mask_out_height = box_height * scale_to_predict_y + 0.5f;
+//
+//            if (mask_out_width > 0 && mask_out_height > 0) {
+//              if (imemory >= (int)box_segment_cache_.size()) {
+//                box_segment_cache_.push_back(std::make_shared<trt::Memory<unsigned char>>());
+//              }
+//
+//              int bytes_of_mask_out = mask_out_width * mask_out_height;
+//              auto box_segment_output_memory = box_segment_cache_[imemory];
+//              result_object_box.seg =
+//                  make_shared<InstanceSegmentMap>(mask_out_width, mask_out_height);
+//
+//              unsigned char *mask_out_device = box_segment_output_memory->gpu(bytes_of_mask_out);
+//              unsigned char *mask_out_host = result_object_box.seg->data;
+//              decode_single_mask(left * scale_to_predict_x, top * scale_to_predict_y, mask_weights,
+//                                 mask_head_predict + ib * segment_head_dims_[1] *
+//                                                         segment_head_dims_[2] *
+//                                                         segment_head_dims_[3],
+//                                 segment_head_dims_[3], segment_head_dims_[2], mask_out_device,
+//                                 mask_dim, mask_out_width, mask_out_height, stream_);
+//              checkRuntime(cudaMemcpyAsync(mask_out_host, mask_out_device,
+//                                           box_segment_output_memory->gpu_bytes(),
+//                                           cudaMemcpyDeviceToHost, stream_));
+//            }
+//          }
           output.emplace_back(result_object_box);
         }
       }

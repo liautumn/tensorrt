@@ -3,7 +3,7 @@ using ConsoleApp1;
 using OpenCvSharp;
 
 
-class ProgramAsync
+class OneTest
 {
     [DllImport(Config.YOLODLL, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool TensorRT_INIT_ASYNC([MarshalAs(UnmanagedType.LPStr)] string engine_file, float confidence,
@@ -27,28 +27,7 @@ class ProgramAsync
     public static extern void END_GET_LISTBOX_DATA();
 
 
-    static byte[] ReadImageToBytes(string imagePath)
-    {
-        if (!File.Exists(imagePath))
-        {
-            throw new FileNotFoundException("Image file not found.", imagePath);
-        }
-
-        byte[] imageBytes;
-        try
-        {
-            imageBytes = File.ReadAllBytes(imagePath);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred while reading the image: {ex.Message}");
-            throw;
-        }
-
-        return imageBytes;
-    }
-
-    static void Main()
+    static void Main1()
     {
         bool ok = TensorRT_INIT_ASYNC(Config.MODEL, Config.CONFIDENCE, Config.NMS);
         if (!ok)
@@ -56,7 +35,7 @@ class ProgramAsync
             return;
         }
 
-        byte[] bytes = ReadImageToBytes(Config.IMAGE_SRC);
+        byte[] bytes = Utils.ReadImageToBytes(Config.IMAGE_SRC);
 
         Mat imRead = Cv2.ImDecode(bytes, ImreadModes.Color);
 
