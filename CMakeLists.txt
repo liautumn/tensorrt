@@ -38,14 +38,11 @@ set(LIBS
 )
 
 #add_library(${PROJECT_NAME} SHARED
-#        include/cpm.hpp
+#        include/cpm.h
+#        include/yolo.h
+#        include/infer.h
 #        src/infer.cu
-#        include/infer.hpp
 #        src/yolo.cu
-#        include/yolo.hpp
-#        src/demo/main.cpp
-#        src/demo/config.cpp
-#        src/demo/barchDemo.cpp
 #        src/export/exportOnceSync.cpp
 #        src/export/exportOnceAsync_old.cpp
 #        src/export/exportBatch.cpp
@@ -53,13 +50,13 @@ set(LIBS
 #)
 
 add_executable(${PROJECT_NAME}
-        include/cpm.hpp
+        include/cpm.h
+        include/yolo.h
+        include/infer.h
         src/infer.cu
-        include/infer.hpp
         src/yolo.cu
-        include/yolo.hpp
+        src/demo/config.h
         src/demo/main.cpp
-        src/demo/config.cpp
         src/demo/barchDemo.cpp
         src/export/exportOnceSync.cpp
         src/export/exportOnceAsync_old.cpp

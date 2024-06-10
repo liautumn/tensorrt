@@ -1,5 +1,5 @@
-#include "infer.hpp"
-#include "yolo.hpp"
+#include "infer.h"
+#include "yolo.h"
 
 namespace yolo {
 

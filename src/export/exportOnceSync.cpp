@@ -1,6 +1,6 @@
 #include <opencv2/opencv.hpp>
-#include "infer.hpp"
-#include "yolo.hpp"
+#include "infer.h"
+#include "yolo.h"
 
 using namespace std;
 

@@ -1,8 +1,8 @@
 #include <opencv2/opencv.hpp>
-#include "infer.hpp"
-#include "cpm.hpp"
-#include "yolo.hpp"
-#include "config.cpp"
+#include "infer.h"
+#include "cpm.h"
+#include "yolo.h"
+#include "config.h"
 
 using namespace std;
 
@@ -53,16 +53,16 @@ vector<vector<yolo::Box>> inferBatchAsync(const vector<cv::Mat> &mats) {
 //
 //    while (true) {
 //        vector<vector<yolo::Box>> batched_result = inferBatchAsync(images);
-////        for (int ib = 0; ib < (int) batched_result.size(); ++ib) {
-////            auto &objs = batched_result[ib];
-////            for (auto &obj: objs) {
-////                auto name = config.cocolabels[obj.class_label];
-////                auto caption = cv::format("%s %.2f", name, obj.confidence);
-////                cout << "class_label: " << name << " confidence: " << caption << " (L T R B): (" << obj.left << ", "
-////                     << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
-////            }
-////            printf("all: %d objects\n", (int) objs.size());
-////        }
+//        for (int ib = 0; ib < (int) batched_result.size(); ++ib) {
+//            auto &objs = batched_result[ib];
+//            for (auto &obj: objs) {
+//                auto name = config.cocolabels[obj.class_label];
+//                auto caption = cv::format("%s %.2f", name, obj.confidence);
+//                cout << "class_label: " << name << " confidence: " << caption << " (L T R B): (" << obj.left << ", "
+//                     << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
+//            }
+//            printf("all: %d objects\n", (int) objs.size());
+//        }
 //    }
 //
 //    return 0;

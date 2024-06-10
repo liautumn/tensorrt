@@ -1,8 +1,8 @@
 #include <opencv2/opencv.hpp>
-#include "cpm.hpp"
-#include "infer.hpp"
-#include "yolo.hpp"
-#include "config.cpp"
+#include "cpm.h"
+#include "infer.h"
+#include "yolo.h"
+#include "config.h"
 
 using namespace std;
 
@@ -22,7 +22,6 @@ void batch_inference() {
     vector<yolo::Image> yoloimages(images.size());
     transform(images.begin(), images.end(), yoloimages.begin(), cvimg);
     auto batched_result = yolo->forwards(yoloimages);
-    cout << "size: " << batched_result.size() << endl;
     for (int ib = 0; ib < (int) batched_result.size(); ++ib) {
         auto &objs = batched_result[ib];
         auto &image = images[ib];
@@ -112,18 +111,66 @@ void asyncInfer() {
     while (true) {
         timer.start();
         const auto objs = cpmi.commit(image).get();
-//        for (auto &obj: objs) {
-//            const auto name = obj.class_label;
-//            cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R B): (" << obj.left << ", "
-//                 << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
-//        }
+        for (auto &obj: objs) {
+            const auto name = obj.class_label;
+            cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R B): (" << obj.left << ", "
+                 << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
+        }
         timer.stop("batch 1");
     }
 }
 
+void asyncInferVedio() {
+    Config config;
+    cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
+
+    bool ok = cpmi.start([config] {
+        return yolo::load(config.MODEL, yolo::Type::V8, 0.25, 0.7);
+    });
+    if (!ok) return;
+
+    cv::VideoCapture cap(0);  // 打开默认摄像头
+    if (!cap.isOpened()) {
+        std::cerr << "ERROR: Unable to open the camera" << std::endl;
+        return;
+    }
+    cv::Mat frame;
+    trt::Timer timer;
+    while (true) {
+        cap >> frame;  // 从摄像头读取新的帧
+        if (frame.empty()) {
+            std::cerr << "ERROR: Couldn't grab a frame" << std::endl;
+            break;
+        }
+        const auto image = yolo::Image(frame.data, frame.cols, frame.rows);
+        timer.start();
+        const auto objs = cpmi.commit(image).get();
+        timer.stop("batch 1");
+        for (auto &obj: objs) {
+            uint8_t b, g, r;
+            tie(b, g, r) = yolo::random_color(obj.class_label);
+            cv::rectangle(frame, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
+                          cv::Scalar(b, g, r), 5);
+
+            auto name = config.cocolabels[obj.class_label];
+            auto caption = cv::format("%s %.2f", name, obj.confidence);
+            int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+            cv::rectangle(frame, cv::Point(obj.left - 3, obj.top - 33),
+                          cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
+            cv::putText(frame, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2,
+                        16);
+        }
+        cv::imshow("yolov8", frame);  // 显示帧
+        if (cv::waitKey(1) == 27) break;  // 按 'ESC' 键退出
+    }
+    cap.release();  // 关闭摄像头
+    cv::destroyAllWindows();  // 关闭所有OpenCV窗口
+}
+
 int main() {
+    asyncInferVedio();
 //    syncInfer();
-    asyncInfer();
+//    asyncInfer();
 //    batch_inference();
     return 0;
 }

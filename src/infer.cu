@@ -8,7 +8,7 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "infer.hpp"
+#include "infer.h"
 
 namespace trt {
 
