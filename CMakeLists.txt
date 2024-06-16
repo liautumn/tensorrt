@@ -7,22 +7,23 @@ set(CMAKE_CUDA_STANDARD 17)
 # 定义头文件目录
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-# 查找 OpenCV 库
-set(OpenCV_DIR "D:/cuda/opencv/build")
+set(OpenCV_DIR D:/cuda/opencv/build)
 find_package(OpenCV REQUIRED)
+set(TensorRT_DIR D:/cuda/TensorRT-8.6.1.6)
+set(CUDA_DIR C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.1)
 
 # 设置包含路径
 include_directories(
         ${OpenCV_INCLUDE_DIRS}
-        "D:/cuda/TensorRT-8.6.1.6/include"
-        "D:/cuda/TensorRT-8.6.1.6/samples/common"
-        "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.1/include"
+        ${TensorRT_DIR}/include
+        ${TensorRT_DIR}/samples/common
+        ${CUDA_DIR}/include
 )
 
 # 设置库路径
 link_directories(
-        "D:/cuda/TensorRT-8.6.1.6/lib"
-        "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.1/lib/x64"
+        ${TensorRT_DIR}/lib
+        ${CUDA_DIR}/lib/x64
 )
 
 # 定义链接的库
