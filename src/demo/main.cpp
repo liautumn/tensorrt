@@ -1,10 +1,12 @@
 #include <opencv2/opencv.hpp>
+#include <filesystem>
 #include "cpm.h"
 #include "infer.h"
 #include "yolo.h"
 #include "config.h"
 
 using namespace std;
+namespace fs = std::filesystem;
 
 yolo::Image cvimg(const cv::Mat &image) { return yolo::Image(image.data, image.cols, image.rows); }
 
@@ -76,21 +78,76 @@ void batch_inference() {
 //    cv::imwrite("Result.jpg", image);
 //}
 
+std::vector<std::string> get_image_paths(const std::string &directory) {
+    std::vector<std::string> image_paths;
+
+    try {
+        for (const auto &entry: fs::directory_iterator(directory)) {
+            if (entry.is_regular_file()) {
+                std::string path = entry.path().string();
+                // Add additional checks here if you want to filter specific image formats
+                image_paths.push_back(path);
+            }
+        }
+    } catch (const std::filesystem::filesystem_error &e) {
+        std::cerr << "Error reading directory: " << e.what() << std::endl;
+    }
+
+    return image_paths;
+}
+
+
 void syncInfer() {
     Config config;
+
     auto yolo = yolo::load(config.MODEL,
-                           yolo::Type::V8);
+                           yolo::Type::V8, 0.2, 0.1);
     if (yolo == nullptr) return;
 
-    cv::Mat mat = cv::imread(config.TEST_IMG);
-    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-
+    std::string directory = R"(D:\autumn\Pictures\9\9)";
+    std::vector<std::string> images = get_image_paths(directory);
     trt::Timer timer;
-    while (true) {
+
+    // 创建一个窗口
+    std::string windowName = "Image Window";
+    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
+
+    // 调整窗口大小
+    int width_ = 1024;  // 设置窗口宽度
+    int height = 640; // 设置窗口高度
+    cv::resizeWindow(windowName, width_, height);
+
+    for (const auto &item: images) {
+        cv::Mat mat = cv::imread(item);
+        auto image = yolo::Image(mat.data, mat.cols, mat.rows);
+
         timer.start();
         auto objs = yolo->forward(image);
         timer.stop("batch one");
+        for (auto &obj: objs) {
+            cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
+                 << ", "
+                 << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
+
+            uint8_t b, g, r;
+
+            tie(b, g, r) = yolo::random_color(obj.class_label);
+            cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
+                          cv::Scalar(b, g, r), 5);
+
+            auto name = config.cocolabels[obj.class_label];
+            auto caption = cv::format("%s %.2f", name, obj.confidence);
+            int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+            cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33),
+                          cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
+            cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2,
+                        16);
+
+        }
+        cv::imshow(windowName, mat);  // 显示帧
+        cv::waitKey(0);
     }
+
 }
 
 void asyncInfer() {
