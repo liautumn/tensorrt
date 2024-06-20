@@ -86,11 +86,10 @@ void syncInfer() {
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
 
     trt::Timer timer;
-
     while (true) {
         timer.start();
         auto objs = yolo->forward(image);
-        timer.stop("batch 1");
+        timer.stop("batch one");
     }
 }
 
@@ -111,12 +110,12 @@ void asyncInfer() {
     while (true) {
         timer.start();
         const auto objs = cpmi.commit(image).get();
-        for (auto &obj: objs) {
-            const auto name = obj.class_label;
-            cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R B): (" << obj.left << ", "
-                 << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
-        }
-        timer.stop("batch 1");
+//        for (auto &obj: objs) {
+//            const auto name = obj.class_label;
+//            cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R B): (" << obj.left << ", "
+//                 << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
+//        }
+        timer.stop("batch one");
     }
 }
 
@@ -125,7 +124,7 @@ void asyncInferVedio() {
     cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
     bool ok = cpmi.start([config] {
-        return yolo::load(config.MODEL, yolo::Type::V8, 0.25, 0.7);
+        return yolo::load(config.MODEL, yolo::Type::V8, 0.02, 0.7);
     });
     if (!ok) return;
 
@@ -168,8 +167,8 @@ void asyncInferVedio() {
 }
 
 int main() {
-    asyncInferVedio();
-//    syncInfer();
+//    asyncInferVedio();
+    syncInfer();
 //    asyncInfer();
 //    batch_inference();
     return 0;
