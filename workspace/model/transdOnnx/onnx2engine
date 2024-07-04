@@ -1,4 +1,4 @@
-D:\cuda\TensorRT-8.6.1.6\bin\trtexec.exe --onnx=D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\transdOnnx\yolov8s.transd.onnx --saveEngine=D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\yolov8s.engine --fp16 --useCudaGraph --noTF32 --best
+D:\cuda\TensorRT-8.6.1.6\bin\trtexec.exe --onnx=D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\transdOnnx\yolov8s.transd.onnx --saveEngine=D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\yolov8s.engine --fp16 --useCudaGraph
 
 --minShapes=images:1x3x640x1024 --maxShapes=images:12x3x640x1024 --optShapes=images:1x3x640x1024
 

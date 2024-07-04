@@ -7,7 +7,7 @@ model = YOLO('yolov8s.pt')  # load an official model
 # ONNX ===> imgsz(h,w), half, dynamic, simplify, opset, batch
 model.export(
     format='onnx',
-    imgsz=(640, 640),
+    imgsz=(1024, 1024),
     half=True,
     dynamic=False,
     simplify=True,

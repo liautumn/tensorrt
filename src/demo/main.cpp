@@ -181,7 +181,7 @@ void asyncInferVedio() {
     cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
     bool ok = cpmi.start([config] {
-        return yolo::load(config.MODEL, yolo::Type::V8, 0.02, 0.7);
+        return yolo::load(config.MODEL, yolo::Type::V8, 0.2, 0.5);
     });
     if (!ok) return;
 
@@ -224,8 +224,8 @@ void asyncInferVedio() {
 }
 
 int main() {
-//    asyncInferVedio();
-    syncInfer();
+    asyncInferVedio();
+//    syncInfer();`
 //    asyncInfer();
 //    batch_inference();
     return 0;
