@@ -192,7 +192,19 @@ void asyncInferVedio() {
     }
     cv::Mat frame;
     trt::Timer timer;
+
+    vector <cv::Rect> bboxes;
+    vector<float> scores;
+    vector<int> labels;
+    vector<int> indices;
+
     while (true) {
+
+        bboxes.clear();
+        scores.clear();
+        labels.clear();
+        indices.clear();
+
         cap >> frame;  // 从摄像头读取新的帧
         if (frame.empty()) {
             std::cerr << "ERROR: Couldn't grab a frame" << std::endl;
@@ -201,19 +213,40 @@ void asyncInferVedio() {
         const auto image = yolo::Image(frame.data, frame.cols, frame.rows);
         timer.start();
         const auto objs = cpmi.commit(image).get();
+
+        for (const auto &item: objs){
+            cv::Rect_<float> bbox;
+            bbox.x = item.left;
+            bbox.y = item.top;
+            bbox.width = item.right-item.left;
+            bbox.height = item.bottom - item.top;
+            bboxes.push_back(bbox);
+
+            labels.push_back(item.class_label);
+            scores.push_back(item.confidence);
+        }
+
+        cv::dnn::NMSBoxes(bboxes, scores, 0.3, 0.1, indices);
         timer.stop("batch 1");
-        for (auto &obj: objs) {
+
+        for (auto &i: indices) {
+
+            double left = bboxes[i].x;
+            double top = bboxes[i].y;
+            double right = bboxes[i].x + bboxes[i].width;
+            double bottom = bboxes[i].y + bboxes[i].height;
+
             uint8_t b, g, r;
-            tie(b, g, r) = yolo::random_color(obj.class_label);
-            cv::rectangle(frame, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
+            tie(b, g, r) = yolo::random_color(labels[i]);
+            cv::rectangle(frame, cv::Point(left, top), cv::Point(right, bottom),
                           cv::Scalar(b, g, r), 5);
 
-            auto name = config.cocolabels[obj.class_label];
-            auto caption = cv::format("%s %.2f", name, obj.confidence);
+            auto name = config.cocolabels[labels[i]];
+            auto caption = cv::format("%s %.2f", name, scores[i]);
             int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-            cv::rectangle(frame, cv::Point(obj.left - 3, obj.top - 33),
-                          cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
-            cv::putText(frame, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2,
+            cv::rectangle(frame, cv::Point(left - 3, top - 33),
+                          cv::Point(left + width, top), cv::Scalar(b, g, r), -1);
+            cv::putText(frame, caption, cv::Point(left, top - 5), 0, 1, cv::Scalar::all(0), 2,
                         16);
         }
         cv::imshow("yolov8", frame);  // 显示帧
@@ -224,9 +257,9 @@ void asyncInferVedio() {
 }
 
 int main() {
-    asyncInferVedio();
+//    asyncInferVedio();
 //    syncInfer();`
-//    asyncInfer();
+    asyncInfer();
 //    batch_inference();
     return 0;
 }
