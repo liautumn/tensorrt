@@ -99,13 +99,10 @@ std::vector<std::string> get_image_paths(const std::string &directory) {
 
 void syncInfer() {
     Config config;
-
     auto yolo = yolo::load(config.MODEL,
-                           yolo::Type::V8, 0.2, 0.1);
+                           yolo::Type::V8, 0.2, 0.45);
     if (yolo == nullptr) return;
 
-    std::string directory = R"(D:\autumn\Pictures\9\9)";
-    std::vector<std::string> images = get_image_paths(directory);
     trt::Timer timer;
 
     // 创建一个窗口
@@ -117,36 +114,84 @@ void syncInfer() {
     int height = 640; // 设置窗口高度
     cv::resizeWindow(windowName, width_, height);
 
-    for (const auto &item: images) {
-        cv::Mat mat = cv::imread(item);
-        auto image = yolo::Image(mat.data, mat.cols, mat.rows);
+    cv::Mat mat = cv::imread(config.TEST_IMG);
+    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
 
-        timer.start();
-        auto objs = yolo->forward(image);
-        timer.stop("batch one");
-        for (auto &obj: objs) {
-            cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
-                 << ", "
-                 << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
+    timer.start();
+    auto objs = yolo->forward(image);
 
-            uint8_t b, g, r;
+    vector<cv::Rect> bboxes;
+    vector<float> scores;
+    vector<int> labels;
+    vector<int> indices;
 
-            tie(b, g, r) = yolo::random_color(obj.class_label);
-            cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
-                          cv::Scalar(b, g, r), 5);
+    for (const auto &item: objs) {
 
-            auto name = config.cocolabels[obj.class_label];
-            auto caption = cv::format("%s %.2f", name, obj.confidence);
-            int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-            cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33),
-                          cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
-            cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2,
-                        16);
+        cout << "class_label: " << item.class_label << " caption: " << item.confidence << " (L T R B): (" << item.left
+             << ", "
+             << item.top << ", " << item.right << ", " << item.bottom << ")" << endl;
 
-        }
-        cv::imshow(windowName, mat);  // 显示帧
-        cv::waitKey(0);
+        cv::Rect_<float> bbox;
+        bbox.x = item.left;
+        bbox.y = item.top;
+        bbox.width = item.right - item.left;
+        bbox.height = item.bottom - item.top;
+        bboxes.push_back(bbox);
+
+        labels.push_back(item.class_label);
+        scores.push_back(item.confidence);
     }
+
+    cv::dnn::NMSBoxes(bboxes, scores, 0.2, 0.45, indices);
+
+    timer.stop("batch one");
+
+    for (auto &i: indices) {
+
+        double left = bboxes[i].x;
+        double top = bboxes[i].y;
+        double right = bboxes[i].x + bboxes[i].width;
+        double bottom = bboxes[i].y + bboxes[i].height;
+
+        cout << "class_label==============: " << labels[i] << " caption: " << scores[i] << " (L T R B): (" << left
+             << ", "
+             << top << ", " << right << ", " << bottom << ")" << endl;
+
+        uint8_t b, g, r;
+        tie(b, g, r) = yolo::random_color(labels[i]);
+        cv::rectangle(mat, cv::Point(left, top), cv::Point(right, bottom),
+                      cv::Scalar(b, g, r), 5);
+
+        auto name = config.cocolabels[labels[i]];
+        auto caption = cv::format("%s %.2f", name, scores[i]);
+        int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+        cv::rectangle(mat, cv::Point(left - 3, top - 33),
+                      cv::Point(left + width, top), cv::Scalar(b, g, r), -1);
+        cv::putText(mat, caption, cv::Point(left, top - 5), 0, 1, cv::Scalar::all(0), 2,
+                    16);
+    }
+//    for (auto &obj: objs) {
+//        cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
+//             << ", "
+//             << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
+//
+//        uint8_t b, g, r;
+//
+//        tie(b, g, r) = yolo::random_color(obj.class_label);
+//        cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
+//                      cv::Scalar(b, g, r), 5);
+//
+//        auto name = config.cocolabels[obj.class_label];
+//        auto caption = cv::format("%s %.2f", name, obj.confidence);
+//        int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+//        cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33),
+//                      cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
+//        cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2,
+//                    16);
+//
+//    }
+    cv::imshow(windowName, mat);  // 显示帧
+    cv::waitKey(0);
 
 }
 
@@ -164,16 +209,16 @@ void asyncInfer() {
 
     trt::Timer timer;
 
-    while (true) {
-        timer.start();
-        const auto objs = cpmi.commit(image).get();
-//        for (auto &obj: objs) {
-//            const auto name = obj.class_label;
-//            cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R B): (" << obj.left << ", "
-//                 << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
-//        }
-        timer.stop("batch one");
+//    while (true) {
+    timer.start();
+    const auto objs = cpmi.commit(image).get();
+    for (auto &obj: objs) {
+        const auto name = obj.class_label;
+        cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R B): (" << obj.left << ", "
+             << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
     }
+    timer.stop("batch one");
+//    }
 }
 
 void asyncInferVedio() {
@@ -193,7 +238,7 @@ void asyncInferVedio() {
     cv::Mat frame;
     trt::Timer timer;
 
-    vector <cv::Rect> bboxes;
+    vector<cv::Rect> bboxes;
     vector<float> scores;
     vector<int> labels;
     vector<int> indices;
@@ -214,11 +259,11 @@ void asyncInferVedio() {
         timer.start();
         const auto objs = cpmi.commit(image).get();
 
-        for (const auto &item: objs){
+        for (const auto &item: objs) {
             cv::Rect_<float> bbox;
             bbox.x = item.left;
             bbox.y = item.top;
-            bbox.width = item.right-item.left;
+            bbox.width = item.right - item.left;
             bbox.height = item.bottom - item.top;
             bboxes.push_back(bbox);
 
@@ -258,8 +303,8 @@ void asyncInferVedio() {
 
 int main() {
 //    asyncInferVedio();
-//    syncInfer();`
-    asyncInfer();
+    syncInfer();
+//    asyncInfer();
 //    batch_inference();
     return 0;
 }

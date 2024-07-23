@@ -195,6 +195,7 @@ static __global__ void fast_nms_kernel(float *bboxes, int MAX_IMAGE_BOXES, float
   for (int i = 0; i < count; ++i) {
     float *pitem = bboxes + 1 + i * NUM_BOX_ELEMENT;
     if (i == position || pcurrent[5] != pitem[5]) continue;
+//    if (i == position) continue;
 
     if (pitem[4] >= pcurrent[4]) {
       if (pitem[4] == pcurrent[4] && i < position) continue;
