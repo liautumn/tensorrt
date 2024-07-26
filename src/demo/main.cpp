@@ -103,6 +103,13 @@ void syncInfer() {
                            yolo::Type::V8, 0.2, 0.45);
     if (yolo == nullptr) return;
 
+    //预热
+    cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
+    auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
+    for (int i = 0; i < 10; ++i) {
+        auto objs = yolo->forward(yrImage);
+    }
+
     trt::Timer timer;
 
     // 创建一个窗口

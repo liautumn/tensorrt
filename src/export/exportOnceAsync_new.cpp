@@ -15,6 +15,13 @@ bool initAsyncNew(const string &engineFile, float confidence, float nms) {
         cout << "================================= TensorRT INIT FAIL =================================" << endl;
         return false;
     } else {
+        //Ô¤ÈÈ
+        cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
+        auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
+        for (int i = 0; i < 10; ++i) {
+            cpmi.commit(yrImage);
+        }
+        cout << "10 times of warm-up completed" << endl;
         cout << "================================= TensorRT INIT SUCCESS =================================" << endl;
         return true;
     }
