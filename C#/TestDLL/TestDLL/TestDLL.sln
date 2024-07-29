@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestDLL", "TestDLL\TestDLL.csproj", "{A17E9026-5F5A-4A69-984A-84CB46F88EDF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TensorRT", "TensorRT\TensorRT.csproj", "{6F50E4CC-F455-423C-8137-F5104EE63FE7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -8,9 +8,9 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{A17E9026-5F5A-4A69-984A-84CB46F88EDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A17E9026-5F5A-4A69-984A-84CB46F88EDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A17E9026-5F5A-4A69-984A-84CB46F88EDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A17E9026-5F5A-4A69-984A-84CB46F88EDF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F50E4CC-F455-423C-8137-F5104EE63FE7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F50E4CC-F455-423C-8137-F5104EE63FE7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F50E4CC-F455-423C-8137-F5104EE63FE7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F50E4CC-F455-423C-8137-F5104EE63FE7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

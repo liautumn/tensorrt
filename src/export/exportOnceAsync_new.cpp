@@ -19,7 +19,7 @@ bool initAsyncNew(const string &engineFile, float confidence, float nms) {
         cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
         auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
         for (int i = 0; i < 10; ++i) {
-            cpmi.commit(yrImage);
+            cpmi.commit(yrImage).get();
         }
         cout << "10 times of warm-up completed" << endl;
         cout << "================================= TensorRT INIT SUCCESS =================================" << endl;
@@ -48,4 +48,7 @@ extern "C" __declspec(dllexport) void TENSORRT_INFER_ASYNC_NEW(cv::Mat *mat, yol
     *result = new yolo::Box[boxes.size()];
     // 拷贝结果到分配的内存中
     std::copy(boxes.begin(), boxes.end(), *result);
+}
+extern "C" __declspec(dllexport) void TENSORRT_STOP_NEW() {
+    cpmi.stop();
 }
