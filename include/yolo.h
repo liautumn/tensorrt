@@ -15,17 +15,17 @@ namespace yolo {
         V3 = 2,
         V7 = 3,
         V8 = 5,
-        V8Seg = 6 // yolov8 instance segmentation
+//        V8Seg = 6 // yolov8 instance segmentation
     };
 
-    struct InstanceSegmentMap {
-        int width = 0, height = 0; // width % 8 == 0
-        unsigned char *data = nullptr; // is width * height memory
-
-        InstanceSegmentMap(int width, int height);
-
-        virtual ~InstanceSegmentMap();
-    };
+//    struct InstanceSegmentMap {
+//        int width = 0, height = 0; // width % 8 == 0
+//        unsigned char *data = nullptr; // is width * height memory
+//
+//        InstanceSegmentMap(int width, int height);
+//
+//        virtual ~InstanceSegmentMap();
+//    };
 
     struct Box {
         float left, top, right, bottom, confidence;

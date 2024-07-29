@@ -211,13 +211,16 @@ void asyncInfer() {
     });
     if (!ok) return;
 
+    cout << ok << endl;
+    cpmi.stop();
+
     const cv::Mat mat = cv::imread(config.TEST_IMG);
     const auto image = yolo::Image(mat.data, mat.cols, mat.rows);
 
     trt::Timer timer;
 
-//    while (true) {
     timer.start();
+
     const auto objs = cpmi.commit(image).get();
     for (auto &obj: objs) {
         const auto name = obj.class_label;
@@ -225,7 +228,6 @@ void asyncInfer() {
              << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
     }
     timer.stop("batch one");
-//    }
 }
 
 void asyncInferVedio() {

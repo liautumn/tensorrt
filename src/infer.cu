@@ -208,15 +208,15 @@ class __native_nvinfer_logger : public ILogger {
     } else if (severity == Severity::kERROR) {
       INFO("NVInfer: %s", msg);
     }
-    // else  if (severity == Severity::kWARNING) {
-    //     INFO("NVInfer: %s", msg);
-    // }
-    // else  if (severity == Severity::kINFO) {
-    //     INFO("NVInfer: %s", msg);
-    // }
-    // else {
-    //     INFO("%s", msg);
-    // }
+//     else  if (severity == Severity::kWARNING) {
+//         INFO("NVInfer: %s", msg);
+//     }
+//     else  if (severity == Severity::kINFO) {
+//         INFO("NVInfer: %s", msg);
+//     }
+//     else {
+//         INFO("%s", msg);
+//     }
   }
 };
 static __native_nvinfer_logger gLogger;
@@ -265,8 +265,9 @@ class __native_engine_context {
     return context_ != nullptr;
   }
 
- private:
+private:
   void destroy() {
+    INFO("----------------------TensorRT Destroy----------------------");
     context_.reset();
     engine_.reset();
     runtime_.reset();
@@ -441,4 +442,5 @@ std::string format_shape(const std::vector<int> &shape) {
   }
   return output.str();
 }
+
 };  // namespace trt

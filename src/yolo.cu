@@ -227,7 +227,8 @@ static void decode_kernel_invoker(float *predict, int num_bboxes, int num_classe
   auto grid = grid_dims(num_bboxes);
   auto block = block_dims(num_bboxes);
 
-  if (type == Type::V8 || type == Type::V8Seg) {
+//  if (type == Type::V8 || type == Type::V8Seg) {
+  if (type == Type::V8) {
     checkKernel(decode_kernel_v8<<<grid, block, 0, stream>>>(
         predict, num_bboxes, num_classes, output_cdim, confidence_threshold, invert_affine_matrix,
         parray, MAX_IMAGE_BOXES));
@@ -424,20 +425,20 @@ struct AffineMatrix {
   }
 };
 
-InstanceSegmentMap::InstanceSegmentMap(int width, int height) {
-  this->width = width;
-  this->height = height;
-  checkRuntime(cudaMallocHost(&this->data, width * height));
-}
+//InstanceSegmentMap::InstanceSegmentMap(int width, int height) {
+//  this->width = width;
+//  this->height = height;
+//  checkRuntime(cudaMallocHost(&this->data, width * height));
+//}
 
-InstanceSegmentMap::~InstanceSegmentMap() {
-  if (this->data) {
-    checkRuntime(cudaFreeHost(this->data));
-    this->data = nullptr;
-  }
-  this->width = 0;
-  this->height = 0;
-}
+//InstanceSegmentMap::~InstanceSegmentMap() {
+//  if (this->data) {
+//    checkRuntime(cudaFreeHost(this->data));
+//    this->data = nullptr;
+//  }
+//  this->width = 0;
+//  this->height = 0;
+//}
 
 class InferImpl : public Infer {
  public:
@@ -448,15 +449,15 @@ class InferImpl : public Infer {
   float nms_threshold_;
   vector<shared_ptr<trt::Memory<unsigned char>>> preprocess_buffers_;
   trt::Memory<float> input_buffer_, bbox_predict_, output_boxarray_;
-  trt::Memory<float> segment_predict_;
+//  trt::Memory<float> segment_predict_;
   int network_input_width_, network_input_height_;
   Norm normalize_;
   vector<int> bbox_head_dims_;
-  vector<int> segment_head_dims_;
+//  vector<int> segment_head_dims_;
   int num_classes_ = 0;
-  bool has_segment_ = false;
+//  bool has_segment_ = false;
   bool isdynamic_model_ = false;
-  vector<shared_ptr<trt::Memory<unsigned char>>> box_segment_cache_;
+//  vector<shared_ptr<trt::Memory<unsigned char>>> box_segment_cache_;
 
   virtual ~InferImpl() = default;
 
@@ -468,9 +469,9 @@ class InferImpl : public Infer {
     output_boxarray_.gpu(batch_size * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT));
     output_boxarray_.cpu(batch_size * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT));
 
-    if (has_segment_)
-      segment_predict_.gpu(batch_size * segment_head_dims_[1] * segment_head_dims_[2] *
-                           segment_head_dims_[3]);
+//    if (has_segment_)
+//      segment_predict_.gpu(batch_size * segment_head_dims_[1] * segment_head_dims_[2] *
+//                           segment_head_dims_[3]);
 
     if ((int)preprocess_buffers_.size() < batch_size) {
       for (int i = preprocess_buffers_.size(); i < batch_size; ++i)
@@ -523,11 +524,11 @@ class InferImpl : public Infer {
 
     auto input_dim = trt_->static_dims(0);
     bbox_head_dims_ = trt_->static_dims(1);
-    has_segment_ = type == Type::V8Seg;
-    if (has_segment_) {
-      bbox_head_dims_ = trt_->static_dims(2);
-      segment_head_dims_ = trt_->static_dims(1);
-    }
+//    has_segment_ = type == Type::V8Seg;
+//    if (has_segment_) {
+//      bbox_head_dims_ = trt_->static_dims(2);
+//      segment_head_dims_ = trt_->static_dims(1);
+//    }
     network_input_width_ = input_dim[3];
     network_input_height_ = input_dim[2];
     isdynamic_model_ = trt_->has_dynamic_dim();
@@ -538,10 +539,12 @@ class InferImpl : public Infer {
     } else if (type == Type::V8) {
       normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
       num_classes_ = bbox_head_dims_[2] - 4;
-    } else if (type == Type::V8Seg) {
-      normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
-      num_classes_ = bbox_head_dims_[2] - 4 - segment_head_dims_[1];
-    } else if (type == Type::X) {
+    }
+//    else if (type == Type::V8Seg) {
+//      normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
+//      num_classes_ = bbox_head_dims_[2] - 4 - segment_head_dims_[1];
+//    }
+    else if (type == Type::X) {
       // float mean[] = {0.485, 0.456, 0.406};
       // float std[]  = {0.229, 0.224, 0.225};
       // normalize_ = Norm::mean_std(mean, std, 1/255.0f, ChannelType::SwapRB);
@@ -590,9 +593,9 @@ class InferImpl : public Infer {
     float *bbox_output_device = bbox_predict_.gpu();
     vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
 
-    if (has_segment_) {
-      bindings = {input_buffer_.gpu(), segment_predict_.gpu(), bbox_output_device};
-    }
+//    if (has_segment_) {
+//      bindings = {input_buffer_.gpu(), segment_predict_.gpu(), bbox_output_device};
+//    }
 
     if (!trt_->forward(bindings, stream)) {
       INFO("Failed to tensorRT forward.");
@@ -676,7 +679,7 @@ class InferImpl : public Infer {
       }
     }
 
-    if (has_segment_) checkRuntime(cudaStreamSynchronize(stream_));
+//    if (has_segment_) checkRuntime(cudaStreamSynchronize(stream_));
 
     return arrout;
   }

@@ -8,7 +8,7 @@ using namespace std;
 class Config {
 public:
     const string MODEL = R"(D:\autumn\Documents\WeChat Files\wxid_1w2acnt5bx6s22\FileStorage\File\2024-07\best_4.0_4090.engine)";
-    const string TEST_IMG = R"(D:\autumn\Pictures\΢��ͼƬ_20240723140641.jpg)";
+    const string TEST_IMG = R"(D:\autumn\Pictures\ͼƬ\΢��ͼƬ_20240722170846.jpg)";
 
     const char *cocolabels[80] = {
             "person", "bicycle", "car",
