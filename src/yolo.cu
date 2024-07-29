@@ -618,7 +618,7 @@ class InferImpl : public Infer {
     checkRuntime(cudaStreamSynchronize(stream_));
 
     vector<BoxArray> arrout(num_image);
-    int imemory = 0;
+//    int imemory = 0;
     for (int ib = 0; ib < num_image; ++ib) {
       float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
       int count = min(MAX_IMAGE_BOXES, (int)*parray);
