@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TensorRT")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+48ee381d786d075dbfe05af40b46f0693005d451")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d991a33bdf7a686e60787f03f820afda1a3f6a06")]
 [assembly: System.Reflection.AssemblyProductAttribute("TensorRT")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TensorRT")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
