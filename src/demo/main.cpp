@@ -100,7 +100,7 @@ std::vector<std::string> get_image_paths(const std::string &directory) {
 void syncInfer() {
     Config config;
     auto yolo = yolo::load(config.MODEL,
-                           yolo::Type::V8, 0.2, 0.45);
+                           yolo::Type::V8, 0.2, 0.4);
     if (yolo == nullptr) return;
 
     //预热
@@ -207,12 +207,9 @@ void asyncInfer() {
     cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
     bool ok = cpmi.start([config] {
-        return yolo::load(config.MODEL, yolo::Type::V8, 0.25, 0.7);
+        return yolo::load(config.MODEL, yolo::Type::V8, 0.2, 0.45);
     });
     if (!ok) return;
-
-    cout << ok << endl;
-    cpmi.stop();
 
     const cv::Mat mat = cv::imread(config.TEST_IMG);
     const auto image = yolo::Image(mat.data, mat.cols, mat.rows);
@@ -222,12 +219,39 @@ void asyncInfer() {
     timer.start();
 
     const auto objs = cpmi.commit(image).get();
-    for (auto &obj: objs) {
-        const auto name = obj.class_label;
-        cout << "class_label: " << name << " caption: " << obj.confidence << " (L T R B): (" << obj.left << ", "
-             << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
-    }
     timer.stop("batch one");
+
+        for (auto &obj: objs) {
+        cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
+             << ", "
+             << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
+
+        uint8_t b, g, r;
+
+        tie(b, g, r) = yolo::random_color(obj.class_label);
+        cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
+                      cv::Scalar(b, g, r), 5);
+
+        auto name = config.cocolabels[obj.class_label];
+        auto caption = cv::format("%s %.2f", name, obj.confidence);
+        int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+        cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33),
+                      cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
+        cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2,
+                    16);
+
+    }
+
+    // 创建一个窗口
+    std::string windowName = "Image Window";
+    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
+
+    // 调整窗口大小
+    int width_ = 1024;  // 设置窗口宽度
+    int height = 640; // 设置窗口高度
+    cv::resizeWindow(windowName, width_, height);
+    cv::imshow(windowName, mat);  // 显示帧
+    cv::waitKey(0);
 }
 
 void asyncInferVedio() {
