@@ -7,38 +7,14 @@ using namespace std;
 
 class Config {
 public:
-    const string MODEL = R"(D:\autumn\Documents\WeChat Files\wxid_1w2acnt5bx6s22\FileStorage\File\2024-07\best_4.0_4090.engine)";
-    const string TEST_IMG = R"(D:\autumn\Pictures\20240806105823.jpg)";
+    const string MODEL = R"(D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best.transd.engine)";
+    const string TEST_IMG = R"(D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\images\d_451_2024-09-26-09-34-04_c04_train.jpg)";
 
-    const char *cocolabels[80] = {
-            "person", "bicycle", "car",
-            "motorcycle", "airplane", "bus",
-            "train", "truck", "boat",
-            "traffic light", "fire hydrant", "stop sign",
-            "parking meter", "bench", "bird",
-            "cat", "dog", "horse",
-            "sheep", "cow", "elephant",
-            "bear", "zebra", "giraffe",
-            "backpack", "umbrella", "handbag",
-            "tie", "suitcase", "frisbee",
-            "skis", "snowboard", "sports ball",
-            "kite", "baseball bat", "baseball glove",
-            "skateboard", "surfboard", "tennis racket",
-            "bottle", "wine glass", "cup",
-            "fork", "knife", "spoon",
-            "bowl", "banana", "apple",
-            "sandwich", "orange", "broccoli",
-            "carrot", "hot dog", "pizza",
-            "donut", "cake", "chair",
-            "couch", "potted plant", "bed",
-            "dining table", "toilet", "tv",
-            "laptop", "mouse", "remote",
-            "keyboard", "cell phone", "microwave",
-            "oven", "toaster", "sink",
-            "refrigerator", "book", "clock",
-            "vase", "scissors", "teddy bear",
-            "hair drier", "toothbrush"
+    const char *labels[22] = {
+            "BB", "ZH", "ZK", "JK", "ZZ", "GS", "ZW", "DJ", "PD", "CS", "DW", "HN",
+            "YW", "FH", "LZ", "SYQ", "BQ", "DPD", "MD", "CH", "SD", "SZ"
     };
+
 };
 
 #endif //YOLO_CONFIG_H

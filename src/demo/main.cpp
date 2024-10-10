@@ -33,7 +33,7 @@ void batch_inference() {
             cv::rectangle(image, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
                           cv::Scalar(b, g, r), 5);
 
-            auto name = config.cocolabels[obj.class_label];
+            auto name = config.labels[obj.class_label];
             auto caption = cv::format("%s %.2f", name, obj.confidence);
             int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
             cv::rectangle(image, cv::Point(obj.left - 3, obj.top - 33),
@@ -106,7 +106,7 @@ void syncInfer() {
         cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
                       cv::Scalar(b, g, r), 5);
 
-        auto name = config.cocolabels[obj.class_label];
+        auto name = config.labels[obj.class_label];
         auto caption = cv::format("%s %.2f", name, obj.confidence);
         int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
         cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33),
@@ -149,7 +149,7 @@ void asyncInfer() {
         cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
                       cv::Scalar(b, g, r), 5);
 
-        auto name = config.cocolabels[obj.class_label];
+        auto name = config.labels[obj.class_label];
         auto caption = cv::format("%s %.2f", name, obj.confidence);
         int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
         cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33),
