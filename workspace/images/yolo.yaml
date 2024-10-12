@@ -1,0 +1,29 @@
+############## detection ###########
+train: # train images (relative to 'path') 128 images
+val:  # val images (relative to 'path') 128 images
+test: # test images (optional)
+
+# Classes
+names:
+  0: BB
+  1: ZH
+  2: ZK
+  3: JK
+  4: ZZ
+  5: GS
+  6: ZW
+  7: DJ
+  8: PD
+  9: CS
+  10: DW
+  11: HN
+  12: YW
+  13: FH
+  14: LZ
+  15: SYQ
+  16: BQ
+  17: DPD
+  18: MD
+  19: CH
+  20: SD
+  21: SZ
