@@ -1,0 +1,29 @@
+type: yolov8
+name: best-1
+display_name: best
+model_path: D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\onnx\best.onnx
+nms_threshold: 0.4
+confidence_threshold: 0.2
+classes:
+  - BB
+  - ZH
+  - ZK
+  - JK
+  - ZZ
+  - GS
+  - ZW
+  - DJ
+  - PD
+  - CS
+  - DW
+  - HN
+  - YW
+  - FH
+  - LZ
+  - SYQ
+  - BQ
+  - DPD
+  - MD
+  - CH
+  - SD
+  - SZ
