@@ -1,0 +1,16 @@
+[infer.cu:278]: ----------------------TensorRT Destroy----------------------
+[infer.cu:414]: Inputs: 1
+[infer.cu:418]: 	0.images : shape {1x3x1024x1024}
+[infer.cu:421]: Outputs: 1
+[infer.cu:425]: 	0.output0 : shape {1x21504x26}
+[exportOnceAsync_new.cpp:24]: 10 times of warm-up completed
+[exportOnceAsync_new.cpp:25]: ================================= TensorRT INIT SUCCESS =================================
+[infer.cu:278]: ----------------------TensorRT Destroy----------------------
+[infer.cu:278]: ----------------------TensorRT Destroy----------------------
+[infer.cu:414]: Inputs: 1
+[infer.cu:418]: 	0.images : shape {1x3x1024x1024}
+[infer.cu:421]: Outputs: 1
+[infer.cu:425]: 	0.output0 : shape {1x21504x26}
+[exportOnceAsync_new.cpp:24]: 10 times of warm-up completed
+[exportOnceAsync_new.cpp:25]: ================================= TensorRT INIT SUCCESS =================================
+[infer.cu:278]: ----------------------TensorRT Destroy----------------------

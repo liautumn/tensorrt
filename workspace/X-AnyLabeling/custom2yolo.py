@@ -57,8 +57,8 @@ def custom_to_yolov5(input_file, output_file):
 
 if __name__ == '__main__':
     # 调用函数，传入文件夹路径
-    input_path = r'D:\autumn\Pictures\test\1'
-    output_path = r'D:\autumn\Pictures\test\1\out'
+    input_path = r'D:\autumn\Desktop\10'
+    output_path = r'D:\autumn\Desktop\10\out'
     file_list = os.listdir(input_path)
     os.makedirs(output_path, exist_ok=True)
     for file_name in tqdm(

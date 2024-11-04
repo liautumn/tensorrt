@@ -13,14 +13,27 @@ public struct Box
     public int class_label;
 }
 
+[StructLayout(LayoutKind.Sequential)]
+public struct Box2
+{
+    public float x;
+    public float y;
+    public float w;
+    public float h;
+    public float confidence;
+    public int class_label;
+}
+
 public class Config
 {
-    public const string YOLODLL = @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\cmake-build-release\yolo.dll";
+    public const string YOLODLL = @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\cmake-build-release\tensorrt.dll";
+    public const string OPENVINO_DLL = @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\cmake-build-release\openvino_yolo.dll"; 
 
-    public const string MODEL = @"D:\autumn\Documents\WeChat Files\wxid_1w2acnt5bx6s22\FileStorage\File\2024-07\best_4.0_4090.engine";
+    public const string MODEL = @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best.transd.engine";
+    public const string OPENVINO_MODEL = @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\yolo\best_openvino_model\best.xml";
 
-    public const string IMAGE_SRC = @"D:\autumn\Pictures\20240729143358.jpg";
+    public const string IMAGE_SRC = @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\yolo\20241010161804.jpg";
 
-    public const float CONFIDENCE = (float)0.25;
+    public const float CONFIDENCE = (float)0.2;
     public const float NMS = (float)0.4;
 }

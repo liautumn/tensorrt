@@ -12,7 +12,7 @@ bool initAsyncNew(const string &engineFile, float confidence, float nms) {
         return yolo::load(engineFile, yolo::Type::V8, confidence, nms);
     });
     if (!ok) {
-        cout << "================================= TensorRT INIT FAIL =================================" << endl;
+        INFO("================================= TensorRT INIT FAIL =================================");
         return false;
     } else {
         //Ô¤ÈÈ
@@ -21,8 +21,8 @@ bool initAsyncNew(const string &engineFile, float confidence, float nms) {
         for (int i = 0; i < 10; ++i) {
             cpmi.commit(yrImage).get();
         }
-        cout << "10 times of warm-up completed" << endl;
-        cout << "================================= TensorRT INIT SUCCESS =================================" << endl;
+        INFO("10 times of warm-up completed");
+        INFO("================================= TensorRT INIT SUCCESS =================================");
         return true;
     }
 }
