@@ -2,6 +2,8 @@
 #include <NvInfer.h>
 #include <cuda_runtime.h>
 #include <stdarg.h>
+#include <iostream>
+#include <filesystem>
 
 #include <fstream>
 #include <numeric>
@@ -76,13 +78,23 @@ namespace trt {
         int n = snprintf(buffer, sizeof(buffer), "[%s:%d]: ", filename.c_str(), line);
         vsnprintf(buffer + n, sizeof(buffer) - n, fmt, vl);
         fprintf(stdout, "%s\n", buffer);
+        // 检查目录是否存在
+        std::string folder_path = "trt_log";  // 文件夹路径
+        if (!std::filesystem::exists(folder_path)) {
+            // 如果文件夹不存在，创建文件夹
+            try {
+                std::filesystem::create_directory(folder_path);
+            } catch (const std::exception &e) {
+                std::cerr << "创建文件夹时出错: " << e.what() << std::endl;
+            }
+        }
         // 打开文件并追加日志
-        FILE *log_file = fopen("trt_log.txt", "a");  // 以追加模式打开 log.txt
+        FILE *log_file = fopen("trt_log/log.txt", "a");  // 以追加模式打开 log.txt
         if (log_file != nullptr) {
             fprintf(log_file, "%s\n", buffer);     // 将日志写入文件
             fclose(log_file);                      // 关闭文件
         }
-        va_end(vl);
+                va_end(vl);
     }
 
     static std::string format_shape(const Dims &shape) {

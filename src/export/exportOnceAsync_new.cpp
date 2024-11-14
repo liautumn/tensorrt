@@ -15,6 +15,7 @@ bool initAsyncNew(const string &engineFile, float confidence, float nms) {
         INFO("================================= TensorRT INIT FAIL =================================");
         return false;
     } else {
+        INFO("================================= TensorRT INIT SUCCESS =================================");
         //‘§»»
         cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
         auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
@@ -22,7 +23,6 @@ bool initAsyncNew(const string &engineFile, float confidence, float nms) {
             cpmi.commit(yrImage).get();
         }
         INFO("10 times of warm-up completed");
-        INFO("================================= TensorRT INIT SUCCESS =================================");
         return true;
     }
 }
