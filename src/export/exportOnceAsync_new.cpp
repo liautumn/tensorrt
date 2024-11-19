@@ -28,11 +28,11 @@ bool initAsyncNew(const string &engineFile, float confidence, float nms) {
 }
 
 vector<yolo::Box> inferAsyncNew(cv::Mat *mat) {
-    trt::Timer timer;
+//    trt::Timer timer;
     auto img = yolo::Image(mat->data, mat->cols, mat->rows);
-    timer.start();
+//    timer.start();
     auto objs = cpmi.commit(img).get();
-    timer.stop("batch one");
+//    timer.stop("batch one");
     return objs;
 }
 
