@@ -48,3 +48,4 @@ objs
 /C\#/TestDLL/TestDLL/TestDLL/bin
 /workspace/yolo/runs
 /C\#/TestDLL/TestDLL/TensorRT/bin
+/C\#/TestDLL/TestDLL/TensorRT/obj
