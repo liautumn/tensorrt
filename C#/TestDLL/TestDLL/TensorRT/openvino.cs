@@ -23,16 +23,16 @@ class Openvino
         return boxes;
     }
 
-    static void Main()
-    {
-        OPENVINO_INIT(Config.OPENVINO_MODEL, Config.CONFIDENCE, Config.NMS);
-    
-        Mat imRead = Cv2.ImRead(Config.IMAGE_SRC);
-        List<Box2> boxes = OPENVINO_INFER_WRAPPER(imRead.CvPtr);
-        foreach (var box in boxes)
-        {
-            Console.WriteLine(
-                $"Box: x={box.x}, y={box.y}, w={box.w}, h={box.h}, confidence={box.confidence}, class_label={box.class_label}");
-        }
-    }
+    // static void Main()
+    // {
+    //     OPENVINO_INIT(Config.OPENVINO_MODEL, Config.CONFIDENCE, Config.NMS);
+    //
+    //     Mat imRead = Cv2.ImRead(Config.IMAGE_SRC);
+    //     List<Box2> boxes = OPENVINO_INFER_WRAPPER(imRead.CvPtr);
+    //     foreach (var box in boxes)
+    //     {
+    //         Console.WriteLine(
+    //             $"Box: x={box.x}, y={box.y}, w={box.w}, h={box.h}, confidence={box.confidence}, class_label={box.class_label}");
+    //     }
+    // }
 }

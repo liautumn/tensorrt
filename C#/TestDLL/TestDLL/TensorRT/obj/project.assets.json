@@ -177,6 +177,7 @@
       "packagesPath": "C:\\Users\\autumn\\.nuget\\packages\\",
       "outputPath": "D:\\autumn\\Documents\\JetBrainsProjects\\CLionProjects\\tensorrt\\C#\\TestDLL\\TestDLL\\TensorRT\\obj\\",
       "projectStyle": "PackageReference",
+      "UsingMicrosoftNETSdk": false,
       "fallbackFolders": [
         "D:\\dev\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],

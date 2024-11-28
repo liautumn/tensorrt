@@ -26,25 +26,25 @@ class OneTest_new
         return boxes;
     }
 
-    // static void Main()
-    // {
-    //     
-    //     bool ok = TENSORRT_INIT_ASYNC_NEW(Config.MODEL, Config.CONFIDENCE, Config.NMS);
-    //     if (!ok) return;
-    //
-    //     Mat imRead = Cv2.ImRead(Config.IMAGE_SRC);
-    //
-    //     // while (true)
-    //     // {
-    //         List<Box> boxes = TENSORRT_INFER_WRAPPER(imRead.CvPtr);
-    //         foreach (var box in boxes)
-    //         {
-    //             Console.WriteLine($"Box: left={box.left}, top={box.top}, right={box.right}, bottom={box.bottom}, confidence={box.confidence}, class_label={box.class_label}");
-    //         }
-    //     // }
-    //
-    //     TENSORRT_STOP_NEW();
-    //
-    // }
+    static void Main()
+    {
+        
+        bool ok = TENSORRT_INIT_ASYNC_NEW(Config.MODEL, Config.CONFIDENCE, Config.NMS);
+        if (!ok) return;
+    
+        Mat imRead = Cv2.ImRead(Config.IMAGE_SRC);
+    
+        // while (true)
+        // {
+            List<Box> boxes = TENSORRT_INFER_WRAPPER(imRead.CvPtr);
+            foreach (var box in boxes)
+            {
+                Console.WriteLine($"Box: left={box.left}, top={box.top}, right={box.right}, bottom={box.bottom}, confidence={box.confidence}, class_label={box.class_label}");
+            }
+        // }
+    
+        TENSORRT_STOP_NEW();
+    
+    }
     
 }
