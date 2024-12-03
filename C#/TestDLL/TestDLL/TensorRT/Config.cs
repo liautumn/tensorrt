@@ -32,8 +32,36 @@ public class Config
     public const string MODEL = @"D:\\autumn\\Documents\\JetBrainsProjects\\CLionProjects\\tensorrt\\workspace\\model\\engine\\best.transd.engine";
     public const string OPENVINO_MODEL = @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\yolo\best_openvino_model\best.xml";
 
-    public const string IMAGE_SRC = @"F:\FlawImages2\0a2eb888-1853-4da0-a10d-6d95ffbc30e4.png";
+    public const string IMAGE_SRC = @"F:\FlawImages2\b8d95714-2b8c-4959-92fa-959ce86cc50f.jpeg";
 
     public const float CONFIDENCE = (float)0.2;
     public const float NMS = (float)0.2;
+    
+    public static string[] classList = {
+        "BB",
+        "ZH",
+        "ZK",
+        "JK",
+        "ZZ",
+        "GS",
+        "ZW",
+        "DJ",
+        "PD",
+        "CS",
+        "DW",
+        "HN",
+        "YW",
+        "FH",
+        "LZ",
+        "SYQ",
+        "BQ",
+        "DPD",
+        "MD",
+        "CH",
+        "SD",
+        "SZ",
+        "ZS"
+    };
+
+
 }
