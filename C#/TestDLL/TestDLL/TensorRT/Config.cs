@@ -26,7 +26,8 @@ public struct Box2
 
 public class Config
 {
-    public const string YOLODLL = @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\cmake-build-release\tensorrt.dll";
+    public const string YOLODLL =
+        @"C:\Users\aiqc\AppData\Local\TRT\tensorrt.dll";
     public const string OPENVINO_DLL = @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\cmake-build-release\openvino_yolo.dll"; 
 
     public const string MODEL = @"D:\\autumn\\Documents\\JetBrainsProjects\\CLionProjects\\tensorrt\\workspace\\model\\engine\\best.transd.engine";
