@@ -7,8 +7,8 @@ using namespace std;
 
 class Config {
 public:
-    const string MODEL = R"(D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best.engine)";
-    const string TEST_IMG = R"(D:\autumn\Documents\WeChat Files\wxid_1w2acnt5bx6s22\FileStorage\File\2024-10\10\d_154_2024-10-14-09-30-00_c10.jpg)";
+    const string MODEL = R"(D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best.transd.engine)";
+    const string TEST_IMG = R"(D:\autumn\Pictures\图片\20241010161804.jpg)";
     const string TEST_IMG_DIRECTORY = R"(D:\autumn\Documents\WeChat Files\wxid_1w2acnt5bx6s22\FileStorage\File\2024-10\10)";
 
     const char *labels[23] = {
