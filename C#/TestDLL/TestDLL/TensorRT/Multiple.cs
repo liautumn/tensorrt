@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using OpenCvSharp;
 
-namespace ConsoleApp1
+namespace TensorRT
 {
     public class Multiple
     {

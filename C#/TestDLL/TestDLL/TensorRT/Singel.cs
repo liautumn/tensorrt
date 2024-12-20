@@ -1,36 +1,34 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using ConsoleApp1;
-using OpenCvSharp;
+﻿using System.Runtime.InteropServices;
 
-class Singel
+namespace TensorRT
 {
-    [DllImport(Config.Yolodll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool TENSORRT_SINGLE_INIT(string engineFile, float confidence, float nms);
-
-    [DllImport(Config.Yolodll, CallingConvention = CallingConvention.Cdecl)]
-    private static extern void TENSORRT_SINGLE_INFER(IntPtr image, out IntPtr result, out int size);
-
-    [DllImport(Config.Yolodll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void TENSORRT_SINGLE_DESTROY();
-
-    public static List<Box> TENSORRT_INFER_WRAPPER(IntPtr image)
+    class Singel
     {
-        TENSORRT_SINGLE_INFER(image, out IntPtr result, out int size);
-        List<Box> boxes = new List<Box>(size);
-        for (int i = 0; i < size; i++)
+        [DllImport(Config.Yolodll, CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool TENSORRT_SINGLE_INIT(string engineFile, float confidence, float nms);
+
+        [DllImport(Config.Yolodll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern void TENSORRT_SINGLE_INFER(IntPtr image, out IntPtr result, out int size);
+
+        [DllImport(Config.Yolodll, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void TENSORRT_SINGLE_DESTROY();
+
+        public static List<Box> TENSORRT_INFER_WRAPPER(IntPtr image)
         {
-            IntPtr boxPtr = IntPtr.Add(result, i * Marshal.SizeOf(typeof(Box)));
-            boxes.Add(Marshal.PtrToStructure<Box>(boxPtr));
+            TENSORRT_SINGLE_INFER(image, out IntPtr result, out int size);
+            List<Box> boxes = new List<Box>(size);
+            for (int i = 0; i < size; i++)
+            {
+                IntPtr boxPtr = IntPtr.Add(result, i * Marshal.SizeOf(typeof(Box)));
+                boxes.Add(Marshal.PtrToStructure<Box>(boxPtr));
+            }
+
+            return boxes;
         }
 
-        return boxes;
-    }
-
-    // static void Main()
-    // {
-    //     bool ok = TENSORRT_SINGLE_INIT(Config.MODEL, Config.CONFIDENCE, Config.NMS);
+        // static void Main()
+        // {
+        //     bool ok = TENSORRT_SINGLE_INIT(Config.MODEL, Config.CONFIDENCE, Config.NMS);
         // if (!ok) return;
 
         // Mat imRead = Cv2.ImRead(Config.IMAGE_SRC);
@@ -61,5 +59,6 @@ class Singel
         // Cv2.WaitKey();
         //
         // TENSORRT_STOP_NEW();
-    // }
+        // }
+    }
 }

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using ConsoleApp1;
 using OpenCvSharp;
 
 class OpenVino
