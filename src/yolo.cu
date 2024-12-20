@@ -522,7 +522,7 @@ namespace yolo {
             trt_ = trt::load(engine_file);
             if (trt_ == nullptr) return false;
 
-            trt_->print();
+//            trt_->print();
 
             this->type_ = type;
             this->confidence_threshold_ = confidence_threshold;

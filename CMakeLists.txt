@@ -45,7 +45,9 @@ add_library(${PROJECT_NAME} SHARED
         src/infer.cu
         src/yolo.cu
         src/export/exportMultiple.cpp
+        src/export/exportMultipleCpm.cpp
         src/export/exportSingle.cpp
+        src/export/exportSingleCpm.cpp
 )
 
 #add_executable(${PROJECT_NAME}
