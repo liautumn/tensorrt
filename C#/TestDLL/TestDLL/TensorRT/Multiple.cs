@@ -46,36 +46,36 @@ namespace TensorRT
         }
 
 
-        // static void Main()
-        // {
-        //     int maxBatch = 12;
-        //
-        //     bool initSuccess = TENSORRT_MULTIPLE_INIT(Config.Model2, Config.Confidence, Config.Nms, maxBatch);
-        //     if (initSuccess)
-        //     {
-        //         IntPtr[] imagesPtr = new IntPtr[maxBatch];
-        //         for (int i = 0; i < maxBatch; i++)
-        //         {
-        //             var mat = Cv2.ImRead(Config.ImageSrc);
-        //             imagesPtr[i] = mat.CvPtr;
-        //         }
-        //
-        //         while (true)
-        //         {
-        //             // 调用推理函数
-        //             Box[][] results = TENSORRT_MULTIPLE_INFER_WRAPPER(imagesPtr, maxBatch);
-        //             // 处理结果
-        //             // foreach (var boxes in results)
-        //             // {
-        //             //     Console.WriteLine(boxes.Length);
-        //             //     foreach (var box in boxes)
-        //             //     {
-        //             //         Console.WriteLine(
-        //             //             $"Box: left={box.left}, top={box.top}, right={box.right}, bottom={box.bottom}, confidence={box.confidence}, class_label={box.class_label}");
-        //             //     }
-        //             // }
-        //         }
-        //     }
-        // }
+        static void Main()
+        {
+            int maxBatch = 12;
+
+            bool initSuccess = TENSORRT_MULTIPLE_INIT(Config.Model2, Config.Confidence, Config.Nms, maxBatch);
+            if (initSuccess)
+            {
+                IntPtr[] imagesPtr = new IntPtr[maxBatch];
+                for (int i = 0; i < maxBatch; i++)
+                {
+                    var mat = Cv2.ImRead(Config.ImageSrc);
+                    imagesPtr[i] = mat.CvPtr;
+                }
+
+                while (true)
+                {
+                    // 调用推理函数
+                    Box[][] results = TENSORRT_MULTIPLE_INFER_WRAPPER(imagesPtr, maxBatch);
+                    // 处理结果
+                    // foreach (var boxes in results)
+                    // {
+                    //     Console.WriteLine(boxes.Length);
+                    //     foreach (var box in boxes)
+                    //     {
+                    //         Console.WriteLine(
+                    //             $"Box: left={box.left}, top={box.top}, right={box.right}, bottom={box.bottom}, confidence={box.confidence}, class_label={box.class_label}");
+                    //     }
+                    // }
+                }
+            }
+        }
     }
 }
