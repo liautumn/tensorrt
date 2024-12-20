@@ -2,12 +2,12 @@
 using ConsoleApp1;
 using OpenCvSharp;
 
-class Openvino
+class OpenVino
 {
-    [DllImport(Config.OPENVINO_DLL, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(Config.OpenvinoDll, CallingConvention = CallingConvention.Cdecl)]
     public static extern void OPENVINO_INIT(string engineFile, float confidence, float nms);
 
-    [DllImport(Config.OPENVINO_DLL, CallingConvention = CallingConvention.Cdecl)]
+    [DllImport(Config.OpenvinoDll, CallingConvention = CallingConvention.Cdecl)]
     private static extern void OPENVINO_INFER(IntPtr image, out IntPtr result, out int size);
 
     public static List<Box2> OPENVINO_INFER_WRAPPER(IntPtr image)

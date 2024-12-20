@@ -43,9 +43,4 @@ objs
 *.onnx
 *.engine
 
-/C\#/TestDLL/TestDLL/.idea
-/C\#/TestDLL/TestDLL/TestDLL/obj
-/C\#/TestDLL/TestDLL/TestDLL/bin
 /workspace/yolo/runs
-/C\#/TestDLL/TestDLL/TensorRT/bin
-/C\#/TestDLL/TestDLL/TensorRT/obj

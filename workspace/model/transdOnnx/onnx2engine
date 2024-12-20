@@ -1,5 +1,7 @@
-D:\cuda\TensorRT-8.6.1.6\bin\trtexec.exe --onnx=D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\transdOnnx\best.transd.onnx --saveEngine=D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best.transd.engine --fp16 --useCudaGraph
-
---minShapes=images:1x3x640x1024 --maxShapes=images:12x3x640x1024 --optShapes=images:1x3x640x1024
-
---minShapes=images:1x3x1024x1024 --maxShapes=images:12x3x1024x1024 --optShapes=images:1x3x1024x1024
+D:\dev\cuda\TensorRT8\TensorRT-8.6.1.6\bin\trtexec.exe `
+--onnx=D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\transdOnnx\best12.transd.onnx `
+--saveEngine=D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best12.transd.engine `
+--fp16 `
+--useCudaGraph `
+--minShapes=images:1x3x640x1024 --maxShapes=images:12x3x640x1024 --optShapes=images:1x3x640x1024 `
+--minShapes=images:1x3x1024x1024 --maxShapes=images:12x3x1024x1024 --optShapes=images:1x3x1024x1024 `

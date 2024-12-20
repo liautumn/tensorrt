@@ -11,24 +11,19 @@ static yolo::Image cvimg(const cv::Mat &image) { return yolo::Image(image.data, 
 
 static shared_ptr<yolo::Infer> my_yolo;
 
-extern "C" __declspec(dllexport) bool
-initBatchAsync(const char *engine_file, float confidence, float nms, int max_batch) {
+extern "C" __declspec(dllexport) bool TENSORRT_Multiple_INIT(const char *engineFile, float confidence, float nms, int maxBatch) {
 //    bool ok = cpmi.start([&engine_file, &confidence, &nms] {
 //        return yolo::load(engine_file, yolo::Type::V8, confidence, nms);
-//    }, max_batch);
-//    if (!ok) {
-    my_yolo = yolo::load(engine_file, yolo::Type::V8, confidence, nms);
+//    }, maxBatch);
+    my_yolo = yolo::load(engineFile, yolo::Type::V8, confidence, nms);
     if (my_yolo == nullptr) {
-        cout << "================================= TensorRT INIT FAIL =================================" << endl;
         return false;
     } else {
-        cout << "================================= TensorRT INIT SUCCESS =================================" << endl;
         return true;
     }
 }
 
-extern "C" __declspec(dllexport) void
-inferBatchAsync(cv::Mat **mats, int imgSize, yolo::Box ***result, int **resultSizes) {
+extern "C" __declspec(dllexport) void TENSORRT_Multiple_INFER(cv::Mat **mats, int imgSize, yolo::Box ***result, int **resultSizes) {
     trt::Timer timer;
     timer.start();
     vector<yolo::Image> yoloimages;

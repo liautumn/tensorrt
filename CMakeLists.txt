@@ -44,10 +44,8 @@ add_library(${PROJECT_NAME} SHARED
         include/infer.h
         src/infer.cu
         src/yolo.cu
-#        src/export/exportOnceSync_old.cpp
-#        src/export/exportOnceAsync_old.cpp
-#        src/export/exportBatch.cpp
-        src/export/exportOnceAsync_new.cpp
+        src/export/exportMultiple.cpp
+        src/export/exportSingle.cpp
 )
 
 #add_executable(${PROJECT_NAME}

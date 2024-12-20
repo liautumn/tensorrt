@@ -12,5 +12,5 @@ if __name__ == '__main__':
         # half=True,
         dynamic=False,
         simplify=True,
-        batch=1
+        batch=12
     )

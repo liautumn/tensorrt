@@ -5,7 +5,7 @@ import os
 
 
 def main():
-    file = "best.onnx"
+    file = "best12.onnx"
     if not os.path.exists(file):
         print(f"Not exist path: {file}")
         return 1
