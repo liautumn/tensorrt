@@ -28,7 +28,7 @@ public class Config
         @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\cmake-build-release\openvino_yolo.dll";
 
     public const string OpenvinoModel =
-        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\yolo\best_openvino_model\best.xml";
+        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\yolo\yolo11n_openvino_model\yolo11n.xml";
 
     public const string Yolodll =
         @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\cmake-build-release\tensorrt.dll";
@@ -36,11 +36,8 @@ public class Config
     public const string Model =
         @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best1568.engine";
 
-    public const string Model2 =
-        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best12.transd.engine";
-
     public const string ImageSrc =
-        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\images\207_1734507046.jpeg";
+        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\yolo\20241010161804.jpg";
 
     public const float Confidence = (float)0.2;
     public const float Nms = (float)0.45;
