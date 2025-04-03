@@ -34,10 +34,10 @@ public class Config
         @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\cmake-build-release\tensorrt.dll";
 
     public const string Model =
-        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best1568.engine";
+        @"D:\autumn\Downloads\best8.0.engine";
 
     public const string ImageSrc =
-        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\yolo\20241010161804.jpg";
+        @"D:\autumn\Downloads\Images\661073599669061.jpeg";
 
     public const float Confidence = (float)0.2;
     public const float Nms = (float)0.45;
