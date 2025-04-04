@@ -1,17 +1,30 @@
-#ifndef __INFER_H__
-#define __INFER_H__
+#ifndef INFER_H_
+#define INFER_H_
 
-#include <initializer_list>
 #include <memory>
 #include <string>
 #include <vector>
 
 using namespace std;
 
-namespace trt {
-
 #define INFO(...) trt::__log_func(__FILE__, __LINE__, __VA_ARGS__)
+#define checkRuntime(call)                                                                          \
+        do {                                                                                        \
+            auto ___call__ret_code__ = (call);                                                      \
+                if (___call__ret_code__ != cudaSuccess) {                                           \
+                INFO("CUDA Runtime error? %s # %s, code = %s [ %d ]", #call,                       \
+                cudaGetErrorString(___call__ret_code__), cudaGetErrorName(___call__ret_code__),     \
+                ___call__ret_code__);                                                               \
+                abort();                                                                            \
+            }                                                                                       \
+        } while (0)
+#define checkKernel(...)                            \
+        do {                                        \
+            { (__VA_ARGS__); }                      \
+            checkRuntime(cudaPeekAtLastError());    \
+        } while (0)
 
+namespace trt {
     void __log_func(const char *file, int line, const char *fmt, ...);
 
     enum class DType : int {
@@ -136,7 +149,6 @@ namespace trt {
     shared_ptr<Infer> load(const string &file);
 
     string format_shape(const vector<int> &shape);
+} // namespace trt
 
-}  // namespace trt
-
-#endif  // __INFER_H__
+#endif  // INFER_H_

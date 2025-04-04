@@ -4,7 +4,6 @@ project(tensorrt CUDA CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
 
-# 定义头文件目录
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 set(OpenCV_DIR $ENV{OPENCV_PATH})
@@ -12,7 +11,6 @@ find_package(OpenCV REQUIRED)
 set(TensorRT_DIR $ENV{TENSORRT_PATH})
 set(CUDA_DIR $ENV{CUDA_PATH})
 
-# 设置包含路径
 include_directories(
         ${OpenCV_INCLUDE_DIRS}
         ${TensorRT_DIR}/include
@@ -20,13 +18,11 @@ include_directories(
         ${CUDA_DIR}/include
 )
 
-# 设置库路径
 link_directories(
         ${TensorRT_DIR}/lib
         ${CUDA_DIR}/lib/x64
 )
 
-# 定义链接的库
 set(LIBS
         ${OpenCV_LIBS}
         nvinfer
@@ -38,31 +34,33 @@ set(LIBS
         cudnn
 )
 
-add_library(${PROJECT_NAME} SHARED
-        include/cpm.h
-        include/yolo.h
-        include/infer.h
-        src/infer.cu
-        src/yolo.cu
-        src/export/exportMultiple.cpp
-        src/export/exportMultipleCpm.cpp
-        src/export/exportSingle.cpp
-        src/export/exportSingleCpm.cpp
-)
-
-#add_executable(${PROJECT_NAME}
+#add_library(${PROJECT_NAME} SHARED
 #        include/cpm.h
 #        include/yolo.h
 #        include/infer.h
 #        src/infer.cu
 #        src/yolo.cu
-#        src/demo/config.h
-#        src/demo/main.cpp
-#        src/demo/barchDemo.cpp
+#        src/export/exportMultiple.cpp
+#        src/export/exportMultipleCpm.cpp
+#        src/export/exportSingle.cpp
+#        src/export/exportSingleCpm.cpp
 #)
+
+add_executable(${PROJECT_NAME}
+        include/cpm.h
+        include/yolo.h
+        src/yolo.cpp
+        include/infer.h
+        src/infer.cu
+        include/preprocess.cuh
+        src/preprocess.cu
+        include/postprocess.cuh
+        src/postprocess.cu
+        src/example/config.h
+        src/example/main.cpp
+)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
 
-# 链接库
 target_link_libraries(${PROJECT_NAME} ${LIBS})

@@ -1,5 +1,5 @@
-#ifndef __YOLO_H__
-#define __YOLO_H__
+#ifndef YOLO_H_
+#define YOLO_H_
 
 #include <future>
 #include <memory>
@@ -9,28 +9,9 @@
 using namespace std;
 
 namespace yolo {
-    enum class Type : int {
-        V5 = 0,
-        X = 1,
-        V3 = 2,
-        V7 = 3,
-        V8 = 5,
-//        V8Seg = 6 // yolov8 instance segmentation
-    };
-
-//    struct InstanceSegmentMap {
-//        int width = 0, height = 0; // width % 8 == 0
-//        unsigned char *data = nullptr; // is width * height memory
-//
-//        InstanceSegmentMap(int width, int height);
-//
-//        virtual ~InstanceSegmentMap();
-//    };
-
     struct Box {
         float left, top, right, bottom, confidence;
         int class_label;
-//        shared_ptr<InstanceSegmentMap> seg; // valid only in segment task
 
         Box() = default;
 
@@ -69,14 +50,12 @@ namespace yolo {
                                           void *stream = nullptr) = 0;
     };
 
-    shared_ptr<Infer> load(const string &engine_file, Type type,
+    shared_ptr<Infer> load(const string &engine_file,
                            float confidence_threshold = 0.45f, float nms_threshold = 0.5f);
-
-    const char *type_name(Type type);
 
     tuple<uint8_t, uint8_t, uint8_t> hsv2bgr(float h, float s, float v);
 
     tuple<uint8_t, uint8_t, uint8_t> random_color(int id);
 }; // namespace yolo
 
-#endif  // __YOLO_H__
+#endif  // YOLO_H_

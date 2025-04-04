@@ -1,7 +1,6 @@
-
 #include <NvInfer.h>
 #include <cuda_runtime.h>
-#include <stdarg.h>
+#include <cstdarg>
 #include <iostream>
 #include <filesystem>
 
@@ -226,16 +225,13 @@ namespace trt {
                 abort();
             } else if (severity == Severity::kERROR) {
                 INFO("NVInfer: %s", msg);
-            }
-//     else  if (severity == Severity::kWARNING) {
-//         INFO("NVInfer: %s", msg);
-//     }
-//     else  if (severity == Severity::kINFO) {
-//         INFO("NVInfer: %s", msg);
-//     }
-//     else {
-//         INFO("%s", msg);
-//     }
+            }else  if (severity == Severity::kWARNING) {
+                 INFO("NVInfer: %s", msg);
+             }else  if (severity == Severity::kINFO) {
+                 INFO("NVInfer: %s", msg);
+             }else {
+                 INFO("%s", msg);
+             }
         }
     };
 
@@ -272,7 +268,6 @@ namespace trt {
             destroy();
 
             if (pdata == nullptr || size == 0) return false;
-
             runtime_ = shared_ptr<IRuntime>(createInferRuntime(gLogger), destroy_nvidia_pointer < IRuntime > );
             if (runtime_ == nullptr) return false;
 
@@ -411,7 +406,7 @@ namespace trt {
         }
 
         virtual void print() override {
-//            INFO("Infer %p [%s]", this, has_dynamic_dim() ? "DynamicShape" : "StaticShape");
+            INFO("Infer %p [%s]", this, has_dynamic_dim() ? "DynamicShape" : "StaticShape");
 
             int num_input = 0;
             int num_output = 0;
