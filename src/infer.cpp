@@ -68,7 +68,7 @@ namespace trt {
         return path.substr(p, u - p);
     }
 
-    void __log_func(const char *file, int line, const char *fmt, ...) {
+    void _log_func(const char *file, int line, const char *fmt, ...) {
         va_list vl;
         va_start(vl, fmt);
         char buffer[2048];

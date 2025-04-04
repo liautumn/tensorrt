@@ -38,7 +38,7 @@ set(LIBS
 #        include/cpm.h
 #        include/yolo.h
 #        include/infer.h
-#        src/infer.cu
+#        src/infer.cpp
 #        src/yolo.cu
 #        src/export/exportMultiple.cpp
 #        src/export/exportMultipleCpm.cpp
@@ -51,7 +51,7 @@ add_executable(${PROJECT_NAME}
         include/yolo.h
         src/yolo.cpp
         include/infer.h
-        src/infer.cu
+        src/infer.cpp
         include/preprocess.cuh
         src/preprocess.cu
         include/postprocess.cuh

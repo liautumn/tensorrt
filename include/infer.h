@@ -7,7 +7,7 @@
 
 using namespace std;
 
-#define INFO(...) trt::__log_func(__FILE__, __LINE__, __VA_ARGS__)
+#define INFO(...) trt::_log_func(__FILE__, __LINE__, __VA_ARGS__)
 #define checkRuntime(call)                                                                          \
         do {                                                                                        \
             auto ___call__ret_code__ = (call);                                                      \
@@ -25,7 +25,7 @@ using namespace std;
         } while (0)
 
 namespace trt {
-    void __log_func(const char *file, int line, const char *fmt, ...);
+    void _log_func(const char *file, int line, const char *fmt, ...);
 
     enum class DType : int {
         FLOAT = 0, HALF = 1, INT8 = 2, INT32 = 3, BOOL = 4, UINT8 = 5
