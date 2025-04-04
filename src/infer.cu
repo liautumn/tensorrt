@@ -12,7 +12,6 @@
 #include "infer.h"
 
 namespace trt {
-
     using namespace std;
     using namespace nvinfer1;
 
@@ -78,7 +77,7 @@ namespace trt {
         vsnprintf(buffer + n, sizeof(buffer) - n, fmt, vl);
         fprintf(stdout, "%s\n", buffer);
         // 检查目录是否存在
-        std::string folder_path = "trt_log";  // 文件夹路径
+        std::string folder_path = "trt_log"; // 文件夹路径
         if (!std::filesystem::exists(folder_path)) {
             // 如果文件夹不存在，创建文件夹
             try {
@@ -88,12 +87,12 @@ namespace trt {
             }
         }
         // 打开文件并追加日志
-        FILE *log_file = fopen("trt_log/log.txt", "a");  // 以追加模式打开 log.txt
+        FILE *log_file = fopen("trt_log/log.txt", "a"); // 以追加模式打开 log.txt
         if (log_file != nullptr) {
-            fprintf(log_file, "%s\n", buffer);     // 将日志写入文件
-            fclose(log_file);                      // 关闭文件
+            fprintf(log_file, "%s\n", buffer); // 将日志写入文件
+            fclose(log_file); // 关闭文件
         }
-                va_end(vl);
+        va_end(vl);
     }
 
     static std::string format_shape(const Dims &shape) {
@@ -217,25 +216,25 @@ namespace trt {
         release_gpu();
     }
 
-    class __native_nvinfer_logger : public ILogger {
+    class _native_nvinfer_logger : public ILogger {
     public:
-        virtual void log(Severity severity, const char *msg) noexcept override {
+        void log(Severity severity, const char *msg) noexcept override {
             if (severity == Severity::kINTERNAL_ERROR) {
                 INFO("NVInfer INTERNAL_ERROR: %s", msg);
                 abort();
             } else if (severity == Severity::kERROR) {
                 INFO("NVInfer: %s", msg);
-            }else  if (severity == Severity::kWARNING) {
-                 INFO("NVInfer: %s", msg);
-             }else  if (severity == Severity::kINFO) {
-                 INFO("NVInfer: %s", msg);
-             }else {
-                 INFO("%s", msg);
-             }
+            } else if (severity == Severity::kWARNING) {
+                INFO("NVInfer: %s", msg);
+            } else if (severity == Severity::kINFO) {
+                INFO("NVInfer: %s", msg);
+            } else {
+                INFO("%s", msg);
+            }
         }
     };
 
-    static __native_nvinfer_logger gLogger;
+    static _native_nvinfer_logger gLogger;
 
     template<typename _T>
     static void destroy_nvidia_pointer(_T *ptr) {
@@ -260,29 +259,29 @@ namespace trt {
         return data;
     }
 
-    class __native_engine_context {
+    class _native_engine_context {
     public:
-        virtual ~__native_engine_context() { destroy(); }
+        virtual ~_native_engine_context() { destroy(); }
 
         bool construct(const void *pdata, size_t size) {
             destroy();
 
             if (pdata == nullptr || size == 0) return false;
-            runtime_ = shared_ptr<IRuntime>(createInferRuntime(gLogger), destroy_nvidia_pointer < IRuntime > );
+            runtime_ = shared_ptr<IRuntime>(createInferRuntime(gLogger), destroy_nvidia_pointer<IRuntime>);
             if (runtime_ == nullptr) return false;
 
             engine_ = shared_ptr<ICudaEngine>(runtime_->deserializeCudaEngine(pdata, size, nullptr),
-                                              destroy_nvidia_pointer < ICudaEngine > );
+                                              destroy_nvidia_pointer<ICudaEngine>);
             if (engine_ == nullptr) return false;
 
             context_ = shared_ptr<IExecutionContext>(engine_->createExecutionContext(),
-                                                     destroy_nvidia_pointer < IExecutionContext > );
+                                                     destroy_nvidia_pointer<IExecutionContext>);
             return context_ != nullptr;
         }
 
     private:
         void destroy() {
-            INFO("----------------------TensorRT Destroy----------------------");
+            INFO("TensorRT Destroy");
             context_.reset();
             engine_.reset();
             runtime_.reset();
@@ -296,13 +295,13 @@ namespace trt {
 
     class InferImpl : public Infer {
     public:
-        shared_ptr<__native_engine_context> context_;
+        shared_ptr<_native_engine_context> context_;
         unordered_map<string, int> binding_name_to_index_;
 
         virtual ~InferImpl() = default;
 
         bool construct(const void *data, size_t size) {
-            context_ = make_shared<__native_engine_context>();
+            context_ = make_shared<_native_engine_context>();
             if (!context_->construct(data, size)) {
                 return false;
             }
@@ -457,5 +456,4 @@ namespace trt {
         }
         return output.str();
     }
-
-};  // namespace trt
+}; // namespace trt

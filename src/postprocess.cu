@@ -2,7 +2,7 @@
 #include "infer.h"
 
 
-__host__ __device__ void affine_project(float *matrix, float x, float y, float *ox,
+__device__ void affine_project(float *matrix, float x, float y, float *ox,
                                                float *oy) {
     *ox = matrix[0] * x + matrix[1] * y + matrix[2];
     *oy = matrix[3] * x + matrix[4] * y + matrix[5];
