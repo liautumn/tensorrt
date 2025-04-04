@@ -51,7 +51,7 @@ namespace yolo {
     };
 
     shared_ptr<Infer> load(const string &engine_file,
-                           float confidence_threshold = 0.45f, float nms_threshold = 0.5f);
+                           float* confidence_thresholds, float nms_threshold = 0.5f);
 
     tuple<uint8_t, uint8_t, uint8_t> hsv2bgr(float h, float s, float v);
 

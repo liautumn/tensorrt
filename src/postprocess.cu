@@ -9,7 +9,7 @@ __host__ __device__ void affine_project(float *matrix, float x, float y, float *
 }
 
 __global__ void decode_kernel_v8(float *predict, int num_bboxes, int num_classes,
-                                        int output_cdim, float confidence_threshold,
+                                        int output_cdim, float* confidence_thresholds,
                                         float *invert_affine_matrix, float *parray,
                                         int MAX_IMAGE_BOXES) {
     int position = blockDim.x * blockIdx.x + threadIdx.x;
@@ -25,8 +25,8 @@ __global__ void decode_kernel_v8(float *predict, int num_bboxes, int num_classes
             label = i;
         }
     }
-    if (label > num_classes) printf("%i", label);
-    if (confidence < confidence_threshold) return;
+    if (label >= num_classes) return;
+    if (confidence < confidence_thresholds[label]) return;
 
     int index = atomicAdd(parray, 1);
     if (index >= MAX_IMAGE_BOXES) return;
@@ -104,14 +104,14 @@ static dim3 block_dims(int numJobs) {
 }
 
 void decode_kernel_invoker(float *predict, int num_bboxes, int num_classes, int output_cdim,
-                                  float confidence_threshold, float nms_threshold,
+                                  float* confidence_thresholds, float nms_threshold,
                                   float *invert_affine_matrix, float *parray, int MAX_IMAGE_BOXES,
                                   cudaStream_t stream) {
     auto grid = grid_dims(num_bboxes);
     auto block = block_dims(num_bboxes);
 
     checkKernel(decode_kernel_v8<<<grid, block, 0, stream>>>(
-                    predict, num_bboxes, num_classes, output_cdim, confidence_threshold, invert_affine_matrix,
+                    predict, num_bboxes, num_classes, output_cdim, confidence_thresholds, invert_affine_matrix,
                     parray, MAX_IMAGE_BOXES));
 
     grid = grid_dims(MAX_IMAGE_BOXES);

@@ -46,10 +46,10 @@ namespace yolo {
     public:
         shared_ptr<trt::Infer> trt_;
         string engine_file_;
-        float confidence_threshold_;
+        float *confidence_thresholds_;
         float nms_threshold_;
         vector<shared_ptr<trt::Memory<unsigned char> > > preprocess_buffers_;
-        trt::Memory<float> input_buffer_, bbox_predict_, output_boxarray_;
+        trt::Memory<float> input_buffer_, bbox_predict_, output_boxarray_, confidence_thresholds_device_;
         int network_input_width_, network_input_height_;
         Norm normalize_;
         vector<int> bbox_head_dims_;
@@ -65,6 +65,8 @@ namespace yolo {
             bbox_predict_.gpu(batch_size * bbox_head_dims_[1] * bbox_head_dims_[2]);
             output_boxarray_.gpu(batch_size * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT));
             output_boxarray_.cpu(batch_size * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT));
+
+            confidence_thresholds_device_.gpu(num_classes_);
 
             if ((int) preprocess_buffers_.size() < batch_size) {
                 for (int i = preprocess_buffers_.size(); i < batch_size; ++i)
@@ -91,7 +93,7 @@ namespace yolo {
             uint8_t *image_host = cpu_workspace + size_matrix;
 
             // speed up
-            cudaStream_t stream_ = (cudaStream_t) stream;
+            auto stream_ = (cudaStream_t) stream;
             memcpy(image_host, image.bgrptr, size_image);
             memcpy(affine_matrix_host, affine.d2i, sizeof(affine.d2i));
             checkRuntime(
@@ -105,13 +107,13 @@ namespace yolo {
                                                      normalize_, stream_);
         }
 
-        bool load(const string &engine_file, float confidence_threshold, float nms_threshold) {
+        bool load(const string &engine_file, float *confidence_thresholds, float nms_threshold) {
             trt_ = trt::load(engine_file);
             if (trt_ == nullptr) return false;
 
             trt_->print();
 
-            this->confidence_threshold_ = confidence_threshold;
+            this->confidence_thresholds_ = confidence_thresholds;
             this->nms_threshold_ = nms_threshold;
 
             auto input_dim = trt_->static_dims(0);
@@ -125,13 +127,13 @@ namespace yolo {
             return true;
         }
 
-        virtual BoxArray forward(const Image &image, void *stream = nullptr) override {
+        BoxArray forward(const Image &image, void *stream = nullptr) override {
             auto output = forwards({image}, stream);
             if (output.empty()) return {};
             return output[0];
         }
 
-        virtual vector<BoxArray> forwards(const vector<Image> &images, void *stream = nullptr) override {
+        vector<BoxArray> forwards(const vector<Image> &images, void *stream = nullptr) override {
             int num_image = images.size();
             if (num_image == 0) return {};
 
@@ -167,6 +169,9 @@ namespace yolo {
                 return {};
             }
 
+            checkRuntime(cudaMemcpyAsync(confidence_thresholds_device_.gpu(), confidence_thresholds_,
+                confidence_thresholds_device_.gpu_bytes(), cudaMemcpyHostToDevice, stream_));
+
             for (int ib = 0; ib < num_image; ++ib) {
                 float *boxarray_device =
                         output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
@@ -175,7 +180,7 @@ namespace yolo {
                         bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
                 checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
                 decode_kernel_invoker(image_based_bbox_output, bbox_head_dims_[1], num_classes_,
-                                      bbox_head_dims_[2], confidence_threshold_, nms_threshold_,
+                                      bbox_head_dims_[2], confidence_thresholds_device_.gpu(), nms_threshold_,
                                       affine_matrix_device, boxarray_device, MAX_IMAGE_BOXES, stream_);
             }
             checkRuntime(cudaMemcpyAsync(output_boxarray_.cpu(), output_boxarray_.gpu(),
@@ -202,20 +207,20 @@ namespace yolo {
         }
     };
 
-    Infer *loadraw(const std::string &engine_file, float confidence_threshold,
+    Infer *loadraw(const std::string &engine_file, float *confidence_thresholds,
                    float nms_threshold) {
         InferImpl *impl = new InferImpl();
-        if (!impl->load(engine_file, confidence_threshold, nms_threshold)) {
+        if (!impl->load(engine_file, confidence_thresholds, nms_threshold)) {
             delete impl;
             impl = nullptr;
         }
         return impl;
     }
 
-    shared_ptr<Infer> load(const string &engine_file, float confidence_threshold,
+    shared_ptr<Infer> load(const string &engine_file, float *confidence_thresholds,
                            float nms_threshold) {
         return std::shared_ptr<InferImpl>(
-            (InferImpl *) loadraw(engine_file, confidence_threshold, nms_threshold));
+            (InferImpl *) loadraw(engine_file, confidence_thresholds, nms_threshold));
     }
 
     std::tuple<uint8_t, uint8_t, uint8_t> hsv2bgr(float h, float s, float v) {
