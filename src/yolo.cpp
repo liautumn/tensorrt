@@ -54,7 +54,7 @@ namespace yolo {
         Norm normalize_;
         vector<int> bbox_head_dims_;
         int num_classes_ = 0;
-        bool isdynamic_model_ = false;
+        bool isDynamic_model_ = false;
 
         virtual ~InferImpl() = default;
 
@@ -74,8 +74,10 @@ namespace yolo {
             }
         }
 
-        void preprocess(int ibatch, const Image &image,
-                        shared_ptr<trt::Memory<unsigned char> > preprocess_buffer, AffineMatrix &affine,
+        void preprocess(int ibatch,
+                        const Image &image,
+                        shared_ptr<trt::Memory<unsigned char> > preprocess_buffer,
+                        AffineMatrix &affine,
                         void *stream = nullptr) {
             affine.compute(make_tuple(image.width, image.height),
                            make_tuple(network_input_width_, network_input_height_));
@@ -107,7 +109,9 @@ namespace yolo {
                                                      normalize_, stream_);
         }
 
-        bool load(const string &engine_file, float *confidence_thresholds, float nms_threshold) {
+        bool load(const string &engine_file,
+                  float *confidence_thresholds,
+                  float nms_threshold) {
             trt_ = trt::load(engine_file);
             if (trt_ == nullptr) return false;
 
@@ -120,27 +124,29 @@ namespace yolo {
             bbox_head_dims_ = trt_->static_dims(1);
             network_input_width_ = input_dim[3];
             network_input_height_ = input_dim[2];
-            isdynamic_model_ = trt_->has_dynamic_dim();
+            isDynamic_model_ = trt_->has_dynamic_dim();
 
             normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
             num_classes_ = bbox_head_dims_[2] - 4;
             return true;
         }
 
-        BoxArray forward(const Image &image, void *stream = nullptr) override {
+        BoxArray forward(const Image &image,
+                         void *stream = nullptr) override {
             auto output = forwards({image}, stream);
             if (output.empty()) return {};
             return output[0];
         }
 
-        vector<BoxArray> forwards(const vector<Image> &images, void *stream = nullptr) override {
+        vector<BoxArray> forwards(const vector<Image> &images,
+                                  void *stream = nullptr) override {
             int num_image = images.size();
             if (num_image == 0) return {};
 
             auto input_dims = trt_->static_dims(0);
             int infer_batch_size = input_dims[0];
             if (infer_batch_size != num_image) {
-                if (isdynamic_model_) {
+                if (isDynamic_model_) {
                     infer_batch_size = num_image;
                     input_dims[0] = num_image;
                     if (!trt_->set_run_dims(0, input_dims)) return {};
@@ -207,59 +213,14 @@ namespace yolo {
         }
     };
 
-    Infer *loadraw(const std::string &engine_file, float *confidence_thresholds,
-                   float nms_threshold) {
-        InferImpl *impl = new InferImpl();
+    shared_ptr<Infer> load(const string &engine_file,
+                           float *confidence_thresholds,
+                           float nms_threshold) {
+        auto *impl = new InferImpl();
         if (!impl->load(engine_file, confidence_thresholds, nms_threshold)) {
             delete impl;
             impl = nullptr;
         }
-        return impl;
-    }
-
-    shared_ptr<Infer> load(const string &engine_file, float *confidence_thresholds,
-                           float nms_threshold) {
-        return std::shared_ptr<InferImpl>(
-            (InferImpl *) loadraw(engine_file, confidence_thresholds, nms_threshold));
-    }
-
-    std::tuple<uint8_t, uint8_t, uint8_t> hsv2bgr(float h, float s, float v) {
-        const int h_i = static_cast<int>(h * 6);
-        const float f = h * 6 - h_i;
-        const float p = v * (1 - s);
-        const float q = v * (1 - f * s);
-        const float t = v * (1 - (1 - f) * s);
-        float r, g, b;
-        switch (h_i) {
-            case 0:
-                r = v, g = t, b = p;
-                break;
-            case 1:
-                r = q, g = v, b = p;
-                break;
-            case 2:
-                r = p, g = v, b = t;
-                break;
-            case 3:
-                r = p, g = q, b = v;
-                break;
-            case 4:
-                r = t, g = p, b = v;
-                break;
-            case 5:
-                r = v, g = p, b = q;
-                break;
-            default:
-                r = 1, g = 1, b = 1;
-                break;
-        }
-        return make_tuple(static_cast<uint8_t>(b * 255), static_cast<uint8_t>(g * 255),
-                          static_cast<uint8_t>(r * 255));
-    }
-
-    std::tuple<uint8_t, uint8_t, uint8_t> random_color(int id) {
-        float h_plane = ((((unsigned int) id << 2) ^ 0x937151) % 100) / 100.0f;
-        float s_plane = ((((unsigned int) id << 3) ^ 0x315793) % 100) / 100.0f;
-        return hsv2bgr(h_plane, s_plane, 1);
+        return std::shared_ptr<InferImpl>(impl);
     }
 }; // namespace yolo
