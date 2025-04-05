@@ -44,21 +44,19 @@ void syncInfer() {
         //             << ", "
         //             << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
         //
-        //     uint8_t b, g, r;
-        //
         //     rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
-        //               cv::Scalar(255, 255, 0), 5);
+        //               cv::Scalar(255, 0, 255), 5);
         //
         //     auto name = obj.class_label;
         //     auto caption = cv::format("%i %.2f", name, obj.confidence);
         //     int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
         //     rectangle(mat, cv::Point(obj.left - 3, obj.top - 33),
-        //               cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
+        //               cv::Point(obj.left + width, obj.top), cv::Scalar(255, 0, 255), -1);
         //     putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2,
         //             16);
         // }
         // cv::imshow(windowName, mat); // ÏÔÊ¾Ö¡
-        // cv::waitKey(0);
+        // cv::waitKey(1);
     }
 }
 
