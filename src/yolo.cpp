@@ -61,7 +61,6 @@ namespace yolo {
 
         virtual ~InferImpl() {
             // 程序结束时销毁流
-            INFO("Destroy the created stream");
             cudaStreamDestroy((cudaStream_t) customStream);
         };
 
@@ -118,7 +117,7 @@ namespace yolo {
 
         bool load(const string &engine_file,
                   float *confidence_thresholds,
-                  float nms_threshold, void *stream) {
+                  float nms_threshold, void *stream = nullptr) {
             trt_ = trt::load(engine_file);
             if (trt_ == nullptr) return false;
 

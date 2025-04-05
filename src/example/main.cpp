@@ -16,12 +16,12 @@ void syncInfer() {
     }
 
     cudaStream_t customStream;
+    // 创建非阻塞流
+    cudaStreamCreate(&customStream);
 
     Config config;
     auto yolo = yolo::load(config.MODEL, confidence_thresholds, 0.4, customStream);
     if (yolo == nullptr) return;
-    // 创建非阻塞流
-    cudaStreamCreate(&customStream);
 
     //预热
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);

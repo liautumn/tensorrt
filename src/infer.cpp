@@ -235,7 +235,7 @@ namespace trt {
     static _native_nvinfer_logger gLogger;
 
     template<typename _T>
-    static void destroy_nvidia_pointer(_T* ptr) {
+    static void destroy_nvidia_pointer(_T *ptr) {
         if (ptr) delete ptr;
     }
 
@@ -420,17 +420,13 @@ namespace trt {
         }
     };
 
-    Infer *loadraw(const std::string &file) {
-        InferImpl *impl = new InferImpl();
+    std::shared_ptr<Infer> load(const std::string &file) {
+        auto *impl = new InferImpl();
         if (!impl->load(file)) {
             delete impl;
             impl = nullptr;
         }
-        return impl;
-    }
-
-    std::shared_ptr<Infer> load(const std::string &file) {
-        return std::shared_ptr<InferImpl>((InferImpl *) loadraw(file));
+        return std::shared_ptr<InferImpl>(impl);
     }
 
     std::string format_shape(const std::vector<int> &shape) {
