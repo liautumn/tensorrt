@@ -47,7 +47,7 @@ namespace yolo {
     };
 
     shared_ptr<Infer> load(const string &engine_file,
-                           float *confidence_thresholds, float nms_threshold = 0.5f);
+                           float *confidence_thresholds, float nms_threshold = 0.5f, void *stream = nullptr);
 }; // namespace yolo
 
 #endif  // YOLO_H_

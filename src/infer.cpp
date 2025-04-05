@@ -170,7 +170,6 @@ namespace trt {
 
             gpu_capacity_ = bytes;
             checkRuntime(cudaMalloc(&gpu_, bytes));
-            // checkRuntime(cudaMemset(gpu_, 0, size));
         }
         gpu_bytes_ = bytes;
         return gpu_;
@@ -183,7 +182,6 @@ namespace trt {
             cpu_capacity_ = bytes;
             checkRuntime(cudaMallocHost(&cpu_, bytes));
             Assert(cpu_ != nullptr);
-            // memset(cpu_, 0, size);
         }
         cpu_bytes_ = bytes;
         return cpu_;
@@ -363,7 +361,10 @@ namespace trt {
 
         virtual bool set_run_dims(const std::string &name, const std::vector<int> &dims) override {
             Dims d;
-            memcpy(d.d, dims.data(), sizeof(int) * dims.size());
+            // memcpy(d.d, dims.data(), sizeof(int) * 4);
+            for (int i = 0; i < dims.size(); ++i) {
+                d.d[i] = dims[i];
+            }
             d.nbDims = dims.size();
             return this->context_->context_->setInputShape(name.c_str(), d);
         }
@@ -378,8 +379,6 @@ namespace trt {
         }
 
         virtual bool has_dynamic_dim() override {
-            // check if any input or output bindings have dynamic shapes
-            // code from ChatGPT
             int numBindings = this->context_->engine_->getNbIOTensors();
             for (int i = 0; i < numBindings; ++i) {
                 const char *bindingName = this->context_->engine_->getIOTensorName(i);

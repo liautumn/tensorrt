@@ -1,7 +1,6 @@
 D:\dev\CUDA\TensorRT-10\TensorRT-10.5.0.18\bin\trtexec.exe `
---onnx=D:\autumn\Documents\GitHub\tensorrt\workspace\model\transdOnnx\yolo11s.transd.onnx `
---saveEngine=D:\autumn\Documents\GitHub\tensorrt\workspace\model\engine\yolo11s.transd.engine `
+--onnx=D:\autumn\Documents\GitHub\tensorrt\workspace\model\transdOnnx\yolo11s.dynamic.transd.onnx `
+--saveEngine=D:\autumn\Documents\GitHub\tensorrt\workspace\model\engine\yolo11s.dynamic.transd.engine `
 --fp16 `
 --useCudaGraph `
---minShapes=images:1x3x640x1024 --maxShapes=images:12x3x640x1024 --optShapes=images:1x3x640x1024 `
---minShapes=images:1x3x1024x1024 --maxShapes=images:12x3x1024x1024 --optShapes=images:1x3x1024x1024 `
+--minShapes=images:1x3x1024x1024 --maxShapes=images:12x3x1024x1024 --optShapes=images:1x3x1024x1024

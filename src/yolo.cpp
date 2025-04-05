@@ -1,6 +1,8 @@
 #include "infer.h"
 #include "yolo.h"
 #include <cuda_runtime_api.h>
+#include <iostream>
+
 #include "preprocess.cuh"
 #include "postprocess.cuh"
 
@@ -47,6 +49,7 @@ namespace yolo {
         shared_ptr<trt::Infer> trt_;
         string engine_file_;
         float *confidence_thresholds_;
+        void *customStream;
         float nms_threshold_;
         vector<shared_ptr<trt::Memory<unsigned char> > > preprocess_buffers_;
         trt::Memory<float> input_buffer_, bbox_predict_, output_boxarray_, confidence_thresholds_device_;
@@ -56,7 +59,11 @@ namespace yolo {
         int num_classes_ = 0;
         bool isDynamic_model_ = false;
 
-        virtual ~InferImpl() = default;
+        virtual ~InferImpl() {
+            // 程序结束时销毁流
+            INFO("Destroy the created stream");
+            cudaStreamDestroy((cudaStream_t) customStream);
+        };
 
         void adjust_memory(int batch_size) {
             // the inference batch_size
@@ -111,12 +118,13 @@ namespace yolo {
 
         bool load(const string &engine_file,
                   float *confidence_thresholds,
-                  float nms_threshold) {
+                  float nms_threshold, void *stream) {
             trt_ = trt::load(engine_file);
             if (trt_ == nullptr) return false;
 
             trt_->print();
 
+            this->customStream = stream;
             this->confidence_thresholds_ = confidence_thresholds;
             this->nms_threshold_ = nms_threshold;
 
@@ -218,9 +226,10 @@ namespace yolo {
 
     shared_ptr<Infer> load(const string &engine_file,
                            float *confidence_thresholds,
-                           float nms_threshold) {
+                           float nms_threshold,
+                           void *stream) {
         auto *impl = new InferImpl();
-        if (!impl->load(engine_file, confidence_thresholds, nms_threshold)) {
+        if (!impl->load(engine_file, confidence_thresholds, nms_threshold, stream)) {
             delete impl;
             impl = nullptr;
         }

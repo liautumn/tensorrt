@@ -1,3 +1,5 @@
+#include <cuda_runtime_api.h>
+#include <driver_types.h>
 #include <opencv2/opencv.hpp>
 #include <filesystem>
 #include "infer.h"
@@ -13,15 +15,19 @@ void syncInfer() {
         confidence_thresholds[i] = 0.25;
     }
 
+    cudaStream_t customStream;
+
     Config config;
-    auto yolo = yolo::load(config.MODEL, confidence_thresholds, 0.4);
+    auto yolo = yolo::load(config.MODEL, confidence_thresholds, 0.4, customStream);
     if (yolo == nullptr) return;
+    // 创建非阻塞流
+    cudaStreamCreate(&customStream);
 
     //预热
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->forward(yrImage);
+        auto objs = yolo->forward(yrImage, customStream);
     }
 
     trt::Timer timer;
@@ -36,8 +42,8 @@ void syncInfer() {
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
     while (true) {
-        timer.start();
-        auto objs = yolo->forward(image);
+        timer.start(customStream);
+        auto objs = yolo->forward(image, customStream);
         timer.stop("batch one");
         // for (auto &obj: objs) {
         //     cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
