@@ -37,9 +37,13 @@ set(LIBS
 #add_library(${PROJECT_NAME} SHARED
 #        include/cpm.h
 #        include/yolo.h
+#        src/yolo.cpp
 #        include/infer.h
 #        src/infer.cpp
-#        src/yolo.cu
+#        include/preprocess.cuh
+#        src/preprocess.cu
+#        include/postprocess.cuh
+#        src/postprocess.cu
 #        src/export/exportMultiple.cpp
 #        src/export/exportMultipleCpm.cpp
 #        src/export/exportSingle.cpp

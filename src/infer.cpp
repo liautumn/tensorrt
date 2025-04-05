@@ -15,47 +15,12 @@ namespace trt {
     using namespace std;
     using namespace nvinfer1;
 
-#define checkRuntime(call)                                                                 \
-  do {                                                                                     \
-    auto ___call__ret_code__ = (call);                                                     \
-    if (___call__ret_code__ != cudaSuccess) {                                              \
-      INFO("CUDA Runtime error💥 %s # %s, code = %s [ %d ]", #call,                         \
-           cudaGetErrorString(___call__ret_code__), cudaGetErrorName(___call__ret_code__), \
-           ___call__ret_code__);                                                           \
-      abort();                                                                             \
-    }                                                                                      \
-  } while (0)
-
-#define checkKernel(...)                 \
-  do {                                   \
-    { (__VA_ARGS__); }                   \
-    checkRuntime(cudaPeekAtLastError()); \
-  } while (0)
-
-#define Assert(op)                 \
-  do {                             \
-    bool cond = !(!(op));          \
-    if (!cond) {                   \
-      INFO("Assert failed, " #op); \
-      abort();                     \
-    }                              \
-  } while (0)
-
-#define Assertf(op, ...)                             \
-  do {                                               \
-    bool cond = !(!(op));                            \
-    if (!cond) {                                     \
-      INFO("Assert failed, " #op " : " __VA_ARGS__); \
-      abort();                                       \
-    }                                                \
-  } while (0)
-
     static string file_name(const string &path, bool include_suffix) {
         if (path.empty()) return "";
 
         int p = path.rfind('/');
         int e = path.rfind('\\');
-        p = std::max(p, e);
+        p = max(p, e);
         p += 1;
 
         // include suffix
@@ -77,13 +42,13 @@ namespace trt {
         vsnprintf(buffer + n, sizeof(buffer) - n, fmt, vl);
         fprintf(stdout, "%s\n", buffer);
         // 检查目录是否存在
-        std::string folder_path = "trt_log"; // 文件夹路径
-        if (!std::filesystem::exists(folder_path)) {
+        string folder_path = "trt_log"; // 文件夹路径
+        if (!filesystem::exists(folder_path)) {
             // 如果文件夹不存在，创建文件夹
             try {
-                std::filesystem::create_directory(folder_path);
-            } catch (const std::exception &e) {
-                std::cerr << "创建文件夹时出错: " << e.what() << std::endl;
+                filesystem::create_directory(folder_path);
+            } catch (const exception &e) {
+                cerr << "创建文件夹时出错: " << e.what() << endl;
             }
         }
         // 打开文件并追加日志
@@ -95,7 +60,7 @@ namespace trt {
         va_end(vl);
     }
 
-    static std::string format_shape(const Dims &shape) {
+    static string format_shape(const Dims &shape) {
         stringstream output;
         char buf[64];
         const char *fmts[] = {"%d", "x%d"};
@@ -234,19 +199,19 @@ namespace trt {
 
     static _native_nvinfer_logger gLogger;
 
-    template<typename _T>
-    static void destroy_nvidia_pointer(_T *ptr) {
-        if (ptr) delete ptr;
+    template<typename T>
+    static void destroy_nvidia_pointer(T *ptr) {
+        delete ptr;
     }
 
-    static std::vector<uint8_t> load_file(const string &file) {
+    static vector<uint8_t> load_file(const string &file) {
         ifstream in(file, ios::in | ios::binary);
         if (!in.is_open()) return {};
 
         in.seekg(0, ios::end);
         size_t length = in.tellg();
 
-        std::vector<uint8_t> data;
+        vector<uint8_t> data;
         if (length > 0) {
             in.seekg(0, ios::beg);
             data.resize(length);
@@ -335,7 +300,7 @@ namespace trt {
             return iter->second;
         }
 
-        virtual bool forward(const std::vector<void *> &bindings, void *stream) override {
+        virtual bool forward(const vector<void *> &bindings, void *stream) override {
             auto inputName = binding_index_to_name_[0];
             auto outputName = binding_index_to_name_[1];
             this->context_->context_->setTensorAddress(inputName.c_str(), bindings[0]);
@@ -343,23 +308,23 @@ namespace trt {
             return this->context_->context_->enqueueV3((cudaStream_t) stream);
         }
 
-        virtual std::vector<int> run_dims(const std::string &name) override {
+        virtual vector<int> run_dims(const string &name) override {
             auto dim = this->context_->context_->getTensorShape(name.c_str());
-            return std::vector<int>(dim.d, dim.d + dim.nbDims);
+            return vector<int>(dim.d, dim.d + dim.nbDims);
         }
 
-        virtual std::vector<int> static_dims(const std::string &name) override {
+        virtual vector<int> static_dims(const string &name) override {
             auto dim = this->context_->engine_->getTensorShape(name.c_str());
-            return std::vector<int>(dim.d, dim.d + dim.nbDims);
+            return vector<int>(dim.d, dim.d + dim.nbDims);
         }
 
         virtual int num_bindings() override { return this->context_->engine_->getNbIOTensors(); }
 
-        virtual bool is_input(const std::string &name) override {
+        virtual bool is_input(const string &name) override {
             return this->context_->engine_->getTensorIOMode(name.c_str()) == nvinfer1::TensorIOMode::kINPUT;
         }
 
-        virtual bool set_run_dims(const std::string &name, const std::vector<int> &dims) override {
+        virtual bool set_run_dims(const string &name, const vector<int> &dims) override {
             Dims d;
             // memcpy(d.d, dims.data(), sizeof(int) * 4);
             for (int i = 0; i < dims.size(); ++i) {
@@ -369,12 +334,12 @@ namespace trt {
             return this->context_->context_->setInputShape(name.c_str(), d);
         }
 
-        virtual int numel(const std::string &name) override {
+        virtual int numel(const string &name) override {
             auto dim = this->context_->context_->getTensorShape(name.c_str());
-            return std::accumulate(dim.d, dim.d + dim.nbDims, 1, std::multiplies<int>());
+            return accumulate(dim.d, dim.d + dim.nbDims, 1, multiplies<int>());
         }
 
-        virtual DType dtype(const std::string &name) override {
+        virtual DType dtype(const string &name) override {
             return (DType) this->context_->engine_->getTensorDataType(name.c_str());
         }
 
@@ -397,7 +362,7 @@ namespace trt {
             int num_output = 0;
             auto engine = this->context_->engine_;
             for (int i = 0; i < engine->getNbIOTensors(); ++i) {
-                std::string name = engine->getIOTensorName(i);
+                string name = engine->getIOTensorName(i);
                 if (engine->getTensorIOMode(name.c_str()) == TensorIOMode::kINPUT)
                     num_input++;
                 else
@@ -420,16 +385,16 @@ namespace trt {
         }
     };
 
-    std::shared_ptr<Infer> load(const std::string &file) {
+    shared_ptr<Infer> load(const string &file) {
         auto *impl = new InferImpl();
         if (!impl->load(file)) {
             delete impl;
             impl = nullptr;
         }
-        return std::shared_ptr<InferImpl>(impl);
+        return shared_ptr<InferImpl>(impl);
     }
 
-    std::string format_shape(const std::vector<int> &shape) {
+    string format_shape(const vector<int> &shape) {
         stringstream output;
         char buf[64];
         const char *fmts[] = {"%d", "x%d"};

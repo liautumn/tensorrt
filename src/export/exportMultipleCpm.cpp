@@ -1,3 +1,5 @@
+#include <cuda_runtime_api.h>
+#include <driver_types.h>
 #include <opencv2/opencv.hpp>
 #include "infer.h"
 #include "cpm.h"
@@ -6,12 +8,15 @@
 using namespace std;
 
 static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi2;
+cudaStream_t customStream4;
 
 extern "C" __declspec(dllexport) bool
-TENSORRT_MULTIPLE_CPM_INIT(const char *engineFile, float confidence, float nms, int maxBatch) {
-    bool ok = cpmi2.start([&engineFile, &confidence, &nms] {
-        return yolo::load(engineFile, yolo::Type::V8, confidence, nms);
-    }, maxBatch);
+TENSORRT_MULTIPLE_CPM_INIT(const char *engineFile, float *confidences, float nms, int maxBatch) {
+    // 创建非阻塞流
+    cudaStreamCreate(&customStream4);
+    bool ok = cpmi2.start([&engineFile, &confidences, &nms] {
+        return yolo::load(engineFile, confidences, nms, customStream4);
+    }, maxBatch, customStream4);
     if (ok) {
         //预热
         cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
@@ -49,6 +54,7 @@ TENSORRT_MULTIPLE_CPM_INFER(cv::Mat **mats, int imgSize, yolo::Box ***result, in
         memcpy((*result)[ib], boxes.data(), boxes.size() * sizeof(yolo::Box));
     }
 }
+
 extern "C" __declspec(dllexport) void TENSORRT_MULTIPLE_CPM_DESTROY() {
     cpmi2.stop();
 }

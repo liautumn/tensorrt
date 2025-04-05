@@ -1,3 +1,5 @@
+#include <cuda_runtime_api.h>
+#include <driver_types.h>
 #include <opencv2/opencv.hpp>
 #include "infer.h"
 #include "cpm.h"
@@ -6,10 +8,13 @@
 using namespace std;
 
 static shared_ptr<yolo::Infer> yolo2;
+cudaStream_t customStream3;
 
 extern "C" __declspec(dllexport) bool
-TENSORRT_MULTIPLE_INIT(const char *engineFile, float confidence, float nms, int maxBatch) {
-    yolo2 = yolo::load(engineFile, yolo::Type::V8, confidence, nms);
+TENSORRT_MULTIPLE_INIT(const char *engineFile, float* confidences, float nms, int maxBatch) {
+    // 创建非阻塞流
+    cudaStreamCreate(&customStream3);
+    yolo2 = yolo::load(engineFile, confidences, nms, customStream3);
     if (yolo2 != nullptr) {
         //预热
         cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
@@ -19,7 +24,7 @@ TENSORRT_MULTIPLE_INIT(const char *engineFile, float confidence, float nms, int 
             inputs.emplace_back(yrMat.data, yrMat.cols, yrMat.rows);
         }
         for (int i = 0; i < 5; ++i) {
-            auto batched_result = yolo2->forwards(inputs);
+            auto batched_result = yolo2->forwards(inputs, customStream3);
         }
         return true;
     }
@@ -35,7 +40,7 @@ TENSORRT_MULTIPLE_INFER(cv::Mat **mats, int imgSize, yolo::Box ***result, int **
     for (int i = 0; i < imgSize; ++i) {
         inputs.emplace_back(mats[i]->data, mats[i]->cols, mats[i]->rows);
     }
-    auto batched_result = yolo2->forwards(inputs);
+    auto batched_result = yolo2->forwards(inputs, customStream3);
     timer.stop("batch n");
 
     *resultSizes = new int[batched_result.size()];

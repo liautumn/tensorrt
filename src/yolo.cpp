@@ -2,7 +2,6 @@
 #include "yolo.h"
 #include <cuda_runtime_api.h>
 #include <iostream>
-
 #include "preprocess.cuh"
 #include "postprocess.cuh"
 
@@ -18,10 +17,10 @@ namespace yolo {
         float i2d[6]; // image to dst(network), 2x3 matrix
         float d2i[6]; // dst to image, 2x3 matrix
 
-        void compute(const std::tuple<int, int> &from, const std::tuple<int, int> &to) {
+        void compute(const tuple<int, int> &from, const tuple<int, int> &to) {
             float scale_x = get<0>(to) / (float) get<0>(from);
             float scale_y = get<1>(to) / (float) get<1>(from);
-            float scale = std::min(scale_x, scale_y);
+            float scale = min(scale_x, scale_y);
             i2d[0] = scale;
             i2d[1] = 0;
             i2d[2] = -scale * get<0>(from) * 0.5 + get<0>(to) * 0.5 + scale * 0.5 - 0.5;
@@ -232,6 +231,6 @@ namespace yolo {
             delete impl;
             impl = nullptr;
         }
-        return std::shared_ptr<InferImpl>(impl);
+        return shared_ptr<InferImpl>(impl);
     }
 }; // namespace yolo

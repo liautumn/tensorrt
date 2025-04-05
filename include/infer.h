@@ -8,20 +8,39 @@
 using namespace std;
 
 #define INFO(...) trt::_log_func(__FILE__, __LINE__, __VA_ARGS__)
-#define checkRuntime(call)                                                                          \
-        do {                                                                                        \
-            auto ___call__ret_code__ = (call);                                                      \
-                if (___call__ret_code__ != cudaSuccess) {                                           \
-                INFO("CUDA Runtime error? %s # %s, code = %s [ %d ]", #call,                       \
-                cudaGetErrorString(___call__ret_code__), cudaGetErrorName(___call__ret_code__),     \
-                ___call__ret_code__);                                                               \
-                abort();                                                                            \
-            }                                                                                       \
+#define checkRuntime(call)                                                                      \
+        do {                                                                                    \
+            auto ___call__ret_code__ = (call);                                                  \
+            if (___call__ret_code__ != cudaSuccess) {                                           \
+                INFO("CUDA Runtime error? %s # %s, code = %s [ %d ]", #call,                   \
+                cudaGetErrorString(___call__ret_code__), cudaGetErrorName(___call__ret_code__), \
+                ___call__ret_code__);                                                           \
+                abort();                                                                        \
+            }                                                                                   \
         } while (0)
+
 #define checkKernel(...)                            \
         do {                                        \
             { (__VA_ARGS__); }                      \
             checkRuntime(cudaPeekAtLastError());    \
+        } while (0)
+
+#define Assert(op)                              \
+        do {                                    \
+            bool cond = !(!(op));               \
+            if (!cond) {                        \
+                INFO("Assert failed, " #op);    \
+                abort();                        \
+            }                                   \
+        } while (0)
+
+#define Assertf(op, ...)                                        \
+        do {                                                    \
+            bool cond = !(!(op));                               \
+            if (!cond) {                                        \
+                INFO("Assert failed, " #op " : " __VA_ARGS__);  \
+                abort();                                        \
+            }                                                   \
         } while (0)
 
 namespace trt {
@@ -124,7 +143,7 @@ namespace trt {
 
         virtual int num_bindings() = 0;
 
-        virtual bool is_input(const std::string &name) = 0;
+        virtual bool is_input(const string &name) = 0;
 
         virtual bool set_run_dims(const string &name, const vector<int> &dims) = 0;
 

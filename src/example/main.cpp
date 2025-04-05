@@ -5,9 +5,13 @@
 #include "infer.h"
 #include "yolo.h"
 #include "config.h"
+#include "cpm.h"
 
 using namespace std;
 namespace fs = std::filesystem;
+
+static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
+cudaStream_t customStream1;
 
 void syncInfer() {
     auto *confidence_thresholds = new float[80];
@@ -66,7 +70,48 @@ void syncInfer() {
     }
 }
 
+bool initSingleCpm(const string &engineFile, float *confidences, float nms) {
+    // 创建非阻塞流
+    cudaStreamCreate(&customStream1);
+    bool ok = cpmi.start([&engineFile, &confidences, &nms] {
+        return yolo::load(engineFile, confidences, nms, customStream1);
+    }, 1, customStream1);
+    if (!ok) {
+        return false;
+    } else {
+        //预热
+        cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
+        auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
+        for (int i = 0; i < 10; ++i) {
+            cpmi.commit(yrImage).get();
+        }
+        return true;
+    }
+}
+
+vector<yolo::Box> inferSingleCpm(const cv::Mat &mat) {
+    return cpmi.commit(yolo::Image(mat.data, mat.cols, mat.rows)).get();
+}
+
+void asyncInfer() {
+    auto *confidence_thresholds = new float[80];
+    for (int i = 0; i < 80; i++) {
+        confidence_thresholds[i] = 0.25;
+    }
+    Config config;
+    trt::Timer timer;
+    if (initSingleCpm(config.MODEL, confidence_thresholds, 0.5)) {
+        const cv::Mat mat = cv::imread(config.TEST_IMG);
+        while (true) {
+            timer.start();
+            inferSingleCpm(mat);
+            timer.stop("batch one");
+        }
+    }
+}
+
 int main() {
     syncInfer();
+    // asyncInfer();
     return 0;
 }
