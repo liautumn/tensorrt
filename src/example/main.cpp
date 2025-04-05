@@ -8,8 +8,8 @@ using namespace std;
 namespace fs = std::filesystem;
 
 void syncInfer() {
-    auto *confidence_thresholds = new float[84];
-    for (int i = 0; i < 84; i++) {
+    auto *confidence_thresholds = new float[80];
+    for (int i = 0; i < 80; i++) {
         confidence_thresholds[i] = 0.25;
     }
 
