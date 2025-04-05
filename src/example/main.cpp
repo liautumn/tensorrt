@@ -46,9 +46,8 @@ void syncInfer() {
         //
         //     uint8_t b, g, r;
         //
-        //     tie(b, g, r) = yolo::random_color(obj.class_label);
         //     rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
-        //               cv::Scalar(b, g, r), 5);
+        //               cv::Scalar(255, 255, 0), 5);
         //
         //     auto name = obj.class_label;
         //     auto caption = cv::format("%i %.2f", name, obj.confidence);

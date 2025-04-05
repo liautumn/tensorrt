@@ -25,9 +25,9 @@ link_directories(
 
 set(LIBS
         ${OpenCV_LIBS}
-        nvinfer
-        nvinfer_plugin
-        nvonnxparser
+        nvinfer_10
+        nvinfer_plugin_10
+        nvonnxparser_10
         cuda
         cublas
         cudart

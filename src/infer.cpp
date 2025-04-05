@@ -237,8 +237,8 @@ namespace trt {
     static _native_nvinfer_logger gLogger;
 
     template<typename _T>
-    static void destroy_nvidia_pointer(_T *ptr) {
-        if (ptr) ptr->destroy();
+    static void destroy_nvidia_pointer(_T* ptr) {
+        // if (ptr) ptr->Release();
     }
 
     static std::vector<uint8_t> load_file(const string &file) {
@@ -270,7 +270,7 @@ namespace trt {
             runtime_ = shared_ptr<IRuntime>(createInferRuntime(gLogger), destroy_nvidia_pointer<IRuntime>);
             if (runtime_ == nullptr) return false;
 
-            engine_ = shared_ptr<ICudaEngine>(runtime_->deserializeCudaEngine(pdata, size, nullptr),
+            engine_ = shared_ptr<ICudaEngine>(runtime_->deserializeCudaEngine(pdata, size),
                                               destroy_nvidia_pointer<ICudaEngine>);
             if (engine_ == nullptr) return false;
 
@@ -296,7 +296,7 @@ namespace trt {
     class InferImpl : public Infer {
     public:
         shared_ptr<_native_engine_context> context_;
-        unordered_map<string, int> binding_name_to_index_;
+        unordered_map<int, string> binding_index_to_name_;
 
         virtual ~InferImpl() = default;
 
@@ -321,82 +321,69 @@ namespace trt {
 
         void setup() {
             auto engine = this->context_->engine_;
-            int nbBindings = engine->getNbBindings();
+            int nbBindings = engine->getNbIOTensors();
 
-            binding_name_to_index_.clear();
+            binding_index_to_name_.clear();
             for (int i = 0; i < nbBindings; ++i) {
-                const char *bindingName = engine->getBindingName(i);
-                binding_name_to_index_[bindingName] = i;
+                const char *bindingName = engine->getIOTensorName(i);
+                binding_index_to_name_[i] = bindingName;
             }
         }
 
-        virtual int index(const std::string &name) override {
-            auto iter = binding_name_to_index_.find(name);
-            Assertf(iter != binding_name_to_index_.end(), "Can not found the binding name: %s",
-                    name.c_str());
+        virtual string name(int index) override {
+            auto iter = binding_index_to_name_.find(index);
+            Assertf(iter != binding_index_to_name_.end(), "Can not found the binding i: %i",
+                    index);
             return iter->second;
         }
 
-        virtual bool forward(const std::vector<void *> &bindings, void *stream,
-                             void *input_consum_event) override {
-            return this->context_->context_->enqueueV2((void **) bindings.data(), (cudaStream_t) stream,
-                                                       (cudaEvent_t *) input_consum_event);
+        virtual bool forward(const std::vector<void *> &bindings, void *stream) override {
+            auto inputName = binding_index_to_name_[0];
+            auto outputName = binding_index_to_name_[1];
+            this->context_->context_->setTensorAddress(inputName.c_str(), bindings[0]);
+            this->context_->context_->setTensorAddress(outputName.c_str(), bindings[1]);
+            return this->context_->context_->enqueueV3((cudaStream_t) stream);
         }
 
         virtual std::vector<int> run_dims(const std::string &name) override {
-            return run_dims(index(name));
-        }
-
-        virtual std::vector<int> run_dims(int ibinding) override {
-            auto dim = this->context_->context_->getBindingDimensions(ibinding);
+            auto dim = this->context_->context_->getTensorShape(name.c_str());
             return std::vector<int>(dim.d, dim.d + dim.nbDims);
         }
 
         virtual std::vector<int> static_dims(const std::string &name) override {
-            return static_dims(index(name));
-        }
-
-        virtual std::vector<int> static_dims(int ibinding) override {
-            auto dim = this->context_->engine_->getBindingDimensions(ibinding);
+            auto dim = this->context_->engine_->getTensorShape(name.c_str());
             return std::vector<int>(dim.d, dim.d + dim.nbDims);
         }
 
-        virtual int num_bindings() override { return this->context_->engine_->getNbBindings(); }
+        virtual int num_bindings() override { return this->context_->engine_->getNbIOTensors(); }
 
-        virtual bool is_input(int ibinding) override {
-            return this->context_->engine_->bindingIsInput(ibinding);
+        virtual bool is_input(const std::string &name) override {
+            return this->context_->engine_->getTensorIOMode(name.c_str()) == nvinfer1::TensorIOMode::kINPUT;
         }
 
         virtual bool set_run_dims(const std::string &name, const std::vector<int> &dims) override {
-            return this->set_run_dims(index(name), dims);
-        }
-
-        virtual bool set_run_dims(int ibinding, const std::vector<int> &dims) override {
             Dims d;
             memcpy(d.d, dims.data(), sizeof(int) * dims.size());
             d.nbDims = dims.size();
-            return this->context_->context_->setBindingDimensions(ibinding, d);
+            return this->context_->context_->setInputShape(name.c_str(), d);
         }
 
-        virtual int numel(const std::string &name) override { return numel(index(name)); }
-
-        virtual int numel(int ibinding) override {
-            auto dim = this->context_->context_->getBindingDimensions(ibinding);
+        virtual int numel(const std::string &name) override {
+            auto dim = this->context_->context_->getTensorShape(name.c_str());
             return std::accumulate(dim.d, dim.d + dim.nbDims, 1, std::multiplies<int>());
         }
 
-        virtual DType dtype(const std::string &name) override { return dtype(index(name)); }
-
-        virtual DType dtype(int ibinding) override {
-            return (DType) this->context_->engine_->getBindingDataType(ibinding);
+        virtual DType dtype(const std::string &name) override {
+            return (DType) this->context_->engine_->getTensorDataType(name.c_str());
         }
 
         virtual bool has_dynamic_dim() override {
             // check if any input or output bindings have dynamic shapes
             // code from ChatGPT
-            int numBindings = this->context_->engine_->getNbBindings();
+            int numBindings = this->context_->engine_->getNbIOTensors();
             for (int i = 0; i < numBindings; ++i) {
-                nvinfer1::Dims dims = this->context_->engine_->getBindingDimensions(i);
+                const char *bindingName = this->context_->engine_->getIOTensorName(i);
+                Dims dims = this->context_->engine_->getTensorShape(bindingName);
                 for (int j = 0; j < dims.nbDims; ++j) {
                     if (dims.d[j] == -1) return true;
                 }
@@ -410,8 +397,9 @@ namespace trt {
             int num_input = 0;
             int num_output = 0;
             auto engine = this->context_->engine_;
-            for (int i = 0; i < engine->getNbBindings(); ++i) {
-                if (engine->bindingIsInput(i))
+            for (int i = 0; i < engine->getNbIOTensors(); ++i) {
+                std::string name = engine->getIOTensorName(i);
+                if (engine->getTensorIOMode(name.c_str()) == TensorIOMode::kINPUT)
                     num_input++;
                 else
                     num_output++;
@@ -419,15 +407,15 @@ namespace trt {
 
             INFO("Inputs: %d", num_input);
             for (int i = 0; i < num_input; ++i) {
-                auto name = engine->getBindingName(i);
-                auto dim = engine->getBindingDimensions(i);
+                auto name = engine->getIOTensorName(i);
+                auto dim = engine->getTensorShape(name);
                 INFO("\t%d.%s : shape {%s}", i, name, format_shape(dim).c_str());
             }
 
             INFO("Outputs: %d", num_output);
             for (int i = 0; i < num_output; ++i) {
-                auto name = engine->getBindingName(i + num_input);
-                auto dim = engine->getBindingDimensions(i + num_input);
+                auto name = engine->getIOTensorName(i + num_input);
+                auto dim = engine->getTensorShape(name);
                 INFO("\t%d.%s : shape {%s}", i, name, format_shape(dim).c_str());
             }
         }

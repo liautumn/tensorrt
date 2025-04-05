@@ -1,4 +1,4 @@
-D:\dev\CUDA\TensorRT-8\TensorRT-8.6.1.6.cuda-12.0\TensorRT-8.6.1.6\bin\trtexec.exe `
+D:\dev\CUDA\TensorRT-10\TensorRT-10.5.0.18\bin\trtexec.exe `
 --onnx=D:\autumn\Documents\GitHub\tensorrt\workspace\model\transdOnnx\yolo11s.transd.onnx `
 --saveEngine=D:\autumn\Documents\GitHub\tensorrt\workspace\model\engine\yolo11s.transd.engine `
 --fp16 `

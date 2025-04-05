@@ -120,8 +120,10 @@ namespace yolo {
             this->confidence_thresholds_ = confidence_thresholds;
             this->nms_threshold_ = nms_threshold;
 
-            auto input_dim = trt_->static_dims(0);
-            bbox_head_dims_ = trt_->static_dims(1);
+            auto inputName = trt_->name(0);
+            auto outputName = trt_->name(1);
+            auto input_dim = trt_->static_dims(inputName);
+            bbox_head_dims_ = trt_->static_dims(outputName);
             network_input_width_ = input_dim[3];
             network_input_height_ = input_dim[2];
             isDynamic_model_ = trt_->has_dynamic_dim();
@@ -142,14 +144,14 @@ namespace yolo {
                                   void *stream = nullptr) override {
             int num_image = images.size();
             if (num_image == 0) return {};
-
-            auto input_dims = trt_->static_dims(0);
+            auto inputName = trt_->name(0);
+            auto input_dims = trt_->static_dims(inputName);
             int infer_batch_size = input_dims[0];
             if (infer_batch_size != num_image) {
                 if (isDynamic_model_) {
                     infer_batch_size = num_image;
                     input_dims[0] = num_image;
-                    if (!trt_->set_run_dims(0, input_dims)) return {};
+                    if (!trt_->set_run_dims(inputName, input_dims)) return {};
                 } else {
                     if (infer_batch_size < num_image) {
                         INFO(
@@ -168,6 +170,7 @@ namespace yolo {
                 preprocess(i, images[i], preprocess_buffers_[i], affine_matrixs[i], stream);
 
             float *bbox_output_device = bbox_predict_.gpu();
+
             vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
 
             if (!trt_->forward(bindings, stream)) {

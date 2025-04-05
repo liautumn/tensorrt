@@ -112,34 +112,23 @@ namespace trt {
 
     class Infer {
     public:
-        virtual bool forward(const vector<void *> &bindings, void *stream = nullptr,
-                             void *input_consum_event = nullptr) = 0;
+        virtual bool forward(const vector<void *> &bindings, void *stream = nullptr) = 0;
 
-        virtual int index(const string &name) = 0;
+        virtual string name(int index) = 0;
 
         virtual vector<int> run_dims(const string &name) = 0;
 
-        virtual vector<int> run_dims(int ibinding) = 0;
-
         virtual vector<int> static_dims(const string &name) = 0;
-
-        virtual vector<int> static_dims(int ibinding) = 0;
 
         virtual int numel(const string &name) = 0;
 
-        virtual int numel(int ibinding) = 0;
-
         virtual int num_bindings() = 0;
 
-        virtual bool is_input(int ibinding) = 0;
+        virtual bool is_input(const std::string &name) = 0;
 
         virtual bool set_run_dims(const string &name, const vector<int> &dims) = 0;
 
-        virtual bool set_run_dims(int ibinding, const vector<int> &dims) = 0;
-
         virtual DType dtype(const string &name) = 0;
-
-        virtual DType dtype(int ibinding) = 0;
 
         virtual bool has_dynamic_dim() = 0;
 
