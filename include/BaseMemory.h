@@ -20,17 +20,17 @@ namespace trt_memory {
 
         void release();
 
-        inline bool owner_gpu() const { return owner_gpu_; }
+        bool owner_gpu() const { return owner_gpu_; }
 
-        inline bool owner_cpu() const { return owner_cpu_; }
+        bool owner_cpu() const { return owner_cpu_; }
 
-        inline size_t cpu_bytes() const { return cpu_bytes_; }
+        size_t cpu_bytes() const { return cpu_bytes_; }
 
-        inline size_t gpu_bytes() const { return gpu_bytes_; }
+        size_t gpu_bytes() const { return gpu_bytes_; }
 
-        virtual inline void *get_gpu() const { return gpu_; }
+        virtual void *get_gpu() const { return gpu_; }
 
-        virtual inline void *get_cpu() const { return cpu_; }
+        virtual void *get_cpu() const { return cpu_; }
 
         void reference(void *cpu, size_t cpu_bytes, void *gpu, size_t gpu_bytes);
 

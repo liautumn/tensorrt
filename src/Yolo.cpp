@@ -20,8 +20,8 @@ namespace yolo {
         float d2i[6]; // dst to image, 2x3 matrix
 
         void compute(const tuple<int, int> &from, const tuple<int, int> &to) {
-            float scale_x = get<0>(to) / (float) get<0>(from);
-            float scale_y = get<1>(to) / (float) get<1>(from);
+            float scale_x = get<0>(to) / static_cast<float>(get<0>(from));
+            float scale_y = get<1>(to) / static_cast<float>(get<1>(from));
             float scale = min(scale_x, scale_y);
             i2d[0] = scale;
             i2d[1] = 0;
@@ -62,7 +62,7 @@ namespace yolo {
 
         virtual ~InferImpl() {
             // 程序结束时销毁流
-            cudaStreamDestroy((cudaStream_t) customStream);
+            cudaStreamDestroy(static_cast<cudaStream_t>(customStream));
         };
 
         void adjust_memory(int batch_size) {
@@ -75,7 +75,7 @@ namespace yolo {
 
             confidence_thresholds_device_.gpu(num_classes_);
 
-            if ((int) preprocess_buffers_.size() < batch_size) {
+            if (static_cast<int>(preprocess_buffers_.size()) < batch_size) {
                 for (int i = preprocess_buffers_.size(); i < batch_size; ++i)
                     preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
             }
@@ -94,15 +94,15 @@ namespace yolo {
             size_t size_image = image.width * image.height * 3;
             size_t size_matrix = upbound(sizeof(affine.d2i), 32);
             uint8_t *gpu_workspace = preprocess_buffer->gpu(size_matrix + size_image);
-            float *affine_matrix_device = (float *) gpu_workspace;
+            auto *affine_matrix_device = reinterpret_cast<float *>(gpu_workspace);
             uint8_t *image_device = gpu_workspace + size_matrix;
 
             uint8_t *cpu_workspace = preprocess_buffer->cpu(size_matrix + size_image);
-            float *affine_matrix_host = (float *) cpu_workspace;
+            auto *affine_matrix_host = reinterpret_cast<float *>(cpu_workspace);
             uint8_t *image_host = cpu_workspace + size_matrix;
 
             // speed up
-            auto stream_ = (cudaStream_t) stream;
+            auto stream_ = static_cast<cudaStream_t>(stream);
             memcpy(image_host, image.bgrptr, size_image);
             memcpy(affine_matrix_host, affine.d2i, sizeof(affine.d2i));
             checkRuntime(
@@ -173,7 +173,7 @@ namespace yolo {
             adjust_memory(infer_batch_size);
 
             vector<AffineMatrix> affine_matrixs(num_image);
-            cudaStream_t stream_ = (cudaStream_t) stream;
+            auto stream_ = static_cast<cudaStream_t>(stream);
             for (int i = 0; i < num_image; ++i)
                 preprocess(i, images[i], preprocess_buffers_[i], affine_matrixs[i], stream);
 
@@ -192,7 +192,7 @@ namespace yolo {
             for (int ib = 0; ib < num_image; ++ib) {
                 float *boxarray_device =
                         output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
-                float *affine_matrix_device = (float *) preprocess_buffers_[ib]->gpu();
+                float *affine_matrix_device = reinterpret_cast<float *>(preprocess_buffers_[ib]->gpu());
                 float *image_based_bbox_output =
                         bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
                 checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
@@ -207,7 +207,7 @@ namespace yolo {
             vector<BoxArray> arrout(num_image);
             for (int ib = 0; ib < num_image; ++ib) {
                 float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
-                int count = min(MAX_IMAGE_BOXES, (int) *parray);
+                int count = min(MAX_IMAGE_BOXES, static_cast<int>(*parray));
                 BoxArray &output = arrout[ib];
                 output.reserve(count);
                 for (int i = 0; i < count; ++i) {

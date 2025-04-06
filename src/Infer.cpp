@@ -151,7 +151,7 @@ namespace trt {
             auto outputName = binding_index_to_name_[1];
             this->context_->context_->setTensorAddress(inputName.c_str(), bindings[0]);
             this->context_->context_->setTensorAddress(outputName.c_str(), bindings[1]);
-            return this->context_->context_->enqueueV3((cudaStream_t) stream);
+            return this->context_->context_->enqueueV3(static_cast<cudaStream_t>(stream));
         }
 
         virtual vector<int> run_dims(const string &name) override {
@@ -167,7 +167,7 @@ namespace trt {
         virtual int num_bindings() override { return this->context_->engine_->getNbIOTensors(); }
 
         virtual bool is_input(const string &name) override {
-            return this->context_->engine_->getTensorIOMode(name.c_str()) == nvinfer1::TensorIOMode::kINPUT;
+            return this->context_->engine_->getTensorIOMode(name.c_str()) == TensorIOMode::kINPUT;
         }
 
         virtual bool set_run_dims(const string &name, const vector<int> &dims) override {
@@ -186,7 +186,7 @@ namespace trt {
         }
 
         virtual DType dtype(const string &name) override {
-            return (DType) this->context_->engine_->getTensorDataType(name.c_str());
+            return static_cast<DType>(this->context_->engine_->getTensorDataType(name.c_str()));
         }
 
         virtual bool has_dynamic_dim() override {

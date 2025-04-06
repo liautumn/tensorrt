@@ -49,25 +49,28 @@ void syncInfer() {
         Timer.start(customStream);
         auto objs = yolo->forward(image, customStream);
         Timer.stop("batch one");
-        // for (auto &obj: objs) {
-        //     cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
-        //             << ", "
-        //             << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
-        //
-        //     rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
-        //               cv::Scalar(255, 0, 255), 5);
-        //
-        //     auto name = obj.class_label;
-        //     auto caption = cv::format("%i %.2f", name, obj.confidence);
-        //     int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-        //     rectangle(mat, cv::Point(obj.left - 3, obj.top - 33),
-        //               cv::Point(obj.left + width, obj.top), cv::Scalar(255, 0, 255), -1);
-        //     putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2,
-        //             16);
-        // }
-        // cv::imshow(windowName, mat); // œ‘ æ÷°
-        // cv::waitKey(1);
     }
+    // for (auto &obj: objs) {
+    //     cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
+    //             << ", "
+    //             << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
+    //
+    //     rectangle(mat, cv::Point(static_cast<int>(obj.left), static_cast<int>(obj.top)),
+    //               cv::Point(static_cast<int>(obj.right), static_cast<int>(obj.bottom)),
+    //               cv::Scalar(255, 0, 255), 5);
+    //
+    //     auto name = obj.class_label;
+    //     auto caption = cv::format("%i %.2f", name, obj.confidence);
+    //     int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+    //     rectangle(mat, cv::Point(static_cast<int>(obj.left) - 3, static_cast<int>(obj.top) - 33),
+    //               cv::Point(static_cast<int>(obj.left) + width, static_cast<int>(obj.top)), cv::Scalar(255, 0, 255),
+    //               -1);
+    //     putText(mat, caption, cv::Point(static_cast<int>(obj.left), static_cast<int>(obj.top) - 5), 0, 1,
+    //             cv::Scalar::all(0), 2,
+    //             16);
+    // }
+    // cv::imshow(windowName, mat); // œ‘ æ÷°
+    // cv::waitKey(0);
 }
 
 bool initSingleCpm(const string &engineFile, float *confidences, float nms) {
@@ -99,8 +102,8 @@ void asyncInfer() {
         confidence_thresholds[i] = 0.25;
     }
     Config config;
-    trt_timer::Timer Timer;
     if (initSingleCpm(config.MODEL, confidence_thresholds, 0.5)) {
+        trt_timer::Timer Timer;
         const cv::Mat mat = cv::imread(config.TEST_IMG);
         while (true) {
             Timer.start();

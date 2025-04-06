@@ -4,7 +4,7 @@
 #include "BaseMemory.h"
 
 namespace trt_memory {
-    template<typename _DT>
+    template<typename DT>
     class Memory : public BaseMemory {
     public:
         Memory() = default;
@@ -13,17 +13,17 @@ namespace trt_memory {
 
         Memory &operator=(const Memory &other) = delete;
 
-        virtual _DT *gpu(size_t size) { return (_DT *) BaseMemory::gpu_realloc(size * sizeof(_DT)); }
+        virtual DT *gpu(size_t size) { return static_cast<DT *>(BaseMemory::gpu_realloc(size * sizeof(DT))); }
 
-        virtual _DT *cpu(size_t size) { return (_DT *) BaseMemory::cpu_realloc(size * sizeof(_DT)); }
+        virtual DT *cpu(size_t size) { return static_cast<DT *>(BaseMemory::cpu_realloc(size * sizeof(DT))); }
 
-        inline size_t cpu_size() const { return cpu_bytes_ / sizeof(_DT); }
+        size_t cpu_size() const { return cpu_bytes_ / sizeof(DT); }
 
-        inline size_t gpu_size() const { return gpu_bytes_ / sizeof(_DT); }
+        size_t gpu_size() const { return gpu_bytes_ / sizeof(DT); }
 
-        virtual inline _DT *gpu() const { return (_DT *) gpu_; }
+        virtual DT *gpu() const { return static_cast<DT *>(gpu_); }
 
-        virtual inline _DT *cpu() const { return (_DT *) cpu_; }
+        virtual DT *cpu() const { return static_cast<DT *>(cpu_); }
     };
 }
 

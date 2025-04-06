@@ -70,14 +70,14 @@ __device__ float box_iou(float aleft, float atop, float aright, float abottom, f
 
 __global__ void fast_nms_kernel(float *bboxes, int MAX_IMAGE_BOXES, float threshold) {
     int position = blockDim.x * blockIdx.x + threadIdx.x;
-    int count = min((int) *bboxes, MAX_IMAGE_BOXES);
+    int count = min(static_cast<int>(*bboxes), MAX_IMAGE_BOXES);
     if (position >= count) return;
 
     // left, top, right, bottom, confidence, class, keepflag
     float *pcurrent = bboxes + 1 + position * NUM_BOX_ELEMENT;
     for (int i = 0; i < count; ++i) {
         float *pitem = bboxes + 1 + i * NUM_BOX_ELEMENT;
-        //            if (i == position || pcurrent[5] != pitem[5]) continue;
+        // if (i == position || pcurrent[5] != pitem[5]) continue;
         if (i == position) continue;
 
         if (pitem[4] >= pcurrent[4]) {

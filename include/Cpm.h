@@ -54,7 +54,7 @@ namespace cpm {
             item.input = input;
             item.pro.reset(new promise<Result>());
             {
-                unique_lock<mutex> __lock_(queue_lock_);
+                unique_lock<mutex> _lock_(queue_lock_);
                 input_queue_.push(item);
             }
             cond_.notify_one();
@@ -64,8 +64,8 @@ namespace cpm {
         virtual vector<shared_future<Result>> commits(const vector<Input> &inputs) {
             vector<shared_future<Result>> output;
             {
-                unique_lock<mutex> __lock_(queue_lock_);
-                for (int i = 0; i < (int) inputs.size(); ++i) {
+                unique_lock<mutex> _lock_(queue_lock_);
+                for (int i = 0; i < static_cast<int>(inputs.size()); ++i) {
                     Item item;
                     item.input = inputs[i];
                     item.pro.reset(new promise<Result>());
@@ -109,8 +109,8 @@ namespace cpm {
                           [](Item &item) { return item.input; });
 
                 auto ret = model->forwards(inputs, stream_);
-                for (int i = 0; i < (int) fetch_items.size(); ++i) {
-                    if (i < (int) ret.size()) {
+                for (int i = 0; i < static_cast<int>(fetch_items.size()); ++i) {
+                    if (i < static_cast<int>(ret.size())) {
                         fetch_items[i].pro->set_value(ret[i]);
                     } else {
                         fetch_items[i].pro->set_value(Result());
