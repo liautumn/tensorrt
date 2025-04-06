@@ -1,5 +1,5 @@
-#ifndef YOLO_H_
-#define YOLO_H_
+#ifndef YOLO_H
+#define YOLO_H
 
 #include <future>
 #include <memory>
@@ -50,4 +50,4 @@ namespace yolo {
                            float *confidence_thresholds, float nms_threshold = 0.5f, void *stream = nullptr);
 }; // namespace yolo
 
-#endif  // YOLO_H_
+#endif  // YOLO_H

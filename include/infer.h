@@ -1,5 +1,5 @@
-#ifndef INFER_H_
-#define INFER_H_
+#ifndef INFER_H
+#define INFER_H
 
 #include <memory>
 #include <string>
@@ -159,4 +159,4 @@ namespace trt {
     string format_shape(const vector<int> &shape);
 } // namespace trt
 
-#endif  // INFER_H_
+#endif  // INFER_H

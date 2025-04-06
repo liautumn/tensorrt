@@ -41,21 +41,21 @@ namespace trt {
         int n = snprintf(buffer, sizeof(buffer), "[%s:%d]: ", filename.c_str(), line);
         vsnprintf(buffer + n, sizeof(buffer) - n, fmt, vl);
         fprintf(stdout, "%s\n", buffer);
-        // æ£€æŸ¥ç›®å½•æ˜¯å¦å­˜åœ¨
-        string folder_path = "trt_log"; // æ–‡ä»¶å¤¹è·¯å¾„
+        // ¼ì²éÄ¿Â¼ÊÇ·ñ´æÔÚ
+        string folder_path = "trt_log"; // ÎÄ¼ş¼ĞÂ·¾¶
         if (!filesystem::exists(folder_path)) {
-            // å¦‚æœæ–‡ä»¶å¤¹ä¸å­˜åœ¨ï¼Œåˆ›å»ºæ–‡ä»¶å¤¹
+            // Èç¹ûÎÄ¼ş¼Ğ²»´æÔÚ£¬´´½¨ÎÄ¼ş¼Ğ
             try {
                 filesystem::create_directory(folder_path);
             } catch (const exception &e) {
-                cerr << "åˆ›å»ºæ–‡ä»¶å¤¹æ—¶å‡ºé”™: " << e.what() << endl;
+                cerr << "´´½¨ÎÄ¼ş¼ĞÊ±³ö´í: " << e.what() << endl;
             }
         }
-        // æ‰“å¼€æ–‡ä»¶å¹¶è¿½åŠ æ—¥å¿—
-        FILE *log_file = fopen("trt_log/log.txt", "a"); // ä»¥è¿½åŠ æ¨¡å¼æ‰“å¼€ log.txt
+        // ´ò¿ªÎÄ¼ş²¢×·¼ÓÈÕÖ¾
+        FILE *log_file = fopen("trt_log/log.txt", "a"); // ÒÔ×·¼ÓÄ£Ê½´ò¿ª log.txt
         if (log_file != nullptr) {
-            fprintf(log_file, "%s\n", buffer); // å°†æ—¥å¿—å†™å…¥æ–‡ä»¶
-            fclose(log_file); // å…³é—­æ–‡ä»¶
+            fprintf(log_file, "%s\n", buffer); // ½«ÈÕÖ¾Ğ´ÈëÎÄ¼ş
+            fclose(log_file); // ¹Ø±ÕÎÄ¼ş
         }
         va_end(vl);
     }
