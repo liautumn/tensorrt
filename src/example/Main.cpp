@@ -1,11 +1,11 @@
-#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
 #include <driver_types.h>
 #include <opencv2/opencv.hpp>
 #include <filesystem>
-#include "infer.h"
-#include "yolo.h"
-#include "config.h"
-#include "cpm.h"
+#include "Yolo.h"
+#include "Config.h"
+#include "Cpm.h"
+#include "Timer.h"
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -34,7 +34,7 @@ void syncInfer() {
         auto objs = yolo->forward(yrImage, customStream);
     }
 
-    trt::Timer timer;
+    trt_timer::Timer Timer;
 
     // 创建一个窗口
     // std::string windowName = "Image Window";
@@ -46,9 +46,9 @@ void syncInfer() {
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
     while (true) {
-        timer.start(customStream);
+        Timer.start(customStream);
         auto objs = yolo->forward(image, customStream);
-        timer.stop("batch one");
+        Timer.stop("batch one");
         // for (auto &obj: objs) {
         //     cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
         //             << ", "
@@ -99,13 +99,13 @@ void asyncInfer() {
         confidence_thresholds[i] = 0.25;
     }
     Config config;
-    trt::Timer timer;
+    trt_timer::Timer Timer;
     if (initSingleCpm(config.MODEL, confidence_thresholds, 0.5)) {
         const cv::Mat mat = cv::imread(config.TEST_IMG);
         while (true) {
-            timer.start();
+            Timer.start();
             inferSingleCpm(mat);
-            timer.stop("batch one");
+            Timer.stop("batch one");
         }
     }
 }

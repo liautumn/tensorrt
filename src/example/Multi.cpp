@@ -1,14 +1,15 @@
-#include <cuda_runtime_api.h>
-#include <driver_types.h>
 #include <opencv2/opencv.hpp>
-#include "infer.h"
-#include "cpm.h"
-#include "yolo.h"
-#include "config.h"
+#include <cuda_runtime.h>
+#include <driver_types.h>
+#include <Timer.h>
+#include "Infer.h"
+#include "Cpm.h"
+#include "Yolo.h"
+#include "Config.h"
 
 using namespace std;
 
-static yolo::Image cvimg(const cv::Mat &image) { return yolo::Image(image.data, image.cols, image.rows); }
+static yolo::Image cvimg(const cv::Mat &image) { return {image.data, image.cols, image.rows}; }
 
 shared_ptr<yolo::Infer> myYolo;
 cudaStream_t customStream;
@@ -27,7 +28,7 @@ bool initBatch(const string &engine_file, float * &confidences, const float &nms
 }
 
 vector<vector<yolo::Box> > inferBatch(const vector<cv::Mat> &mats) {
-    trt::Timer timer;
+    trt_timer::Timer timer;
     vector<yolo::Image> yoloimages(mats.size());
     transform(mats.begin(), mats.end(), yoloimages.begin(), cvimg);
     timer.start(customStream);

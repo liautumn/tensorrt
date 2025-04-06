@@ -1,6 +1,7 @@
-#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
 #include <driver_types.h>
 #include <opencv2/opencv.hpp>
+#include <Timer.h>
 #include "infer.h"
 #include "cpm.h"
 #include "yolo.h"
@@ -33,7 +34,7 @@ TENSORRT_MULTIPLE_INIT(const char *engineFile, float* confidences, float nms, in
 
 extern "C" __declspec(dllexport) void
 TENSORRT_MULTIPLE_INFER(cv::Mat **mats, int imgSize, yolo::Box ***result, int **resultSizes) {
-    trt::Timer timer;
+    trt_timer::Timer timer;
     timer.start();
     vector<yolo::Image> inputs;
     inputs.reserve(imgSize);

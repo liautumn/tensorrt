@@ -1,9 +1,11 @@
-#include "infer.h"
-#include "yolo.h"
-#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
 #include <iostream>
-#include "preprocess.cuh"
-#include "postprocess.cuh"
+#include "Infer.h"
+#include "Yolo.h"
+#include "Memory.h"
+#include "Preprocess.cuh"
+#include "Postprocess.cuh"
+#include "Logger.h"
 
 namespace yolo {
     using namespace std;
@@ -50,8 +52,8 @@ namespace yolo {
         float *confidence_thresholds_;
         void *customStream;
         float nms_threshold_;
-        vector<shared_ptr<trt::Memory<unsigned char> > > preprocess_buffers_;
-        trt::Memory<float> input_buffer_, bbox_predict_, output_boxarray_, confidence_thresholds_device_;
+        vector<shared_ptr<trt_memory::Memory<unsigned char> > > preprocess_buffers_;
+        trt_memory::Memory<float> input_buffer_, bbox_predict_, output_boxarray_, confidence_thresholds_device_;
         int network_input_width_, network_input_height_;
         Norm normalize_;
         vector<int> bbox_head_dims_;
@@ -75,13 +77,13 @@ namespace yolo {
 
             if ((int) preprocess_buffers_.size() < batch_size) {
                 for (int i = preprocess_buffers_.size(); i < batch_size; ++i)
-                    preprocess_buffers_.push_back(make_shared<trt::Memory<unsigned char> >());
+                    preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
             }
         }
 
         void preprocess(int ibatch,
                         const Image &image,
-                        shared_ptr<trt::Memory<unsigned char> > preprocess_buffer,
+                        shared_ptr<trt_memory::Memory<unsigned char> > preprocess_buffer,
                         AffineMatrix &affine,
                         void *stream = nullptr) {
             affine.compute(make_tuple(image.width, image.height),

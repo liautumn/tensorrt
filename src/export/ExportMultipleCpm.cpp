@@ -1,4 +1,4 @@
-#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
 #include <driver_types.h>
 #include <opencv2/opencv.hpp>
 #include "infer.h"

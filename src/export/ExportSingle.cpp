@@ -1,9 +1,10 @@
-#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
 #include <driver_types.h>
 #include <opencv2/opencv.hpp>
 #include "infer.h"
 #include "cpm.h"
 #include "yolo.h"
+#include <Timer.h>
 
 using namespace std;
 
@@ -28,7 +29,7 @@ bool initSingle(const string &engineFile, float *confidences, float nms) {
 }
 
 vector<yolo::Box> inferSingle(cv::Mat *mat) {
-    trt::Timer timer;
+    trt_timer::Timer timer;
     timer.start();
     auto img = yolo::Image(mat->data, mat->cols, mat->rows);
     auto objs = yolo1->forward(img, customStream1);

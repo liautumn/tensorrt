@@ -1,6 +1,5 @@
 #ifndef PREPROCESS_CUH
 #define PREPROCESS_CUH
-#include "infer.h"
 
 enum class NormType : int {
     None = 0, MeanStd = 1, AlphaBeta = 2
@@ -30,9 +29,9 @@ struct Norm {
 };
 
 void warp_affine_bilinear_and_normalize_plane(uint8_t *src, int src_line_size, int src_width,
-                                                     int src_height, float *dst, int dst_width,
-                                                     int dst_height, float *matrix_2_3,
-                                                     uint8_t const_value, const Norm &norm,
-                                                     cudaStream_t stream);
+                                              int src_height, float *dst, int dst_width,
+                                              int dst_height, float *matrix_2_3,
+                                              uint8_t const_value, const Norm &norm,
+                                              cudaStream_t stream);
 
 #endif //PREPROCESS_CUH

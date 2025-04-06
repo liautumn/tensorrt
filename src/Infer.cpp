@@ -3,62 +3,16 @@
 #include <cstdarg>
 #include <iostream>
 #include <filesystem>
-
 #include <fstream>
 #include <numeric>
 #include <sstream>
 #include <unordered_map>
-
-#include "infer.h"
+#include "Logger.h"
+#include "Infer.h"
 
 namespace trt {
     using namespace std;
     using namespace nvinfer1;
-
-    static string file_name(const string &path, bool include_suffix) {
-        if (path.empty()) return "";
-
-        int p = path.rfind('/');
-        int e = path.rfind('\\');
-        p = max(p, e);
-        p += 1;
-
-        // include suffix
-        if (include_suffix) return path.substr(p);
-
-        int u = path.rfind('.');
-        if (u == -1) return path.substr(p);
-
-        if (u <= p) u = path.size();
-        return path.substr(p, u - p);
-    }
-
-    void _log_func(const char *file, int line, const char *fmt, ...) {
-        va_list vl;
-        va_start(vl, fmt);
-        char buffer[2048];
-        string filename = file_name(file, true);
-        int n = snprintf(buffer, sizeof(buffer), "[%s:%d]: ", filename.c_str(), line);
-        vsnprintf(buffer + n, sizeof(buffer) - n, fmt, vl);
-        fprintf(stdout, "%s\n", buffer);
-        // 检查目录是否存在
-        string folder_path = "trt_log"; // 文件夹路径
-        if (!filesystem::exists(folder_path)) {
-            // 如果文件夹不存在，创建文件夹
-            try {
-                filesystem::create_directory(folder_path);
-            } catch (const exception &e) {
-                cerr << "创建文件夹时出错: " << e.what() << endl;
-            }
-        }
-        // 打开文件并追加日志
-        FILE *log_file = fopen("trt_log/log.txt", "a"); // 以追加模式打开 log.txt
-        if (log_file != nullptr) {
-            fprintf(log_file, "%s\n", buffer); // 将日志写入文件
-            fclose(log_file); // 关闭文件
-        }
-        va_end(vl);
-    }
 
     static string format_shape(const Dims &shape) {
         stringstream output;
@@ -69,114 +23,6 @@ namespace trt {
             output << buf;
         }
         return output.str();
-    }
-
-    Timer::Timer() {
-        checkRuntime(cudaEventCreate((cudaEvent_t *) &start_));
-        checkRuntime(cudaEventCreate((cudaEvent_t *) &stop_));
-    }
-
-    Timer::~Timer() {
-        checkRuntime(cudaEventDestroy((cudaEvent_t) start_));
-        checkRuntime(cudaEventDestroy((cudaEvent_t) stop_));
-    }
-
-    void Timer::start(void *stream) {
-        stream_ = stream;
-        checkRuntime(cudaEventRecord((cudaEvent_t) start_, (cudaStream_t) stream_));
-    }
-
-    float Timer::stop(const char *prefix, bool print) {
-        checkRuntime(cudaEventRecord((cudaEvent_t) stop_, (cudaStream_t) stream_));
-        checkRuntime(cudaEventSynchronize((cudaEvent_t) stop_));
-
-        float latency = 0;
-        checkRuntime(cudaEventElapsedTime(&latency, (cudaEvent_t) start_, (cudaEvent_t) stop_));
-
-        if (print) {
-            printf("[%s]: %.5f ms\n", prefix, latency);
-        }
-        return latency;
-    }
-
-    BaseMemory::BaseMemory(void *cpu, size_t cpu_bytes, void *gpu, size_t gpu_bytes) {
-        reference(cpu, cpu_bytes, gpu, gpu_bytes);
-    }
-
-    void BaseMemory::reference(void *cpu, size_t cpu_bytes, void *gpu, size_t gpu_bytes) {
-        release();
-
-        if (cpu == nullptr || cpu_bytes == 0) {
-            cpu = nullptr;
-            cpu_bytes = 0;
-        }
-
-        if (gpu == nullptr || gpu_bytes == 0) {
-            gpu = nullptr;
-            gpu_bytes = 0;
-        }
-
-        this->cpu_ = cpu;
-        this->cpu_capacity_ = cpu_bytes;
-        this->cpu_bytes_ = cpu_bytes;
-        this->gpu_ = gpu;
-        this->gpu_capacity_ = gpu_bytes;
-        this->gpu_bytes_ = gpu_bytes;
-
-        this->owner_cpu_ = !(cpu && cpu_bytes > 0);
-        this->owner_gpu_ = !(gpu && gpu_bytes > 0);
-    }
-
-    BaseMemory::~BaseMemory() { release(); }
-
-    void *BaseMemory::gpu_realloc(size_t bytes) {
-        if (gpu_capacity_ < bytes) {
-            release_gpu();
-
-            gpu_capacity_ = bytes;
-            checkRuntime(cudaMalloc(&gpu_, bytes));
-        }
-        gpu_bytes_ = bytes;
-        return gpu_;
-    }
-
-    void *BaseMemory::cpu_realloc(size_t bytes) {
-        if (cpu_capacity_ < bytes) {
-            release_cpu();
-
-            cpu_capacity_ = bytes;
-            checkRuntime(cudaMallocHost(&cpu_, bytes));
-            Assert(cpu_ != nullptr);
-        }
-        cpu_bytes_ = bytes;
-        return cpu_;
-    }
-
-    void BaseMemory::release_cpu() {
-        if (cpu_) {
-            if (owner_cpu_) {
-                checkRuntime(cudaFreeHost(cpu_));
-            }
-            cpu_ = nullptr;
-        }
-        cpu_capacity_ = 0;
-        cpu_bytes_ = 0;
-    }
-
-    void BaseMemory::release_gpu() {
-        if (gpu_) {
-            if (owner_gpu_) {
-                checkRuntime(cudaFree(gpu_));
-            }
-            gpu_ = nullptr;
-        }
-        gpu_capacity_ = 0;
-        gpu_bytes_ = 0;
-    }
-
-    void BaseMemory::release() {
-        release_cpu();
-        release_gpu();
     }
 
     class _native_nvinfer_logger : public ILogger {

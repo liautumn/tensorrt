@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-using namespace std;
-
 namespace yolo {
+    using namespace std;
+
     struct Box {
         float left, top, right, bottom, confidence;
         int class_label;

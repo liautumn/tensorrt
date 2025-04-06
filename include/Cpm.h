@@ -1,7 +1,5 @@
-#ifndef __CPM_H__
-#define __CPM_H__
-
-// Comsumer Producer Model
+#ifndef CPM_H
+#define CPM_H
 
 #include <algorithm>
 #include <condition_variable>
@@ -10,9 +8,9 @@
 #include <queue>
 #include <thread>
 
-using namespace std;
-
 namespace cpm {
+
+    using namespace std;
 
     template<typename Result, typename Input, typename Model>
     class Instance {
@@ -152,4 +150,4 @@ namespace cpm {
     };
 };  // namespace cpm
 
-#endif  // __CPM_H__
+#endif  // CPM_H

@@ -1,5 +1,5 @@
-#include "postprocess.cuh"
-#include "infer.h"
+#include "Postprocess.cuh"
+#include "Logger.h"
 
 
 __device__ void affine_project(float *matrix, float x, float y, float *ox,

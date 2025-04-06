@@ -1,8 +1,6 @@
 #ifndef YOLO_CONFIG_H
 #define YOLO_CONFIG_H
 
-#include "string"
-
 using namespace std;
 
 class Config {
