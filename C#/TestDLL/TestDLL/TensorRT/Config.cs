@@ -29,15 +29,18 @@ public class Config
 
     public const string OpenvinoModel =
         @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\OpenVINO\yolov8\yolo\yolo11n_openvino_model\yolo11n.xml";
+    
+    
+    
 
     public const string Yolodll =
         @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\cmake-build-release\tensorrt.dll";
 
     public const string Model =
-        @"D:\autumn\Downloads\best8.0.engine";
+        @"D:\autumn\Downloads\best7.0.engine";
 
     public const string ImageSrc =
-        @"D:\autumn\Downloads\Images\661073599669061.jpeg";
+        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\C#\TestDLL\TestDLL\TensorRT\images\1_1743641671.jpeg.jpeg";
 
     public const float Confidence = (float)0.2;
     public const float Nms = (float)0.45;
