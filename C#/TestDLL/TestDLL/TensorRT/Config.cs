@@ -37,38 +37,12 @@ public class Config
         @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\cmake-build-release\tensorrt.dll";
 
     public const string Model =
-        @"D:\autumn\Downloads\best7.0.engine";
+        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best8.0.engine";
 
     public const string ImageSrc =
         @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\C#\TestDLL\TestDLL\TensorRT\images\1_1743641671.jpeg.jpeg";
 
     public const float Confidence = (float)0.2;
     public const float Nms = (float)0.45;
-
-    public static string[] ClassList =
-    {
-        "BB",
-        "ZH",
-        "ZK",
-        "JK",
-        "ZZ",
-        "GS",
-        "ZW",
-        "DJ",
-        "PD",
-        "CS",
-        "DW",
-        "HN",
-        "YW",
-        "FH",
-        "LZ",
-        "SYQ",
-        "BQ",
-        "DPD",
-        "MD",
-        "CH",
-        "SD",
-        "SZ",
-        "ZS"
-    };
+    
 }
