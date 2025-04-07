@@ -7,9 +7,10 @@ using namespace std;
 
 static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
-bool initSingleCpm(const string &engineFile, float confidence, float nms) {
+
+bool initSingleCpm(const string &engineFile, float *confidence, float nms) {
     bool ok = cpmi.start([&engineFile, &confidence, &nms] {
-        return yolo::load(engineFile, yolo::Type::V8, confidence, nms);
+        return yolo::load(engineFile, confidence, nms);
     });
     if (!ok) {
         return false;
