@@ -124,7 +124,7 @@ void videoDemo() {
     }
 
     // 视频文件路径配置
-    const std::string video_path = "/home/autumn/Documents/GitHub/tensorrt/workspace/images/002.mp4"; // 确保路径正确
+    const std::string video_path = "/home/autumn/Documents/GitHub/tensorrt/workspace/images/003.mp4"; // 确保路径正确
 
     // 打开视频流（优先尝试作为文件打开）
     cv::VideoCapture cap(video_path);
