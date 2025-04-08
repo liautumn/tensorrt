@@ -114,7 +114,7 @@ void videoDemo() {
     cudaStreamCreate(&cudaStream1);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.1, 0.4, cudaStream1);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);

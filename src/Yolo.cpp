@@ -99,6 +99,7 @@ namespace yolo
             float* input_device = input_buffer_.gpu() + ibatch * input_numel;
             size_t size_image = image.width * image.height * 3;
             size_t size_matrix = upbound(sizeof(affine.d2i), 32);
+
             uint8_t* gpu_workspace = preprocess_buffer->gpu(size_matrix + size_image);
             auto* affine_matrix_device = reinterpret_cast<float*>(gpu_workspace);
             uint8_t* image_device = gpu_workspace + size_matrix;
