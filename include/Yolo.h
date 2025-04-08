@@ -6,10 +6,12 @@
 #include <string>
 #include <vector>
 
-namespace yolo {
+namespace yolo
+{
     using namespace std;
 
-    struct Box {
+    struct Box
+    {
         float left, top, right, bottom, confidence;
         int class_label;
 
@@ -21,33 +23,39 @@ namespace yolo {
               right(right),
               bottom(bottom),
               confidence(confidence),
-              class_label(class_label) {
+              class_label(class_label)
+        {
         }
     };
 
 
-    struct Image {
-        const void *bgrptr = nullptr;
+    struct Image
+    {
+        const void* bgrptr = nullptr;
         int width = 0, height = 0;
 
         Image() = default;
 
-        Image(const void *bgrptr, int width, int height) : bgrptr(bgrptr), width(width), height(height) {
+        Image(const void* bgrptr, int width, int height) : bgrptr(bgrptr), width(width), height(height)
+        {
         }
     };
 
     typedef vector<Box> BoxArray;
 
-    class Infer {
+    class Infer
+    {
     public:
-        virtual BoxArray forward(const Image &image, void *stream = nullptr) = 0;
+        virtual BoxArray forward(const Image& image, void* stream = nullptr) = 0;
 
-        virtual vector<BoxArray> forwards(const vector<Image> &images,
-                                          void *stream = nullptr) = 0;
+        virtual vector<BoxArray> forwards(const vector<Image>& images,
+                                          void* stream = nullptr) = 0;
     };
 
-    shared_ptr<Infer> load(const string &engine_file,
-                           float confidence_threshold, float nms_threshold = 0.5f, void *stream = nullptr);
+    shared_ptr<Infer> load(const string& engine_file,
+                           float confidence_threshold = 0.2f,
+                           float nms_threshold = 0.5f,
+                           void* stream = nullptr);
 }; // namespace yolo
 
 #endif  // YOLO_H

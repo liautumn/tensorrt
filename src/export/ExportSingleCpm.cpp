@@ -10,11 +10,11 @@ using namespace std;
 static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 cudaStream_t customStream2;
 
-bool initSingleCpm(const string &engineFile, float *confidences, float nms) {
+bool initSingleCpm(const string &engineFile, const float confidence, const float nms) {
     // 创建非阻塞流
     cudaStreamCreate(&customStream2);
-    bool ok = cpmi.start([&engineFile, &confidences, &nms] {
-        return yolo::load(engineFile, confidences, nms, customStream2);
+    bool ok = cpmi.start([&engineFile, &confidence, &nms] {
+        return yolo::load(engineFile, confidence, nms, customStream2);
     }, 1, customStream2);
     if (!ok) {
         return false;

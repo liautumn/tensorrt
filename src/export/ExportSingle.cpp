@@ -11,10 +11,10 @@ using namespace std;
 static shared_ptr<yolo::Infer> yolo1;
 cudaStream_t customStream1;
 
-bool initSingle(const string &engineFile, float *confidences, float nms) {
+bool initSingle(const string &engineFile, const float confidence, const float nms) {
     // 创建非阻塞流
     cudaStreamCreate(&customStream1);
-    yolo1 = yolo::load(engineFile, confidences, nms, customStream1);
+    yolo1 = yolo::load(engineFile, confidence, nms, customStream1);
     if (yolo1 != nullptr) {
         //预热
         cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);

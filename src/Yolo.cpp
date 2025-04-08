@@ -55,7 +55,7 @@ namespace yolo
         shared_ptr<trt::Infer> trt_;
         string engine_file_;
         float confidence_threshold_;
-        void* customStream;
+        void* cuda_stream_;
         float nms_threshold_;
         vector<shared_ptr<trt_memory::Memory<unsigned char>>> preprocess_buffers_;
         trt_memory::Memory<float> input_buffer_, bbox_predict_, output_boxarray_;
@@ -67,8 +67,7 @@ namespace yolo
 
         virtual ~InferImpl()
         {
-            // ??????????????
-            cudaStreamDestroy(static_cast<cudaStream_t>(customStream));
+            cudaStreamDestroy(static_cast<cudaStream_t>(cuda_stream_));
         };
 
         void adjust_memory(int batch_size)
@@ -132,7 +131,7 @@ namespace yolo
 
             trt_->print();
 
-            this->customStream = stream;
+            this->cuda_stream_ = stream;
             this->confidence_threshold_ = confidence_threshold;
             this->nms_threshold_ = nms_threshold;
 
@@ -242,8 +241,8 @@ namespace yolo
     };
 
     shared_ptr<Infer> load(const string& engine_file,
-                           float confidence_threshold,
-                           float nms_threshold,
+                           const float confidence_threshold,
+                           const float nms_threshold,
                            void* stream)
     {
         auto* impl = new InferImpl();

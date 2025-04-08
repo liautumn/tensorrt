@@ -29,8 +29,8 @@ link_directories(
 set(LIBS
         ${OpenCV_LIBS}
         libnvinfer.so.10
-        libcudart.so
         libcuda.so
+        libcudart.so
 )
 
 #add_library(${PROJECT_NAME} SHARED
@@ -57,6 +57,7 @@ add_executable(${PROJECT_NAME}
         src/Yolo.cpp
         src/example/Config.h
         src/example/Main.cpp
+        src/example/Multi.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

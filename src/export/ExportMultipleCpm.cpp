@@ -11,10 +11,10 @@ static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi2;
 cudaStream_t customStream4;
 
 extern "C" __declspec(dllexport) bool
-TENSORRT_MULTIPLE_CPM_INIT(const char *engineFile, float *confidences, float nms, int maxBatch) {
+TENSORRT_MULTIPLE_CPM_INIT(const char *engineFile, const float confidence, const float nms, int maxBatch) {
     // 创建非阻塞流
     cudaStreamCreate(&customStream4);
-    bool ok = cpmi2.start([&engineFile, &confidences, &nms] {
+    bool ok = cpmi2.start([&engineFile, &confidence, &nms] {
         return yolo::load(engineFile, confidences, nms, customStream4);
     }, maxBatch, customStream4);
     if (ok) {

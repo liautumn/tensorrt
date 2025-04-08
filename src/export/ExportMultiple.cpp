@@ -12,10 +12,10 @@ static shared_ptr<yolo::Infer> yolo2;
 cudaStream_t customStream3;
 
 extern "C" __declspec(dllexport) bool
-TENSORRT_MULTIPLE_INIT(const char *engineFile, float* confidences, float nms, int maxBatch) {
+TENSORRT_MULTIPLE_INIT(const char *engineFile, const float confidence, const float nms, int maxBatch) {
     // 创建非阻塞流
     cudaStreamCreate(&customStream3);
-    yolo2 = yolo::load(engineFile, confidences, nms, customStream3);
+    yolo2 = yolo::load(engineFile, confidence, nms, customStream3);
     if (yolo2 != nullptr) {
         //预热
         cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
