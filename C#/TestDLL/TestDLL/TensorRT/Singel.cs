@@ -42,12 +42,12 @@ namespace TensorRT
                 var p2 = new Point(box.right, box.bottom);
                 Cv2.Rectangle(imRead, p1, p2, Scalar.Blue, 3);
                 var labelPosition = new Point(box.left + 5, box.top - 5); // 向右和向上偏移5像素
-                Cv2.PutText(imRead, Config.ClassList[box.class_label],
+                Cv2.PutText(imRead, box.class_label.ToString(),
                     labelPosition,
                     HersheyFonts.HersheySimplex, 1, Scalar.Blue, 3);
                 Console.WriteLine(
                     $"Box: left={box.left}, top={box.top}, right={box.right}, bottom={box.bottom}, confidence={box.confidence}, " +
-                    $"class_label={Config.ClassList[box.class_label]}");
+                    $"class_label={box.class_label}");
             }
 
             // 设置窗口大小
