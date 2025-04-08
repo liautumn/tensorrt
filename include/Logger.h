@@ -37,10 +37,11 @@
             }                                                   \
         } while (0)
 
-namespace trt_log {
+namespace trt_log
+{
     using namespace std;
 
-    void _log_func(const char *file, int line, const char *fmt, ...);
+    void _log_func(const char* file, int line, const char* fmt, ...);
 }
 
 

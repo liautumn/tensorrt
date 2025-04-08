@@ -15,7 +15,6 @@ shared_ptr<yolo::Infer> myYolo;
 cudaStream_t customStream;
 
 bool initBatch(const string &engine_file, float * &confidences, const float &nms) {
-    // 创建非阻塞流
     cudaStreamCreate(&customStream);
     myYolo = yolo::load(engine_file, confidences, nms, customStream);
     if (myYolo == nullptr) {

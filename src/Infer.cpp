@@ -1,5 +1,5 @@
 #include <NvInfer.h>
-#include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
 #include <cstdarg>
 #include <iostream>
 #include <filesystem>

@@ -1,15 +1,16 @@
 #include "Postprocess.cuh"
-#include "Logger.h"
+
+#include <Logger.h>
 
 
 __device__ void affine_project(float *matrix, float x, float y, float *ox,
-                                               float *oy) {
+                               float *oy) {
     *ox = matrix[0] * x + matrix[1] * y + matrix[2];
     *oy = matrix[3] * x + matrix[4] * y + matrix[5];
 }
 
 __global__ void decode_kernel_v8(float *predict, int num_bboxes, int num_classes,
-                                        int output_cdim, float* confidence_thresholds,
+                                        int output_cdim, float confidence_threshold,
                                         float *invert_affine_matrix, float *parray,
                                         int MAX_IMAGE_BOXES) {
     int position = blockDim.x * blockIdx.x + threadIdx.x;
@@ -25,8 +26,8 @@ __global__ void decode_kernel_v8(float *predict, int num_bboxes, int num_classes
             label = i;
         }
     }
-    if (label >= num_classes) return;
-    if (confidence < confidence_thresholds[label]) return;
+
+    if (confidence < confidence_threshold) return;
 
     int index = atomicAdd(parray, 1);
     if (index >= MAX_IMAGE_BOXES) return;
@@ -104,14 +105,14 @@ static dim3 block_dims(int numJobs) {
 }
 
 void decode_kernel_invoker(float *predict, int num_bboxes, int num_classes, int output_cdim,
-                                  float* confidence_thresholds, float nms_threshold,
+                                  float confidence_threshold, float nms_threshold,
                                   float *invert_affine_matrix, float *parray, int MAX_IMAGE_BOXES,
                                   cudaStream_t stream) {
     auto grid = grid_dims(num_bboxes);
     auto block = block_dims(num_bboxes);
 
     checkKernel(decode_kernel_v8<<<grid, block, 0, stream>>>(
-                    predict, num_bboxes, num_classes, output_cdim, confidence_thresholds, invert_affine_matrix,
+                    predict, num_bboxes, num_classes, output_cdim, confidence_threshold, invert_affine_matrix,
                     parray, MAX_IMAGE_BOXES));
 
     grid = grid_dims(MAX_IMAGE_BOXES);

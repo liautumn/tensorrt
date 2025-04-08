@@ -1,5 +1,6 @@
 #ifndef PREPROCESS_CUH
 #define PREPROCESS_CUH
+#include <cstdint>
 
 enum class NormType : int {
     None = 0, MeanStd = 1, AlphaBeta = 2
