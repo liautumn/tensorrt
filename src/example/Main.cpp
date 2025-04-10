@@ -26,39 +26,39 @@ void syncInfer() {
         auto objs = yolo->forward(yrImage, cudaStream1);
     }
 
-    // std::string windowName = "Image Window";
-    // cv::namedWindow(windowName, cv::WINDOW_NORMAL);
-    // int width_ = 1024;
-    // int height = 640;
-    // cv::resizeWindow(windowName, width_, height);
+    std::string windowName = "Image Window";
+    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
+    int width_ = 1024;
+    int height = 640;
+    cv::resizeWindow(windowName, width_, height);
+
     trt_timer::Timer Timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
     Timer.start(cudaStream1);
     auto objs = yolo->forward(image, cudaStream1);
     Timer.stop("batch one");
-    // for (auto& obj : objs)
-    // {
-    //     cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
-    //         << ", "
-    //         << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
-    //
-    //     rectangle(mat, cv::Point(static_cast<int>(obj.left), static_cast<int>(obj.top)),
-    //               cv::Point(static_cast<int>(obj.right), static_cast<int>(obj.bottom)),
-    //               cv::Scalar(255, 0, 255), 5);
-    //
-    //     auto name = obj.class_label;
-    //     auto caption = cv::format("%i %.2f", name, obj.confidence);
-    //     int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-    //     rectangle(mat, cv::Point(static_cast<int>(obj.left) - 3, static_cast<int>(obj.top) - 33),
-    //               cv::Point(static_cast<int>(obj.left) + width, static_cast<int>(obj.top)), cv::Scalar(255, 0, 255),
-    //               -1);
-    //     putText(mat, caption, cv::Point(static_cast<int>(obj.left), static_cast<int>(obj.top) - 5), 0, 1,
-    //             cv::Scalar::all(0), 2,
-    //             16);
-    // }
-    // cv::imshow(windowName, mat);
-    // cv::waitKey(1);
+    for (auto &obj: objs) {
+        cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
+                << ", "
+                << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
+
+        rectangle(mat, cv::Point(static_cast<int>(obj.left), static_cast<int>(obj.top)),
+                  cv::Point(static_cast<int>(obj.right), static_cast<int>(obj.bottom)),
+                  cv::Scalar(255, 0, 255), 2);
+
+        auto name = obj.class_label;
+        auto caption = cv::format("%i %.2f", name, obj.confidence);
+        int width = cv::getTextSize(caption, 0, 1, 1, nullptr).width + 10;
+        rectangle(mat, cv::Point(static_cast<int>(obj.left) - 3, static_cast<int>(obj.top) - 33),
+                  cv::Point(static_cast<int>(obj.left) + width, static_cast<int>(obj.top)), cv::Scalar(255, 0, 255),
+                  -1);
+        putText(mat, caption, cv::Point(static_cast<int>(obj.left), static_cast<int>(obj.top) - 5), 0, 1,
+                cv::Scalar::all(0), 1,
+                16);
+    }
+    cv::imshow(windowName, mat);
+    cv::waitKey(0);
 }
 
 // 检测结果绘制函数
@@ -124,7 +124,7 @@ void videoDemo() {
     }
 
     // 视频文件路径配置
-    const std::string video_path = "/home/autumn/Documents/GitHub/tensorrt/workspace/images/003.mp4"; // 确保路径正确
+    const std::string video_path = "D:/autumn/Downloads/001.mp4"; // 确保路径正确
 
     // 打开视频流（优先尝试作为文件打开）
     cv::VideoCapture cap(video_path);
