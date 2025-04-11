@@ -7,13 +7,11 @@ trtexec `
 
 
 trtexec \
---onnx=/home/autumn/Documents/ultralytics/yolo_workspace/model/transdOnnx/yolo11s.transd.onnx \
---saveEngine=/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s2.transd.engine \
---fp16 \
+--onnx=/home/autumn/Documents/ultralytics/yolo_workspace/model/transdOnnx/yolo11s.dynamic.transd.onnx \
+--saveEngine=/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s.dynamic.transd.engine \
 --useCudaGraph \
+--fp16 \
+--minShapes=images:1x3x1024x1024 --maxShapes=images:12x3x1024x1024 --optShapes=images:1x3x1024x1024
 
---workspace=16 \
 --int8 \
 --calib= \
-
---minShapes=images:1x3x1024x1024 --maxShapes=images:12x3x1024x1024 --optShapes=images:1x3x1024x1024

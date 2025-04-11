@@ -1,6 +1,7 @@
 #ifndef PREPROCESS_CUH
 #define PREPROCESS_CUH
 #include <cstdint>
+#include <tuple>
 
 using namespace std;
 
