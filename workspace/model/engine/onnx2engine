@@ -1,6 +1,6 @@
-D:\dev\CUDA\TensorRT-8\TensorRT-8.6.1.6.cuda-12.0\TensorRT-8.6.1.6\bin\trtexec.exe `
---onnx=D:\autumn\Documents\GitHub\tensorrt\workspace\model\transdOnnx\yolo11s.transd.onnx `
---saveEngine=D:\autumn\Documents\GitHub\tensorrt\workspace\model\engine\yolo11s.transd.engine `
+D:\dev\cuda\TensorRT8\TensorRT-8.6.1.6\bin\trtexec.exe `
+--onnx=D:\autumn\Desktop\best7.2_quanju_nms.onnx `
+--saveEngine=D:\autumn\Documents\GitHub\tensorrt\workspace\model\engine\best7.2_quanju_nms.engine `
 --fp16 `
 --useCudaGraph `
 --minShapes=images:1x3x640x1024 --maxShapes=images:12x3x640x1024 --optShapes=images:1x3x640x1024 `

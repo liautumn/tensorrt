@@ -34,25 +34,25 @@ set(LIBS
         cudnn
 )
 
-add_library(${PROJECT_NAME} SHARED
-        src/yolo.cpp
-        src/infer.cpp
-        src/preprocess.cu
-        src/postprocess.cu
-#        src/export/exportMultiple.cpp
-#        src/export/exportMultipleCpm.cpp
-#        src/export/exportSingle.cpp
-        src/export/exportSingleCpm.cpp
-)
-
-#add_executable(${PROJECT_NAME}
+#add_library(${PROJECT_NAME} SHARED
 #        src/yolo.cpp
 #        src/infer.cpp
 #        src/preprocess.cu
 #        src/postprocess.cu
-#        src/example/config.h
-#        src/example/main.cpp
+##        src/export/exportMultiple.cpp
+##        src/export/exportMultipleCpm.cpp
+##        src/export/exportSingle.cpp
+#        src/export/exportSingleCpm.cpp
 #)
+
+add_executable(${PROJECT_NAME}
+        src/yolo.cpp
+        src/infer.cpp
+        src/preprocess.cu
+        src/postprocess.cu
+        src/example/config.h
+        src/example/main.cpp
+)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)

@@ -46,10 +46,10 @@ namespace yolo {
     public:
         shared_ptr<trt::Infer> trt_;
         string engine_file_;
-        float *confidence_thresholds_;
+        float confidence_threshold_;
         float nms_threshold_;
         vector<shared_ptr<trt::Memory<unsigned char> > > preprocess_buffers_;
-        trt::Memory<float> input_buffer_, bbox_predict_, output_boxarray_, confidence_thresholds_device_;
+        trt::Memory<float> input_buffer_, bbox_predict_, output_boxarray_, output_host_;
         int network_input_width_, network_input_height_;
         Norm normalize_;
         vector<int> bbox_head_dims_;
@@ -65,8 +65,6 @@ namespace yolo {
             bbox_predict_.gpu(batch_size * bbox_head_dims_[1] * bbox_head_dims_[2]);
             output_boxarray_.gpu(batch_size * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT));
             output_boxarray_.cpu(batch_size * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT));
-
-            confidence_thresholds_device_.gpu(num_classes_);
 
             if ((int) preprocess_buffers_.size() < batch_size) {
                 for (int i = preprocess_buffers_.size(); i < batch_size; ++i)
@@ -99,9 +97,9 @@ namespace yolo {
             memcpy(image_host, image.bgrptr, size_image);
             memcpy(affine_matrix_host, affine.d2i, sizeof(affine.d2i));
             checkRuntime(
-                cudaMemcpyAsync(image_device, image_host, size_image, cudaMemcpyHostToDevice, stream_));
+                    cudaMemcpyAsync(image_device, image_host, size_image, cudaMemcpyHostToDevice, stream_));
             checkRuntime(cudaMemcpyAsync(affine_matrix_device, affine_matrix_host, sizeof(affine.d2i),
-                cudaMemcpyHostToDevice, stream_));
+                                         cudaMemcpyHostToDevice, stream_));
 
             warp_affine_bilinear_and_normalize_plane(image_device, image.width * 3, image.width,
                                                      image.height, input_device, network_input_width_,
@@ -110,14 +108,14 @@ namespace yolo {
         }
 
         bool load(const string &engine_file,
-                  float *confidence_thresholds,
+                  float confidence_threshold,
                   float nms_threshold) {
             trt_ = trt::load(engine_file);
             if (trt_ == nullptr) return false;
 
             trt_->print();
 
-            this->confidence_thresholds_ = confidence_thresholds;
+            this->confidence_threshold_ = confidence_threshold;
             this->nms_threshold_ = nms_threshold;
 
             auto input_dim = trt_->static_dims(0);
@@ -138,6 +136,12 @@ namespace yolo {
             return output[0];
         }
 
+        void affine_project(float *matrix, float x, float y, float *ox,
+                            float *oy) {
+            *ox = matrix[0] * x + matrix[1] * y + matrix[2];
+            *oy = matrix[3] * x + matrix[4] * y + matrix[5];
+        }
+
         vector<BoxArray> forwards(const vector<Image> &images,
                                   void *stream = nullptr) override {
             int num_image = images.size();
@@ -153,9 +157,9 @@ namespace yolo {
                 } else {
                     if (infer_batch_size < num_image) {
                         INFO(
-                            "When using static shape model, number of images[%d] must be "
-                            "less than or equal to the maximum batch[%d].",
-                            num_image, infer_batch_size);
+                                "When using static shape model, number of images[%d] must be "
+                                "less than or equal to the maximum batch[%d].",
+                                num_image, infer_batch_size);
                         return {};
                     }
                 }
@@ -163,7 +167,7 @@ namespace yolo {
             adjust_memory(infer_batch_size);
 
             vector<AffineMatrix> affine_matrixs(num_image);
-            cudaStream_t stream_ = (cudaStream_t) stream;
+            auto stream_ = (cudaStream_t) stream;
             for (int i = 0; i < num_image; ++i)
                 preprocess(i, images[i], preprocess_buffers_[i], affine_matrixs[i], stream);
 
@@ -175,49 +179,82 @@ namespace yolo {
                 return {};
             }
 
-            checkRuntime(cudaMemcpyAsync(confidence_thresholds_device_.gpu(), confidence_thresholds_,
-                confidence_thresholds_device_.gpu_bytes(), cudaMemcpyHostToDevice, stream_));
+            output_host_.cpu(bbox_head_dims_[0] * bbox_head_dims_[1] * bbox_head_dims_[2]);
+            checkRuntime(cudaMemcpyAsync(output_host_.cpu(), bbox_output_device, bbox_predict_.gpu_bytes(),
+                                         cudaMemcpyDeviceToHost, stream_));
 
-            for (int ib = 0; ib < num_image; ++ib) {
-                float *boxarray_device =
-                        output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
-                float *affine_matrix_device = (float *) preprocess_buffers_[ib]->gpu();
-                float *image_based_bbox_output =
-                        bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
-                checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
-                decode_kernel_invoker(image_based_bbox_output, bbox_head_dims_[1], num_classes_,
-                                      bbox_head_dims_[2], confidence_thresholds_device_.gpu(), nms_threshold_,
-                                      affine_matrix_device, boxarray_device, MAX_IMAGE_BOXES, stream_);
-            }
-            checkRuntime(cudaMemcpyAsync(output_boxarray_.cpu(), output_boxarray_.gpu(),
-                output_boxarray_.gpu_bytes(), cudaMemcpyDeviceToHost, stream_));
+//            checkRuntime(cudaMemcpyAsync(confidence_thresholds_device_.gpu(), confidence_thresholds_,
+//                confidence_thresholds_device_.gpu_bytes(), cudaMemcpyHostToDevice, stream_));
+
+//            for (int ib = 0; ib < num_image; ++ib) {
+//                float *boxarray_device =
+//                        output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
+//                float *affine_matrix_device = (float *) preprocess_buffers_[ib]->gpu();
+//                float *image_based_bbox_output =
+//                        bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
+//                checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
+//                decode_kernel_invoker(image_based_bbox_output, bbox_head_dims_[1], num_classes_,
+//                                      bbox_head_dims_[2], confidence_thresholds_device_.gpu(), nms_threshold_,
+//                                      affine_matrix_device, boxarray_device, MAX_IMAGE_BOXES, stream_);
+//            }
+//            checkRuntime(cudaMemcpyAsync(output_boxarray_.cpu(), output_boxarray_.gpu(),
+//                output_boxarray_.gpu_bytes(), cudaMemcpyDeviceToHost, stream_));
+
             checkRuntime(cudaStreamSynchronize(stream_));
-
             vector<BoxArray> arrout(num_image);
-            for (int ib = 0; ib < num_image; ++ib) {
-                float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
-                int count = min(MAX_IMAGE_BOXES, (int) *parray);
-                BoxArray &output = arrout[ib];
-                output.reserve(count);
-                for (int i = 0; i < count; ++i) {
-                    float *pbox = parray + 1 + i * NUM_BOX_ELEMENT;
-                    int label = pbox[5];
-                    int keepflag = pbox[6];
-                    if (keepflag == 1) {
-                        Box result_object_box(pbox[0], pbox[1], pbox[2], pbox[3], pbox[4], label);
-                        output.emplace_back(result_object_box);
-                    }
+
+//            for (int ib = 0; ib < num_image; ++ib) {
+//                float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
+//                int count = min(MAX_IMAGE_BOXES, (int) *parray);
+//                BoxArray &output = arrout[ib];
+//                output.reserve(count);
+//                for (int i = 0; i < count; ++i) {
+//                    float *pbox = parray + 1 + i * NUM_BOX_ELEMENT;
+//                    int label = pbox[5];
+//                    int keepflag = pbox[6];
+//                    if (keepflag == 1) {
+//                        Box result_object_box(pbox[0], pbox[1], pbox[2], pbox[3], pbox[4], label);
+//                        output.emplace_back(result_object_box);
+//                    }
+//                }
+//            }
+
+            auto data_ptr = output_host_.cpu();
+
+            BoxArray output;
+            output.reserve(bbox_head_dims_[1]);
+
+            // 遍历 300 个检测框
+            for (int i = 0; i < bbox_head_dims_[1]; ++i) {
+                // 计算当前框的起始位置（每个框有6个值）
+                float *box_ptr = data_ptr + i * bbox_head_dims_[2];
+
+                // 提取数据（根据实际数据布局可能需要调整顺序）
+                if (box_ptr[4] > 0) {
+                    float lx;
+                    float ly;
+                    affine_project((float *) preprocess_buffers_[0]->cpu(), box_ptr[0], box_ptr[1], &lx, &ly);
+                    float rx;
+                    float ry;
+                    affine_project((float *) preprocess_buffers_[0]->cpu(), box_ptr[2], box_ptr[3], &rx, &ry);
+
+                    Box result_object_box(lx, ly, rx, ry, box_ptr[4], static_cast<int>(box_ptr[5]));
+
+                    // 添加到集合
+                    output.emplace_back(result_object_box);
                 }
             }
+            arrout[0] = output;
             return arrout;
+
         }
     };
 
     shared_ptr<Infer> load(const string &engine_file,
-                           float *confidence_thresholds,
+                           float confidence_threshold,
                            float nms_threshold) {
         auto *impl = new InferImpl();
-        if (!impl->load(engine_file, confidence_thresholds, nms_threshold)) {
+        if (!impl->load(engine_file, confidence_threshold, nms_threshold)) {
             delete impl;
             impl = nullptr;
         }
