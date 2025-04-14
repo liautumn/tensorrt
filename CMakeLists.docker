@@ -1,40 +1,52 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.22.1)
+
+set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 72 75 86 89 90)
+set(CMAKE_CUDA_COMPILER /usr/local/cuda-12.8/bin/nvcc)
+
 project(tensorrt CUDA CXX)
 
-# CUDA 配置
-set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 72 75 86 89 90)
-set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)  # 使用符号链接路径
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
 
-# 查找 OpenCV
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 find_package(OpenCV REQUIRED)
+set(TensorRT_DIR /tmp/TensorRT-10.9.0.34)
+set(CUDA_DIR /usr/local/cuda-12.8)
 
-# 查找 TensorRT（自动检测系统安装路径）
-find_package(TensorRT REQUIRED)
-message(STATUS "Found TensorRT: ${TensorRT_LIBRARY}")
-
-# 自动获取 CUDA 路径
-get_filename_component(CUDA_DIR "${CMAKE_CUDA_COMPILER}" DIRECTORY)
-get_filename_component(CUDA_DIR "${CUDA_DIR}" DIRECTORY)  # 获取 /usr/local/cuda
-
-# 包含路径配置
 include_directories(
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${OpenCV_INCLUDE_DIRS}
-        ${TensorRT_INCLUDE_DIRS}
+        ${TensorRT_DIR}/include
+        ${TensorRT_DIR}/samples/common
         ${CUDA_DIR}/include
-        /usr/include/x86_64-linux-gnu  # 补充系统头文件路径
 )
 
-# 链接目录配置
 link_directories(
-        ${TensorRT_LIBRARY_DIRS}
+        /usr/include/x86_64-linux-gnu
         ${CUDA_DIR}/lib64
-        /usr/lib/x86_64-linux-gnu  # 系统库路径
 )
 
-# 目标配置
+set(LIBS
+        ${OpenCV_LIBS}
+        libnvinfer.so.10
+        libcuda.so
+        libcudart.so
+)
+
+#add_library(${PROJECT_NAME} SHARED
+#        src/BaseMemory.cpp
+#        src/Infer.cpp
+#        src/Logger.cpp
+#        src/Postprocess.cu
+#        src/Preprocess.cu
+#        src/Timer.cpp
+#        src/Yolo.cpp
+#        workspace/export/ExportMultiple.cpp
+#        workspace/export/ExportMultipleCpm.cpp
+#        workspace/export/ExportSingle.cpp
+#        workspace/export/ExportSingleCpm.cpp
+#)
+
 add_executable(${PROJECT_NAME}
         src/BaseMemory.cpp
         src/Infer.cpp
@@ -43,30 +55,12 @@ add_executable(${PROJECT_NAME}
         src/Preprocess.cu
         src/Timer.cpp
         src/Yolo.cpp
-        src/example/Config.h
-        src/example/Main.cpp
-        src/example/Multi.cpp
+        workspace/example/Config.h
+        workspace/example/Main.cpp
+        workspace/example/Multi.cpp
 )
 
-# 链接库配置
-target_link_libraries(${PROJECT_NAME}
-        ${OpenCV_LIBS}
-        nvinfer
-        nvonnxparser
-        cudart
-        cuda
-        ${CUDA_LIBRARIES}
-)
-
-# 高级配置
 set_target_properties(${PROJECT_NAME} PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON
-        CUDA_RESOLVE_DEVICE_SYMBOLS ON
-)
+        CUDA_SEPARABLE_COMPILATION ON)
 
-# 安装后检查（可选）
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_STRIP} $<TARGET_FILE:${PROJECT_NAME}>
-    )
-endif()
+target_link_libraries(${PROJECT_NAME} ${LIBS})

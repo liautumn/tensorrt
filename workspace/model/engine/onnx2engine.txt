@@ -7,7 +7,7 @@ trtexec `
 
 
 trtexec \
---onnx=/home/autumn/Documents/ultralytics/yolo_workspace/model/transdOnnx/yolo11s.dynamic.transd.onnx \
+--onnx=/home/autumn/Documents/GitHub/ultralytics/yolo_workspace/model/transdOnnx/yolo11s.dynamic.transd.onnx \
 --saveEngine=/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s.dynamic.transd.engine \
 --useCudaGraph \
 --fp16 \
