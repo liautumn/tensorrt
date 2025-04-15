@@ -1,8 +1,4 @@
 cmake_minimum_required(VERSION 3.28)
-
-set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 72 75 86 89 90)
-set(CMAKE_CUDA_COMPILER /usr/local/cuda-12.8/bin/nvcc)
-
 project(tensorrt CUDA CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -10,9 +6,10 @@ set(CMAKE_CUDA_STANDARD 17)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+set(OpenCV_DIR $ENV{OPENCV_PATH})
 find_package(OpenCV REQUIRED)
-set(TensorRT_DIR /home/autumn/Documents/CUDA/TensorRT-10.9.0.34)
-set(CUDA_DIR /usr/local/cuda-12.8)
+set(TensorRT_DIR $ENV{TENSORRT_PATH})
+set(CUDA_DIR $ENV{CUDA_PATH})
 
 include_directories(
         ${OpenCV_INCLUDE_DIRS}
@@ -23,41 +20,44 @@ include_directories(
 
 link_directories(
         ${TensorRT_DIR}/lib
-        ${CUDA_DIR}/lib64
+        ${CUDA_DIR}/lib/x64
 )
 
 set(LIBS
         ${OpenCV_LIBS}
-        libnvinfer.so.10
-        libcuda.so
-        libcudart.so
+        nvinfer_10
+        nvinfer_plugin_10
+        nvonnxparser_10
+        cuda
+        cublas
+        cudart
+        cudnn
 )
 
 #add_library(${PROJECT_NAME} SHARED
 #        src/BaseMemory.cpp
 #        src/Infer.cpp
 #        src/Logger.cpp
-#        src/Postprocess.cu
+#        src/DetectPostprocess.cu
 #        src/Preprocess.cu
 #        src/Timer.cpp
 #        src/Yolo.cpp
-#        workspace/export/ExportMultiple.cpp
-#        workspace/export/ExportMultipleCpm.cpp
-#        workspace/export/ExportSingle.cpp
-#        workspace/export/ExportSingleCpm.cpp
+#        src/export/ExportMultiple.cpp
+#        src/export/ExportMultipleCpm.cpp
+#        src/export/ExportSingle.cpp
+#        src/export/ExportSingleCpm.cpp
 #)
 
 add_executable(${PROJECT_NAME}
         src/BaseMemory.cpp
         src/Infer.cpp
         src/Logger.cpp
-        src/Postprocess.cu
         src/Preprocess.cu
+        src/DetectPostprocess.cu
+        src/ObbPostprocess.cu
         src/Timer.cpp
         src/Yolo.cpp
-        workspace/example/Config.h
         workspace/example/Main.cpp
-        workspace/example/Multi.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

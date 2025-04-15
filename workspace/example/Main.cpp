@@ -10,8 +10,65 @@
 using namespace std;
 namespace fs = std::filesystem;
 
-static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
+static cpm::Instance<detect::BoxArray, yolo::Image, yolo::Infer> cpmi;
 cudaStream_t cudaStream1;
+
+static vector<cv::Point> xywhr2xyxyxyxy(const obb::Box &box) {
+    float cos_value = std::cos(box.angle);
+    float sin_value = std::sin(box.angle);
+
+    float w_2 = box.width / 2, h_2 = box.height / 2;
+    float vec1_x = w_2 * cos_value, vec1_y = w_2 * sin_value;
+    float vec2_x = -h_2 * sin_value, vec2_y = h_2 * cos_value;
+
+    vector<cv::Point> corners;
+    corners.push_back(cv::Point(box.center_x + vec1_x + vec2_x, box.center_y + vec1_y + vec2_y));
+    corners.push_back(cv::Point(box.center_x + vec1_x - vec2_x, box.center_y + vec1_y - vec2_y));
+    corners.push_back(cv::Point(box.center_x - vec1_x - vec2_x, box.center_y - vec1_y - vec2_y));
+    corners.push_back(cv::Point(box.center_x - vec1_x + vec2_x, box.center_y - vec1_y + vec2_y));
+
+    return corners;
+}
+
+void syncInferObb() {
+    cudaStreamCreate(&cudaStream1);
+
+    Config config;
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.5, cudaStream1);
+    if (yolo == nullptr) return;
+
+    cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
+    auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
+    for (int i = 0; i < 10; ++i) {
+        auto objs = yolo->forward(yrImage, cudaStream1);
+    }
+
+    trt_timer::Timer Timer;
+    cv::Mat mat = cv::imread(config.TEST_IMG);
+    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
+    Timer.start(cudaStream1);
+    auto objs = yolo->obbForward(image, cudaStream1);
+    Timer.stop("batch one");
+
+    std::string windowName = "Image Window";
+    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
+    int width_ = 1024;
+    int height = 640;
+    cv::resizeWindow(windowName, width_, height);
+    for(auto& obj : objs){
+        uint8_t b= 255, g=0, r=255;
+        auto corners = xywhr2xyxyxyxy(obj);
+        cv::polylines(mat, vector<vector<cv::Point>>{corners}, true, cv::Scalar(b, g, r), 2, 16);
+
+        auto name = obj.class_label;
+        auto caption = cv::format("%i %.2f", name, obj.confidence);
+        int width    = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+        cv::rectangle(mat, cv::Point(corners[0].x-3, corners[0].y-33), cv::Point(corners[0].x-3 + width, corners[0].y), cv::Scalar(b, g, r), -1);
+        cv::putText(mat, caption, cv::Point(corners[0].x-3, corners[0].y-5), 0, 1, cv::Scalar::all(0), 2, 16);
+    }
+    cv::imshow(windowName, mat);
+    cv::waitKey(0);
+}
 
 void syncInfer() {
     cudaStreamCreate(&cudaStream1);
@@ -63,7 +120,7 @@ void syncInfer() {
 
 // 检测结果绘制函数
 void draw_detection_results(cv::Mat &mat,
-                            const yolo::BoxArray &objs) {
+                            const detect::BoxArray &objs) {
     for (const auto &obj: objs) {
         // 过滤低置信度的检测结果
         if (obj.confidence < 0.5) continue;
@@ -233,7 +290,7 @@ bool initSingleCpm(const string &engineFile, float confidence, float nms) {
     }
 }
 
-vector<yolo::Box> inferSingleCpm(const cv::Mat &mat) {
+vector<detect::Box> inferSingleCpm(const cv::Mat &mat) {
     return cpmi.commit(yolo::Image(mat.data, mat.cols, mat.rows)).get();
 }
 
@@ -251,8 +308,9 @@ void asyncInfer() {
 }
 
 int main() {
+    syncInferObb();
     // syncInfer();
     // asyncInfer();
-    videoDemo();
+    // videoDemo();
     return 0;
 }

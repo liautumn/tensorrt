@@ -38,7 +38,7 @@ set(LIBS
 #        src/BaseMemory.cpp
 #        src/Infer.cpp
 #        src/Logger.cpp
-#        src/Postprocess.cu
+#        src/DetectPostprocess.cu
 #        src/Preprocess.cu
 #        src/Timer.cpp
 #        src/Yolo.cpp
@@ -52,7 +52,7 @@ add_executable(${PROJECT_NAME}
         src/BaseMemory.cpp
         src/Infer.cpp
         src/Logger.cpp
-        src/Postprocess.cu
+        src/DetectPostprocess.cu
         src/Preprocess.cu
         src/Timer.cpp
         src/Yolo.cpp

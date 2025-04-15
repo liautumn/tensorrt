@@ -5,7 +5,7 @@
 #include <cstring>
 #include "Memory.h"
 #include "Preprocess.cuh"
-#include "Postprocess.cuh"
+#include "DetectPostprocess.cuh"
 #include "Logger.h"
 
 namespace yolo {
@@ -28,7 +28,6 @@ namespace yolo {
         int network_input_width_, network_input_height_;
         Norm normalize_;
         vector<int> bbox_head_dims_;
-        int num_classes_ = 0;
         bool isDynamic_model_ = false;
 
         virtual ~InferImpl() {
@@ -40,8 +39,8 @@ namespace yolo {
             size_t input_numel = network_input_width_ * network_input_height_ * 3;
             input_buffer_.gpu(batch_size * input_numel);
             bbox_predict_.gpu(batch_size * bbox_head_dims_[1] * bbox_head_dims_[2]);
-            output_boxarray_.gpu(batch_size * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT));
-            output_boxarray_.cpu(batch_size * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT));
+            output_boxarray_.gpu(batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
+            output_boxarray_.cpu(batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
 
             if (static_cast<int>(preprocess_buffers_.size()) < batch_size) {
                 for (int i = preprocess_buffers_.size(); i < batch_size; ++i)
@@ -122,19 +121,25 @@ namespace yolo {
             isDynamic_model_ = trt_->has_dynamic_dim();
 
             normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
-            num_classes_ = bbox_head_dims_[2] - 4;
             return true;
         }
 
-        BoxArray forward(const Image &image,
-                         void *stream = nullptr) override {
+        detect::BoxArray forward(const Image &image,
+                                 void *stream = nullptr) override {
             auto output = forwards({image}, stream);
             if (output.empty()) return {};
             return output[0];
         }
 
-        vector<BoxArray> forwards(const vector<Image> &images,
-                                  void *stream = nullptr) override {
+        obb::BoxArray obbForward(const Image &image,
+                                 void *stream = nullptr) override {
+            auto output = obbForwards({image}, stream);
+            if (output.empty()) return {};
+            return output[0];
+        }
+
+        vector<detect::BoxArray> forwards(const vector<Image> &images,
+                                          void *stream = nullptr) override {
             int num_image = images.size();
             if (num_image == 0) return {};
             auto inputName = trt_->name(0);
@@ -173,20 +178,21 @@ namespace yolo {
 
             for (int ib = 0; ib < num_image; ++ib) {
                 float *boxarray_device =
-                        output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
+                        output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT);
                 float *affine_matrix_device = reinterpret_cast<float *>(preprocess_buffers_[ib]->gpu());
                 float *image_based_bbox_output = bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
                 checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
-                decode_kernel_invoker(image_based_bbox_output,
-                                      bbox_head_dims_[1],
-                                      num_classes_,
-                                      bbox_head_dims_[2],
-                                      confidence_threshold_,
-                                      nms_threshold_,
-                                      affine_matrix_device,
-                                      boxarray_device,
-                                      MAX_IMAGE_BOXES,
-                                      stream_);
+                auto num_classes_ = bbox_head_dims_[2] - 4;
+                detect::decode_kernel_invoker(image_based_bbox_output,
+                                              bbox_head_dims_[1],
+                                              num_classes_,
+                                              bbox_head_dims_[2],
+                                              confidence_threshold_,
+                                              nms_threshold_,
+                                              affine_matrix_device,
+                                              boxarray_device,
+                                              MAX_IMAGE_BOXES,
+                                              stream_);
             }
             checkRuntime(
                 cudaMemcpyAsync(
@@ -198,24 +204,108 @@ namespace yolo {
             );
             checkRuntime(cudaStreamSynchronize(stream_));
 
-            vector<BoxArray> arrout(num_image);
+            vector<detect::BoxArray> arrout(num_image);
             for (int ib = 0; ib < num_image; ++ib) {
-                float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
+                float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT);
                 int count = min(MAX_IMAGE_BOXES, static_cast<int>(*parray));
-                BoxArray &output = arrout[ib];
+                detect::BoxArray &output = arrout[ib];
                 output.reserve(count);
                 for (int i = 0; i < count; ++i) {
-                    float *pbox = parray + 1 + i * NUM_BOX_ELEMENT;
+                    float *pbox = parray + 1 + i * detect::NUM_BOX_ELEMENT;
                     int label = pbox[5];
                     int keepflag = pbox[6];
                     if (keepflag == 1) {
-                        Box result_object_box(pbox[0],
-                                              pbox[1],
-                                              pbox[2],
-                                              pbox[3],
-                                              pbox[4],
-                                              label);
+                        detect::Box result_object_box(pbox[0],
+                                                      pbox[1],
+                                                      pbox[2],
+                                                      pbox[3],
+                                                      pbox[4],
+                                                      label);
                         output.emplace_back(result_object_box);
+                    }
+                }
+            }
+            return arrout;
+        }
+
+        vector<obb::BoxArray> obbForwards(const vector<Image> &images,
+                                          void *stream = nullptr) override {
+            int num_image = images.size();
+            if (num_image == 0) return {};
+            auto inputName = trt_->name(0);
+            auto input_dims = trt_->static_dims(inputName);
+            int infer_batch_size = input_dims[0];
+            if (infer_batch_size != num_image) {
+                if (isDynamic_model_) {
+                    infer_batch_size = num_image;
+                    input_dims[0] = num_image;
+                    if (!trt_->set_run_dims(inputName, input_dims)) return {};
+                } else {
+                    if (infer_batch_size < num_image) {
+                        INFO(
+                            "When using static shape model, number of images[%d] must be "
+                            "less than or equal to the maximum batch[%d].",
+                            num_image, infer_batch_size);
+                        return {};
+                    }
+                }
+            }
+            adjust_memory(infer_batch_size);
+
+            vector<AffineMatrix> affine_matrixs(num_image);
+            auto stream_ = static_cast<cudaStream_t>(stream);
+            for (int i = 0; i < num_image; ++i)
+                preprocess(i, images[i], preprocess_buffers_[i], affine_matrixs[i], stream);
+
+            float *bbox_output_device = bbox_predict_.gpu();
+
+            vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
+
+            if (!trt_->forward(bindings, stream)) {
+                INFO("Failed to tensorRT forward.");
+                return {};
+            }
+
+            for (int ib = 0; ib < num_image; ++ib) {
+                float *boxarray_device =
+                        output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * obb::NUM_BOX_ELEMENT);
+                float *affine_matrix_device = reinterpret_cast<float *>(preprocess_buffers_[ib]->gpu());
+                float *image_based_bbox_output = bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
+                checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
+                auto num_classes_ = bbox_head_dims_[2] - 5;
+                obb::decode_kernel_invoker(image_based_bbox_output,
+                                           bbox_head_dims_[1],
+                                           num_classes_,
+                                           bbox_head_dims_[2],
+                                           confidence_threshold_,
+                                           nms_threshold_,
+                                           affine_matrix_device,
+                                           boxarray_device,
+                                           MAX_IMAGE_BOXES,
+                                           stream_);
+            }
+            checkRuntime(
+                cudaMemcpyAsync(
+                    output_boxarray_.cpu(),
+                    output_boxarray_.gpu(),
+                    output_boxarray_.gpu_bytes(),
+                    cudaMemcpyDeviceToHost,
+                    stream_)
+            );
+            checkRuntime(cudaStreamSynchronize(stream_));
+
+            vector<obb::BoxArray> arrout(num_image);
+            for (int ib = 0; ib < num_image; ++ib) {
+                float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * obb::NUM_BOX_ELEMENT);
+                int count = min(MAX_IMAGE_BOXES, static_cast<int>(*parray));
+                obb::BoxArray &output = arrout[ib];
+                output.reserve(count);
+                for (int i = 0; i < count; ++i) {
+                    float *pbox = parray + 1 + i * obb::NUM_BOX_ELEMENT;
+                    // cx, cy, w, h, angle, confidence, class_label, keepflag
+                    int keepflag = pbox[7];
+                    if (keepflag == 1) {
+                        output.emplace_back(pbox[0], pbox[1], pbox[2], pbox[3], pbox[4], pbox[5], pbox[6]);
                     }
                 }
             }

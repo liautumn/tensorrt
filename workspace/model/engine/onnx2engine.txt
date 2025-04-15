@@ -1,6 +1,6 @@
 trtexec `
---onnx=/home/autumn/Documents/ultralytics/yolo_workspace/model/transdOnnx/yolo11s.transd.onnx `
---saveEngine=/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s.transd.engine `
+--onnx=D:\autumn\Documents\GitHub\ultralytics\yolo_workspace\model\transdOnnx\yolo11s-obb.transd.onnx `
+--saveEngine=D:\autumn\Documents\GitHub\tensorrt\workspace\model\engine\yolo11s-obb.transd.engine `
 --fp16 `
 --useCudaGraph `
 --minShapes=images:1x3x1024x1024 --maxShapes=images:12x3x1024x1024 --optShapes=images:1x3x1024x1024
