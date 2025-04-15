@@ -13,7 +13,7 @@ namespace trt {
         FLOAT = 0, HALF = 1, INT8 = 2, INT32 = 3, BOOL = 4, UINT8 = 5
     };
 
-    class Infer {
+    class infer {
     public:
         virtual bool forward(const vector<void *> &bindings, void *stream = nullptr) = 0;
 
@@ -38,7 +38,7 @@ namespace trt {
         virtual void print() = 0;
     };
 
-    shared_ptr<Infer> load(const string &file);
+    shared_ptr<infer> load(const string &file);
 
     string format_shape(const vector<int> &shape);
 } // namespace trt

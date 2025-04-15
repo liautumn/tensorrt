@@ -1,7 +1,7 @@
 #include <cuda_runtime_api.h>
 #include <cstdlib>
-#include "BaseMemory.h"
-#include "Logger.h"
+#include "base_memory.h"
+#include "logger.h"
 
 namespace trt_memory {
     BaseMemory::BaseMemory(void *cpu, size_t cpu_bytes, void *gpu, size_t gpu_bytes) {

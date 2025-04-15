@@ -4,7 +4,7 @@
 #include "infer.h"
 #include "cpm.h"
 #include "yolo.h"
-#include <Timer.h>
+#include <timer.h>
 
 using namespace std;
 
@@ -28,7 +28,7 @@ bool initSingle(const string &engineFile, const float confidence, const float nm
     }
 }
 
-vector<yolo::Box> inferSingle(cv::Mat *mat) {
+vector<detect::Box> inferSingle(cv::Mat *mat) {
     trt_timer::Timer timer;
     timer.start();
     auto img = yolo::Image(mat->data, mat->cols, mat->rows);
@@ -37,17 +37,17 @@ vector<yolo::Box> inferSingle(cv::Mat *mat) {
     return objs;
 }
 
-extern "C" __declspec(dllexport) bool TENSORRT_SINGLE_INIT(const char *engineFile, float *confidences, float nms) {
-    return initSingle(engineFile, confidences, nms);
+extern "C" __declspec(dllexport) bool TENSORRT_SINGLE_INIT(const char *engineFile, float confidence, float nms) {
+    return initSingle(engineFile, confidence, nms);
 }
 
-extern "C" __declspec(dllexport) void TENSORRT_SINGLE_INFER(cv::Mat *mat, yolo::Box **result, int *size) {
+extern "C" __declspec(dllexport) void TENSORRT_SINGLE_INFER(cv::Mat *mat, detect::Box **result, int *size) {
     // 调用推理函数获取检测框
-    std::vector<yolo::Box> boxes = inferSingle(mat);
+    std::vector<detect::Box> boxes = inferSingle(mat);
     // 设置返回的大小
     *size = boxes.size();
     // 为结果分配内存
-    *result = new yolo::Box[boxes.size()];
+    *result = new detect::Box[boxes.size()];
     // 拷贝结果到分配的内存中
     std::copy(boxes.begin(), boxes.end(), *result);
 }

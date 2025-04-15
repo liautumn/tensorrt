@@ -7,7 +7,7 @@
 
 using namespace std;
 
-static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
+static cpm::Instance<detect::BoxArray, yolo::Image, yolo::Infer> cpmi;
 cudaStream_t customStream2;
 
 bool initSingleCpm(const string &engineFile, const float confidence, const float nms) {
@@ -29,21 +29,21 @@ bool initSingleCpm(const string &engineFile, const float confidence, const float
     }
 }
 
-vector<yolo::Box> inferSingleCpm(cv::Mat *mat) {
+vector<detect::Box> inferSingleCpm(cv::Mat *mat) {
     return cpmi.commit(yolo::Image(mat->data, mat->cols, mat->rows)).get();
 }
 
-extern "C" __declspec(dllexport) bool TENSORRT_SINGLE_CPM_INIT(const char *engineFile, float *confidences, float nms) {
-    return initSingleCpm(engineFile, confidences, nms);
+extern "C" __declspec(dllexport) bool TENSORRT_SINGLE_CPM_INIT(const char *engineFile, float confidence, float nms) {
+    return initSingleCpm(engineFile, confidence, nms);
 }
 
-extern "C" __declspec(dllexport) void TENSORRT_SINGLE_CPM_INFER(cv::Mat *mat, yolo::Box **result, int *size) {
+extern "C" __declspec(dllexport) void TENSORRT_SINGLE_CPM_INFER(cv::Mat *mat, detect::Box **result, int *size) {
     // 调用推理函数获取检测框
-    std::vector<yolo::Box> boxes = inferSingleCpm(mat);
+    std::vector<detect::Box> boxes = inferSingleCpm(mat);
     // 设置返回的大小
     *size = boxes.size();
     // 为结果分配内存
-    *result = new yolo::Box[boxes.size()];
+    *result = new detect::Box[boxes.size()];
     // 拷贝结果到分配的内存中
     std::copy(boxes.begin(), boxes.end(), *result);
 }

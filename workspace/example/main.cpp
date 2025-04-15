@@ -2,10 +2,10 @@
 #include <driver_types.h>
 #include <opencv2/opencv.hpp>
 #include <filesystem>
-#include "Yolo.h"
-#include "Config.h"
-#include "Cpm.h"
-#include "Timer.h"
+#include "yolo.h"
+#include "config.h"
+#include "cpm.h"
+#include "timer.h"
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -43,12 +43,12 @@ void syncInferObb() {
         auto objs = yolo->forward(yrImage, cudaStream1);
     }
 
-    trt_timer::Timer Timer;
+    trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-    Timer.start(cudaStream1);
+    timer.start(cudaStream1);
     auto objs = yolo->obbForward(image, cudaStream1);
-    Timer.stop("batch one");
+    timer.stop("batch one");
 
     std::string windowName = "Image Window";
     cv::namedWindow(windowName, cv::WINDOW_NORMAL);
@@ -89,12 +89,12 @@ void syncInfer() {
     int height = 640;
     cv::resizeWindow(windowName, width_, height);
 
-    trt_timer::Timer Timer;
+    trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-    Timer.start(cudaStream1);
+    timer.start(cudaStream1);
     auto objs = yolo->forward(image, cudaStream1);
-    Timer.stop("batch one");
+    timer.stop("batch one");
     for (auto &obj: objs) {
         cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
                 << ", "
@@ -180,11 +180,8 @@ void videoDemo() {
         auto objs = yolo->forward(yrImage, cudaStream1);
     }
 
-    // 视频文件路径配置
-    const std::string video_path = "/home/autumn/Documents/GitHub/tensorrt/workspace/images/001.mp4"; // 确保路径正确
-
     // 打开视频流（优先尝试作为文件打开）
-    cv::VideoCapture cap(video_path);
+    cv::VideoCapture cap(config.VIDEO_PATH);
     cap.set(cv::CAP_PROP_BUFFERSIZE, 1); // 减少缓冲延迟
 
     // 获取视频属性
@@ -197,7 +194,7 @@ void videoDemo() {
 
     cv::Mat mat;
     yolo::Image image;
-    trt_timer::Timer Timer;
+    trt_timer::Timer timer;
 
     // 创建显示窗口
     cv::namedWindow("YOLO Video Detection",
@@ -222,9 +219,9 @@ void videoDemo() {
         image = yolo::Image(mat.data, mat.cols, mat.rows);
 
         // CUDA加速推理
-        Timer.start(cudaStream1);
+        timer.start(cudaStream1);
         auto objs = yolo->forward(image, cudaStream1);
-        Timer.stop("batch one");
+        timer.stop("batch one");
 
         // 绘制检测结果
         draw_detection_results(mat, objs);
@@ -297,20 +294,20 @@ vector<detect::Box> inferSingleCpm(const cv::Mat &mat) {
 void asyncInfer() {
     Config config;
     if (initSingleCpm(config.MODEL, 0.2, 0.5)) {
-        trt_timer::Timer Timer;
+        trt_timer::Timer timer;
         const cv::Mat mat = cv::imread(config.TEST_IMG);
         while (true) {
-            Timer.start();
+            timer.start();
             inferSingleCpm(mat);
-            Timer.stop("batch one");
+            timer.stop("batch one");
         }
     }
 }
 
 int main() {
-    syncInferObb();
+    // syncInferObb();
     // syncInfer();
     // asyncInfer();
-    // videoDemo();
+    videoDemo();
     return 0;
 }

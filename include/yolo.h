@@ -5,8 +5,8 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "DetectPostprocess.cuh"
-#include "ObbPostprocess.cuh"
+#include "detect_postprocess.cuh"
+#include "obb_postprocess.cuh"
 
 namespace yolo {
     using namespace std;

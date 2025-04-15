@@ -1,8 +1,8 @@
 #include <cuda_runtime_api.h>
 #include <cstdlib>
 #include <cstdio>
-#include "Timer.h"
-#include "Logger.h"
+#include "timer.h"
+#include "logger.h"
 
 namespace trt_timer {
     Timer::Timer() {

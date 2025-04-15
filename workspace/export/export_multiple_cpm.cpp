@@ -7,7 +7,7 @@
 
 using namespace std;
 
-static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi2;
+static cpm::Instance<detect::BoxArray, yolo::Image, yolo::Infer> cpmi2;
 cudaStream_t customStream4;
 
 extern "C" __declspec(dllexport) bool
@@ -15,7 +15,7 @@ TENSORRT_MULTIPLE_CPM_INIT(const char *engineFile, const float confidence, const
     // 创建非阻塞流
     cudaStreamCreate(&customStream4);
     bool ok = cpmi2.start([&engineFile, &confidence, &nms] {
-        return yolo::load(engineFile, confidences, nms, customStream4);
+        return yolo::load(engineFile, confidence, nms, customStream4);
     }, maxBatch, customStream4);
     if (ok) {
         //预热
@@ -36,7 +36,7 @@ TENSORRT_MULTIPLE_CPM_INIT(const char *engineFile, const float confidence, const
 }
 
 extern "C" __declspec(dllexport) void
-TENSORRT_MULTIPLE_CPM_INFER(cv::Mat **mats, int imgSize, yolo::Box ***result, int **resultSizes) {
+TENSORRT_MULTIPLE_CPM_INFER(cv::Mat **mats, int imgSize, detect::Box ***result, int **resultSizes) {
     vector<yolo::Image> inputs;
     inputs.reserve(imgSize);
     for (int i = 0; i < imgSize; ++i) {
@@ -45,13 +45,13 @@ TENSORRT_MULTIPLE_CPM_INFER(cv::Mat **mats, int imgSize, yolo::Box ***result, in
     auto batched_result = cpmi2.commits(inputs);
 
     *resultSizes = new int[batched_result.size()];
-    *result = new yolo::Box *[batched_result.size()];
+    *result = new detect::Box *[batched_result.size()];
 
     for (int ib = 0; ib < (int) batched_result.size(); ++ib) {
         auto &boxes = batched_result[ib].get();
         (*resultSizes)[ib] = boxes.size();
-        (*result)[ib] = new yolo::Box[boxes.size()];
-        memcpy((*result)[ib], boxes.data(), boxes.size() * sizeof(yolo::Box));
+        (*result)[ib] = new detect::Box[boxes.size()];
+        memcpy((*result)[ib], boxes.data(), boxes.size() * sizeof(detect::Box));
     }
 }
 

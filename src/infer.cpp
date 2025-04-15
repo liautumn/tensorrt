@@ -7,9 +7,8 @@
 #include <numeric>
 #include <sstream>
 #include <unordered_map>
-#include "Logger.h"
-#include "Infer.h"
-
+#include "logger.h"
+#include "infer.h"
 #include <cassert>
 #include <cstring>
 
@@ -28,7 +27,7 @@ namespace trt {
         return output.str();
     }
 
-    class native_nvinfer_logger : public ILogger {
+    class NativeNvinferLogger : public ILogger {
     public:
         void log(Severity severity, const char *msg) noexcept override {
             if (severity == Severity::kINTERNAL_ERROR) {
@@ -46,7 +45,7 @@ namespace trt {
         }
     };
 
-    static native_nvinfer_logger gLogger;
+    static NativeNvinferLogger gLogger;
 
     template<typename T>
     static void destroy_nvidia_pointer(T *ptr) {
@@ -71,13 +70,13 @@ namespace trt {
         return data;
     }
 
-    class native_engine_context {
+    class NativeEngineContext {
     public:
         shared_ptr<IExecutionContext> context_;
         shared_ptr<ICudaEngine> engine_;
         shared_ptr<IRuntime> runtime_ = nullptr;
 
-        virtual ~native_engine_context() { destroy(); }
+        virtual ~NativeEngineContext() { destroy(); }
 
         bool construct(const void *pdata, size_t size) {
             destroy();
@@ -104,15 +103,15 @@ namespace trt {
         }
     };
 
-    class InferImpl : public Infer {
+    class InferImpl : public infer {
     public:
-        shared_ptr<native_engine_context> context_;
+        shared_ptr<NativeEngineContext> context_;
         unordered_map<int, string> binding_index_to_name_;
 
         virtual ~InferImpl() = default;
 
         bool construct(const void *data, size_t size) {
-            context_ = make_shared<native_engine_context>();
+            context_ = make_shared<NativeEngineContext>();
             if (!context_->construct(data, size)) {
                 return false;
             }
@@ -203,7 +202,7 @@ namespace trt {
         }
 
         virtual void print() override {
-            INFO("Infer %p [%s]", this, has_dynamic_dim() ? "DynamicShape" : "StaticShape");
+            INFO("infer %p [%s]", this, has_dynamic_dim() ? "DynamicShape" : "StaticShape");
 
             int num_input = 0;
             int num_output = 0;
@@ -232,7 +231,7 @@ namespace trt {
         }
     };
 
-    shared_ptr<Infer> load(const string &file) {
+    shared_ptr<infer> load(const string &file) {
         auto *impl = new InferImpl();
         if (!impl->load(file)) {
             delete impl;

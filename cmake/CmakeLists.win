@@ -35,29 +35,30 @@ set(LIBS
 )
 
 #add_library(${PROJECT_NAME} SHARED
-#        src/BaseMemory.cpp
-#        src/Infer.cpp
-#        src/Logger.cpp
-#        src/DetectPostprocess.cu
-#        src/Preprocess.cu
-#        src/Timer.cpp
-#        src/Yolo.cpp
-#        src/export/ExportMultiple.cpp
-#        src/export/ExportMultipleCpm.cpp
-#        src/export/ExportSingle.cpp
-#        src/export/ExportSingleCpm.cpp
+#        src/base_memory.cpp
+#        src/detect_postprocess.cu
+#        src/infer.cpp
+#        src/logger.cpp
+#        src/obb_postprocess.cu
+#        src/preprocess.cu
+#        src/timer.cpp
+#        src/yolo.cpp
+#        workspace/export/export_multiple.cpp
+#        workspace/export/export_multiple_cpm.cpp
+#        workspace/export/export_single.cpp
+#        workspace/export/export_single_cpm.cpp
 #)
 
 add_executable(${PROJECT_NAME}
-        src/BaseMemory.cpp
-        src/Infer.cpp
-        src/Logger.cpp
-        src/DetectPostprocess.cu
-        src/Preprocess.cu
-        src/Timer.cpp
-        src/Yolo.cpp
-        src/example/Config.h
-        src/example/Main.cpp
+        src/base_memory.cpp
+        src/detect_postprocess.cu
+        src/infer.cpp
+        src/logger.cpp
+        src/obb_postprocess.cu
+        src/preprocess.cu
+        src/timer.cpp
+        src/yolo.cpp
+        workspace/example/main.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

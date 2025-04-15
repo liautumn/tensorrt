@@ -1,5 +1,5 @@
-#include "Preprocess.cuh"
-#include "Logger.h"
+#include "preprocess.cuh"
+#include "logger.h"
 
 Norm Norm::mean_std(const float mean[3], const float std[3], float alpha,
                     ChannelType channel_type) {

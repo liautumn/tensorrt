@@ -1,7 +1,7 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include "BaseMemory.h"
+#include "base_memory.h"
 
 namespace trt_memory {
     template<typename DT>

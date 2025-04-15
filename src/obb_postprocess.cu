@@ -1,5 +1,5 @@
-#include "ObbPostprocess.cuh"
-#include "Logger.h"
+#include "obb_postprocess.cuh"
+#include "logger.h"
 
 namespace obb {
     static __device__ void affine_project(float *matrix, float x, float y, float w, float h, float *ox, float *oy,

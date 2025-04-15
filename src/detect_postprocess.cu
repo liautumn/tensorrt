@@ -1,5 +1,5 @@
-#include "DetectPostprocess.cuh"
-#include <Logger.h>
+#include "detect_postprocess.cuh"
+#include <logger.h>
 
 namespace detect {
     __device__ void affine_project(float *matrix, float x, float y, float *ox,

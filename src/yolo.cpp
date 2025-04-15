@@ -1,12 +1,13 @@
 #include <cuda_runtime_api.h>
+#include "yolo.h"
+#include "infer.h"
 #include <iostream>
-#include "Infer.h"
-#include "Yolo.h"
 #include <cstring>
-#include "Memory.h"
-#include "Preprocess.cuh"
-#include "DetectPostprocess.cuh"
-#include "Logger.h"
+#include "memory.h"
+#include "logger.h"
+#include "preprocess.cuh"
+#include "detect_postprocess.cuh"
+
 
 namespace yolo {
     using namespace std;
@@ -18,7 +19,7 @@ namespace yolo {
 
     class InferImpl : public Infer {
     public:
-        shared_ptr<trt::Infer> trt_;
+        shared_ptr<trt::infer> trt_;
         string engine_file_;
         float confidence_threshold_;
         void *cuda_stream_;
@@ -324,4 +325,6 @@ namespace yolo {
         }
         return shared_ptr<InferImpl>(impl);
     }
-}; // namespace yolo
+}
+
+; // namespace yolo

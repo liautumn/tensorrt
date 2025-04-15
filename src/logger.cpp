@@ -2,7 +2,7 @@
 #include <string>
 #include <cstdarg>
 #include <filesystem>
-#include "Logger.h"
+#include "logger.h"
 
 namespace trt_log {
 

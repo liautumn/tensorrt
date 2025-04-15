@@ -1,7 +1,7 @@
 #include <cuda_runtime.h>
 #include <driver_types.h>
 #include <opencv2/opencv.hpp>
-#include <Timer.h>
+#include <timer.h>
 #include "infer.h"
 #include "cpm.h"
 #include "yolo.h"
@@ -33,7 +33,7 @@ TENSORRT_MULTIPLE_INIT(const char *engineFile, const float confidence, const flo
 }
 
 extern "C" __declspec(dllexport) void
-TENSORRT_MULTIPLE_INFER(cv::Mat **mats, int imgSize, yolo::Box ***result, int **resultSizes) {
+TENSORRT_MULTIPLE_INFER(cv::Mat **mats, int imgSize, detect::Box ***result, int **resultSizes) {
     trt_timer::Timer timer;
     timer.start();
     vector<yolo::Image> inputs;
@@ -45,13 +45,13 @@ TENSORRT_MULTIPLE_INFER(cv::Mat **mats, int imgSize, yolo::Box ***result, int **
     timer.stop("batch n");
 
     *resultSizes = new int[batched_result.size()];
-    *result = new yolo::Box *[batched_result.size()];
+    *result = new detect::Box *[batched_result.size()];
 
     for (int ib = 0; ib < (int) batched_result.size(); ++ib) {
         auto &boxes = batched_result[ib];
         (*resultSizes)[ib] = boxes.size();
-        (*result)[ib] = new yolo::Box[boxes.size()];
-        memcpy((*result)[ib], boxes.data(), boxes.size() * sizeof(yolo::Box));
+        (*result)[ib] = new detect::Box[boxes.size()];
+        memcpy((*result)[ib], boxes.data(), boxes.size() * sizeof(detect::Box));
     }
 }
 extern "C" __declspec(dllexport) void TENSORRT_MULTIPLE_DESTROY() {
