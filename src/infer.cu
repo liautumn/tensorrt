@@ -72,7 +72,7 @@ namespace trt {
 
     void __log_func(const char *file, int line, const char *fmt, ...) {
         va_list vl;
-        va_start(vl, fmt);
+                va_start(vl, fmt);
         char buffer[2048];
         string filename = file_name(file, true);
         int n = snprintf(buffer, sizeof(buffer), "[%s:%d]: ", filename.c_str(), line);
@@ -226,16 +226,13 @@ namespace trt {
                 abort();
             } else if (severity == Severity::kERROR) {
                 INFO("NVInfer: %s", msg);
+            } else if (severity == Severity::kWARNING) {
+                INFO("NVInfer: %s", msg);
+            } else if (severity == Severity::kINFO) {
+                INFO("NVInfer: %s", msg);
+            } else {
+                INFO("%s", msg);
             }
-//     else  if (severity == Severity::kWARNING) {
-//         INFO("NVInfer: %s", msg);
-//     }
-//     else  if (severity == Severity::kINFO) {
-//         INFO("NVInfer: %s", msg);
-//     }
-//     else {
-//         INFO("%s", msg);
-//     }
         }
     };
 
@@ -287,7 +284,7 @@ namespace trt {
 
     private:
         void destroy() {
-            INFO("----------------------TensorRT Destroy----------------------");
+            INFO("TensorRT Destroy");
             context_.reset();
             engine_.reset();
             runtime_.reset();
@@ -411,7 +408,7 @@ namespace trt {
         }
 
         virtual void print() override {
-//            INFO("Infer %p [%s]", this, has_dynamic_dim() ? "DynamicShape" : "StaticShape");
+            INFO("Infer %p [%s]", this, has_dynamic_dim() ? "DynamicShape" : "StaticShape");
 
             int num_input = 0;
             int num_output = 0;

@@ -6,17 +6,17 @@ namespace TensorRT
     class Singel
     {
         [DllImport(Config.Yolodll, CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool TENSORRT_SINGLE_INIT(string engineFile, float confidence, float nms);
+        public static extern bool TENSORRT_SINGLE_CPM_INIT(string engineFile, float confidence, float nms);
 
         [DllImport(Config.Yolodll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern void TENSORRT_SINGLE_INFER(IntPtr image, out IntPtr result, out int size);
+        private static extern void TENSORRT_SINGLE_CPM_INFER(IntPtr image, out IntPtr result, out int size);
 
         [DllImport(Config.Yolodll, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void TENSORRT_SINGLE_DESTROY();
+        public static extern void TENSORRT_SINGLE_CPM_DESTROY();
 
         public static List<Box> TENSORRT_INFER_WRAPPER(IntPtr image)
         {
-            TENSORRT_SINGLE_INFER(image, out IntPtr result, out int size);
+            TENSORRT_SINGLE_CPM_INFER(image, out IntPtr result, out int size);
             List<Box> boxes = new List<Box>(size);
             for (int i = 0; i < size; i++)
             {
@@ -29,7 +29,7 @@ namespace TensorRT
 
         static void Main()
         {
-            bool ok = TENSORRT_SINGLE_INIT(Config.Model, Config.Confidence, Config.Nms);
+            bool ok = TENSORRT_SINGLE_CPM_INIT(Config.Model, Config.Confidence, Config.Nms);
             if (!ok) return;
 
             Mat imRead = Cv2.ImRead(Config.ImageSrc);
@@ -59,7 +59,7 @@ namespace TensorRT
             Cv2.ImShow(windowName, imRead);
             Cv2.WaitKey();
 
-            TENSORRT_SINGLE_DESTROY();
+            TENSORRT_SINGLE_CPM_DESTROY();
         }
     }
 }

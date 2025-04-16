@@ -1,4 +1,5 @@
 #include <opencv2/opencv.hpp>
+#include "cuda_runtime_api.h"
 #include "infer.h"
 #include "cpm.h"
 #include "yolo.h"
@@ -7,10 +8,18 @@ using namespace std;
 
 static cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 
+cudaStream_t stream1;  // 定义 CUDA Stream 对象
+
 bool initSingleCpm(const string &engineFile, float confidence, float nms) {
+    // 创建 Stream
+    cudaError_t err = cudaStreamCreate(&stream1);
+    if (err != cudaSuccess) {
+        printf("Failed to create CUDA stream: %s\n", cudaGetErrorString(err));
+        return false;
+    }
     bool ok = cpmi.start([&engineFile, &confidence, &nms] {
         return yolo::load(engineFile, yolo::Type::V8, confidence, nms);
-    });
+    }, 1, stream1);
     if (!ok) {
         return false;
     } else {
@@ -43,4 +52,9 @@ extern "C" __declspec(dllexport) void TENSORRT_SINGLE_CPM_INFER(cv::Mat *mat, yo
 }
 extern "C" __declspec(dllexport) void TENSORRT_SINGLE_CPM_DESTROY() {
     cpmi.stop();
+    // 销毁 Stream
+    cudaError_t err = cudaStreamDestroy(stream1);
+    if (err != cudaSuccess) {
+        printf("Failed to destroy CUDA stream: %s\n", cudaGetErrorString(err));
+    }
 }
