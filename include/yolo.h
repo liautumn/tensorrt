@@ -1,6 +1,7 @@
 #ifndef YOLO_H
 #define YOLO_H
 
+#include <cls_postprocess.h>
 #include <future>
 #include <memory>
 #include <string>
@@ -24,12 +25,13 @@ namespace yolo {
     class Infer {
     public:
         virtual detect::BoxArray forward(const Image &image, void *stream = nullptr) = 0;
-
-        virtual obb::BoxArray obbForward(const Image &image, void *stream = nullptr) = 0;
-
         virtual vector<detect::BoxArray> forwards(const vector<Image> &images, void *stream = nullptr) = 0;
 
-        virtual vector<obb::BoxArray> obbForwards(const vector<Image> &images, void *stream = nullptr) = 0;
+        virtual obb::BoxArray obb_forward(const Image &image, void *stream = nullptr) = 0;
+        virtual vector<obb::BoxArray> obb_forwards(const vector<Image> &images, void *stream = nullptr) = 0;
+
+        virtual cls::ProbArray cls_forward(const Image &image, void *stream = nullptr) = 0;
+        virtual vector<cls::ProbArray> cls_forwards(const vector<Image> &images, void *stream = nullptr) = 0;
     };
 
     shared_ptr<Infer> load(const string &engine_file,

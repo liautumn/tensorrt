@@ -40,14 +40,15 @@ void syncInferObb() {
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->forward(yrImage, cudaStream1);
+        auto objs = yolo->obb_forward(yrImage, cudaStream1);
     }
 
     trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
+
     timer.start(cudaStream1);
-    auto objs = yolo->obbForward(image, cudaStream1);
+    auto objs = yolo->obb_forward(image, cudaStream1);
     timer.stop("batch one");
 
     std::string windowName = "Image Window";
@@ -55,16 +56,17 @@ void syncInferObb() {
     int width_ = 1024;
     int height = 640;
     cv::resizeWindow(windowName, width_, height);
-    for(auto& obj : objs){
-        uint8_t b= 255, g=0, r=255;
+    for (auto &obj: objs) {
+        uint8_t b = 255, g = 0, r = 255;
         auto corners = xywhr2xyxyxyxy(obj);
-        cv::polylines(mat, vector<vector<cv::Point>>{corners}, true, cv::Scalar(b, g, r), 2, 16);
+        cv::polylines(mat, vector<vector<cv::Point> >{corners}, true, cv::Scalar(b, g, r), 2, 16);
 
         auto name = obj.class_label;
         auto caption = cv::format("%i %.2f", name, obj.confidence);
-        int width    = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-        cv::rectangle(mat, cv::Point(corners[0].x-3, corners[0].y-33), cv::Point(corners[0].x-3 + width, corners[0].y), cv::Scalar(b, g, r), -1);
-        cv::putText(mat, caption, cv::Point(corners[0].x-3, corners[0].y-5), 0, 1, cv::Scalar::all(0), 2, 16);
+        int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+        cv::rectangle(mat, cv::Point(corners[0].x - 3, corners[0].y - 33),
+                      cv::Point(corners[0].x - 3 + width, corners[0].y), cv::Scalar(b, g, r), -1);
+        cv::putText(mat, caption, cv::Point(corners[0].x - 3, corners[0].y - 5), 0, 1, cv::Scalar::all(0), 2, 16);
     }
     cv::imshow(windowName, mat);
     cv::waitKey(0);
@@ -304,10 +306,48 @@ void asyncInfer() {
     }
 }
 
+void syncInferCls() {
+    cudaStreamCreate(&cudaStream1);
+
+    Config config;
+    auto yolo = yolo::load(config.MODEL, 0.1, 0, cudaStream1);
+    if (yolo == nullptr) return;
+
+    cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
+    auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
+    for (int i = 0; i < 10; ++i) {
+        auto objs = yolo->cls_forward(yrImage, cudaStream1);
+    }
+
+    trt_timer::Timer timer;
+    cv::Mat mat = cv::imread(config.TEST_IMG);
+    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
+    timer.start(cudaStream1);
+    auto objs = yolo->cls_forward(image, cudaStream1);
+    timer.stop("batch one");
+
+    std::string windowName = "Image Window";
+    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
+    int width_ = 1024;
+    int height = 640;
+    cv::resizeWindow(windowName, width_, height);
+
+    for (int i = 0; i < objs.size(); ++i) {
+        auto obj = objs[i];
+        cv::putText(mat,
+                    std::to_string(obj.class_label) + ": " + std::to_string(obj.confidence).substr(0, 4),
+                    cv::Point(10, 30 + i * 30),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+    }
+    cv::imshow(windowName, mat);
+    cv::waitKey(0);
+}
+
 int main() {
+    syncInferCls();
     // syncInferObb();
     // syncInfer();
     // asyncInfer();
-    videoDemo();
+    // videoDemo();
     return 0;
 }

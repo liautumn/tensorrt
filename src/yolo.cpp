@@ -1,8 +1,10 @@
 #include <cuda_runtime_api.h>
 #include "yolo.h"
+#include <algorithm>
 #include "infer.h"
 #include <iostream>
 #include <cstring>
+#include "cls_postprocess.h"
 #include "memory.h"
 #include "logger.h"
 #include "preprocess.cuh"
@@ -132,13 +134,6 @@ namespace yolo {
             return output[0];
         }
 
-        obb::BoxArray obbForward(const Image &image,
-                                 void *stream = nullptr) override {
-            auto output = obbForwards({image}, stream);
-            if (output.empty()) return {};
-            return output[0];
-        }
-
         vector<detect::BoxArray> forwards(const vector<Image> &images,
                                           void *stream = nullptr) override {
             int num_image = images.size();
@@ -229,8 +224,15 @@ namespace yolo {
             return arrout;
         }
 
-        vector<obb::BoxArray> obbForwards(const vector<Image> &images,
-                                          void *stream = nullptr) override {
+        obb::BoxArray obb_forward(const Image &image,
+                                  void *stream = nullptr) override {
+            auto output = obb_forwards({image}, stream);
+            if (output.empty()) return {};
+            return output[0];
+        }
+
+        vector<obb::BoxArray> obb_forwards(const vector<Image> &images,
+                                           void *stream = nullptr) override {
             int num_image = images.size();
             if (num_image == 0) return {};
             auto inputName = trt_->name(0);
@@ -310,6 +312,90 @@ namespace yolo {
                     }
                 }
             }
+            return arrout;
+        }
+
+        cls::ProbArray cls_forward(const Image &image,
+                                   void *stream = nullptr) override {
+            auto output = cls_forwards({image}, stream);
+            if (output.empty()) return {};
+            return output[0];
+        }
+
+        void adjust_memory_cls(int batch_size) {
+            // the inference batch_size
+            size_t input_numel = network_input_width_ * network_input_height_ * 3;
+            input_buffer_.gpu(batch_size * input_numel);
+            bbox_predict_.gpu(batch_size * bbox_head_dims_[1]);
+            output_boxarray_.cpu(batch_size * bbox_head_dims_[1]);
+
+            if (static_cast<int>(preprocess_buffers_.size()) < batch_size) {
+                for (int i = preprocess_buffers_.size(); i < batch_size; ++i)
+                    preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
+            }
+        }
+
+        vector<cls::ProbArray> cls_forwards(const vector<Image> &images,
+                                            void *stream = nullptr) override {
+            int num_image = images.size();
+            if (num_image == 0) return {};
+            auto inputName = trt_->name(0);
+            auto input_dims = trt_->static_dims(inputName);
+            int infer_batch_size = input_dims[0];
+            if (infer_batch_size != num_image) {
+                if (isDynamic_model_) {
+                    infer_batch_size = num_image;
+                    input_dims[0] = num_image;
+                    if (!trt_->set_run_dims(inputName, input_dims)) return {};
+                } else {
+                    if (infer_batch_size < num_image) {
+                        INFO(
+                            "When using static shape model, number of images[%d] must be "
+                            "less than or equal to the maximum batch[%d].",
+                            num_image, infer_batch_size);
+                        return {};
+                    }
+                }
+            }
+            adjust_memory_cls(infer_batch_size);
+
+            vector<AffineMatrix> affine_matrixs(num_image);
+            auto stream_ = static_cast<cudaStream_t>(stream);
+            for (int i = 0; i < num_image; ++i)
+                preprocess(i, images[i], preprocess_buffers_[i], affine_matrixs[i], stream);
+
+            float *bbox_output_device = bbox_predict_.gpu();
+
+            vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
+
+            if (!trt_->forward(bindings, stream)) {
+                INFO("Failed to tensorRT forward.");
+                return {};
+            }
+
+            checkRuntime(
+                cudaMemcpyAsync(
+                    output_boxarray_.cpu(),
+                    bbox_output_device,
+                    output_boxarray_.cpu_bytes(),
+                    cudaMemcpyDeviceToHost,
+                    stream_)
+            );
+            checkRuntime(cudaStreamSynchronize(stream_));
+
+            vector<cls::ProbArray> arrout(num_image);
+            for (int ib = 0; ib < num_image; ++ib) {
+                cls::ProbArray &prob_array = arrout[ib];;
+                float *parray = output_boxarray_.cpu() + ib * bbox_head_dims_[1];
+                for (int i = 0; i < bbox_head_dims_[1]; ++i) {
+                    if (parray[i] > confidence_threshold_) {
+                        prob_array.emplace_back(i, parray[i]);
+                    }
+                }
+                // int label = max_element(parray, parray + bbox_head_dims_[1]) - parray;
+                // float confidence = parray[label];
+            }
+
             return arrout;
         }
     };
