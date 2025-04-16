@@ -35,11 +35,11 @@ set(LIBS
 
 #add_library(${PROJECT_NAME} SHARED
 #        src/base_memory.cpp
-#        src/detect_postprocess.cu
 #        src/infer.cpp
 #        src/logger.cpp
-#        src/obb_postprocess.cu
 #        src/preprocess.cu
+#        src/detect_postprocess.cu
+#        src/obb_postprocess.cu
 #        src/timer.cpp
 #        src/yolo.cpp
 #        workspace/export/export_multiple.cpp

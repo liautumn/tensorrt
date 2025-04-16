@@ -344,10 +344,10 @@ void syncInferCls() {
 }
 
 int main() {
-    syncInferCls();
+    // syncInferCls();
     // syncInferObb();
     // syncInfer();
     // asyncInfer();
-    // videoDemo();
+    videoDemo();
     return 0;
 }
