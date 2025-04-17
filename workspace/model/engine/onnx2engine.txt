@@ -7,8 +7,8 @@ trtexec `
 
 
 trtexec \
---onnx=/home/autumn/Documents/GitHub/ultralytics/yolo_workspace/model/onnx/yolo11s-cls.onnx \
---saveEngine=/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-cls.engine \
+--onnx=/home/autumn/Documents/GitHub/ultralytics/yolo_workspace/model/transdOnnx/yolo11s-obb.transd.onnx \
+--saveEngine=/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-obb.transd.engine \
 --useCudaGraph \
 --fp16 \
 --minShapes=images:1x3x1024x1024 --maxShapes=images:12x3x1024x1024 --optShapes=images:1x3x1024x1024

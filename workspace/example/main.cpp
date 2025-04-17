@@ -121,51 +121,21 @@ void syncInfer() {
 }
 
 // 检测结果绘制函数
-void draw_detection_results(cv::Mat &mat,
-                            const detect::BoxArray &objs) {
+void draw_detection_results(cv::Mat &mat, const obb::BoxArray &objs) {
     for (const auto &obj: objs) {
         // 过滤低置信度的检测结果
         if (obj.confidence < 0.5) continue;
 
-        // 绘制边界框
-        cv::rectangle(mat,
-                      cv::Point(static_cast<int>(obj.left), static_cast<int>(obj.top)),
-                      cv::Point(static_cast<int>(obj.right), static_cast<int>(obj.bottom)),
-                      cv::Scalar(255, 0, 255), // 品红色边框
-                      2); // 线宽
+        uint8_t b = 255, g = 0, r = 255;
+        auto corners = xywhr2xyxyxyxy(obj);
+        cv::polylines(mat, vector<vector<cv::Point> >{corners}, true, cv::Scalar(b, g, r), 2, 16);
 
-        // 构造标注文本
-        std::string label = cv::format("%i: %.1f%%",
-                                       obj.class_label,
-                                       obj.confidence * 100);
-
-        // 计算文本尺寸
-        int baseline = 0;
-        cv::Size text_size = cv::getTextSize(label,
-                                             cv::FONT_HERSHEY_SIMPLEX,
-                                             0.5,
-                                             1,
-                                             &baseline);
-
-        // 绘制文本背景
-        cv::rectangle(mat,
-                      cv::Point(static_cast<int>(obj.left),
-                                static_cast<int>(obj.top) - text_size.height - 10),
-                      cv::Point(static_cast<int>(obj.left) + text_size.width,
-                                static_cast<int>(obj.top)),
-                      cv::Scalar(255, 0, 255),
-                      cv::FILLED);
-
-        // 绘制文本
-        cv::putText(mat,
-                    label,
-                    cv::Point(static_cast<int>(obj.left),
-                              static_cast<int>(obj.top) - 5),
-                    cv::FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    cv::Scalar::all(0),
-                    1,
-                    16);
+        auto name = obj.class_label;
+        auto caption = cv::format("%i %.2f", name, obj.confidence);
+        int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+        cv::putText(mat, caption, cv::Point(corners[0].x - 3, corners[0].y - 5), 0, 1, cv::Scalar::all(0), 2, 16);
+        cv::rectangle(mat, cv::Point(corners[0].x - 3, corners[0].y - 33),
+                      cv::Point(corners[0].x - 3 + width, corners[0].y), cv::Scalar(b, g, r), -1);
     }
 }
 
@@ -179,7 +149,7 @@ void videoDemo() {
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->forward(yrImage, cudaStream1);
+        auto objs = yolo->obb_forward(yrImage, cudaStream1);
     }
 
     // 打开视频流（优先尝试作为文件打开）
@@ -222,7 +192,7 @@ void videoDemo() {
 
         // CUDA加速推理
         timer.start(cudaStream1);
-        auto objs = yolo->forward(image, cudaStream1);
+        auto objs = yolo->obb_forward(image, cudaStream1);
         timer.stop("batch one");
 
         // 绘制检测结果
@@ -344,10 +314,10 @@ void syncInferCls() {
 }
 
 int main() {
-    // syncInferCls();
+    syncInferCls();
     // syncInferObb();
     // syncInfer();
     // asyncInfer();
-    videoDemo();
+    // videoDemo();
     return 0;
 }
