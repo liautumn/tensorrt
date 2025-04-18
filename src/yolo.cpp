@@ -41,20 +41,6 @@ namespace yolo {
             cudaStreamDestroy(static_cast<cudaStream_t>(cuda_stream_));
         };
 
-        void adjust_memory(int batch_size) {
-            // the inference batch_size
-            size_t input_numel = network_input_width_ * network_input_height_ * 3;
-            input_buffer_.gpu(batch_size * input_numel);
-            bbox_predict_.gpu(batch_size * bbox_head_dims_[1] * bbox_head_dims_[2]);
-            output_boxarray_.gpu(batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
-            output_boxarray_.cpu(batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
-
-            if (static_cast<int>(preprocess_buffers_.size()) < batch_size) {
-                for (int i = preprocess_buffers_.size(); i < batch_size; ++i)
-                    preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
-            }
-        }
-
         void preprocess(int ibatch,
                         const Image &image,
                         shared_ptr<trt_memory::Memory<unsigned char> > preprocess_buffer,
@@ -160,7 +146,17 @@ namespace yolo {
                     }
                 }
             }
-            adjust_memory(infer_batch_size);
+
+            size_t input_numel = network_input_width_ * network_input_height_ * 3;
+            input_buffer_.gpu(infer_batch_size * input_numel);
+            bbox_predict_.gpu(infer_batch_size * bbox_head_dims_[1] * bbox_head_dims_[2]);
+            output_boxarray_.gpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
+            output_boxarray_.cpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
+
+            if (static_cast<int>(preprocess_buffers_.size()) < infer_batch_size) {
+                for (int i = preprocess_buffers_.size(); i < infer_batch_size; ++i)
+                    preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
+            }
 
             vector<AffineMatrix> affine_matrixs(num_image);
             auto stream_ = static_cast<cudaStream_t>(stream);
@@ -260,16 +256,13 @@ namespace yolo {
                 }
             }
 
-            // the inference batch_size
             size_t input_numel = network_input_width_ * network_input_height_ * 3;
-            input_buffer_.gpu(num_image * input_numel);
-            bbox_predict_.gpu(num_image * bbox_head_dims_[1] * bbox_head_dims_[2]);
-            output_boxarray_.gpu(num_image * (32 + MAX_IMAGE_BOXES * seg::NUM_BOX_ELEMENT));
-            output_boxarray_.cpu(num_image * (32 + MAX_IMAGE_BOXES * seg::NUM_BOX_ELEMENT));
-
-            segment_predict_.gpu(num_image * segment_head_dims_[1] * segment_head_dims_[2] *
+            input_buffer_.gpu(infer_batch_size * input_numel);
+            bbox_predict_.gpu(infer_batch_size * bbox_head_dims_[1] * bbox_head_dims_[2]);
+            output_boxarray_.gpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * seg::NUM_BOX_ELEMENT));
+            output_boxarray_.cpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * seg::NUM_BOX_ELEMENT));
+            segment_predict_.gpu(infer_batch_size * segment_head_dims_[1] * segment_head_dims_[2] *
                                  segment_head_dims_[3]);
-
             if (static_cast<int>(preprocess_buffers_.size()) < num_image) {
                 for (int i = preprocess_buffers_.size(); i < num_image; ++i)
                     preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
@@ -373,7 +366,7 @@ namespace yolo {
                                 cudaMemcpyDeviceToHost, stream_));
                         }
                         result_object_box.seg->left = left * scale_to_predict_x;
-                        result_object_box.seg->top  = top  * scale_to_predict_y;
+                        result_object_box.seg->top = top * scale_to_predict_y;
                         output.emplace_back(result_object_box);
                     }
                 }
@@ -412,7 +405,16 @@ namespace yolo {
                     }
                 }
             }
-            adjust_memory(infer_batch_size);
+
+            size_t input_numel = network_input_width_ * network_input_height_ * 3;
+            input_buffer_.gpu(infer_batch_size * input_numel);
+            bbox_predict_.gpu(infer_batch_size * bbox_head_dims_[1] * bbox_head_dims_[2]);
+            output_boxarray_.gpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
+            output_boxarray_.cpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
+            if (static_cast<int>(preprocess_buffers_.size()) < infer_batch_size) {
+                for (int i = preprocess_buffers_.size(); i < infer_batch_size; ++i)
+                    preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
+            }
 
             vector<AffineMatrix> affine_matrixs(num_image);
             auto stream_ = static_cast<cudaStream_t>(stream);
@@ -480,19 +482,6 @@ namespace yolo {
             return output[0];
         }
 
-        void adjust_memory_cls(int batch_size) {
-            // the inference batch_size
-            size_t input_numel = network_input_width_ * network_input_height_ * 3;
-            input_buffer_.gpu(batch_size * input_numel);
-            bbox_predict_.gpu(batch_size * bbox_head_dims_[1]);
-            output_boxarray_.cpu(batch_size * bbox_head_dims_[1]);
-
-            if (static_cast<int>(preprocess_buffers_.size()) < batch_size) {
-                for (int i = preprocess_buffers_.size(); i < batch_size; ++i)
-                    preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
-            }
-        }
-
         vector<cls::ProbArray> cls_forwards(const vector<Image> &images,
                                             void *stream = nullptr) override {
             int num_image = images.size();
@@ -515,7 +504,15 @@ namespace yolo {
                     }
                 }
             }
-            adjust_memory_cls(infer_batch_size);
+
+            size_t input_numel = network_input_width_ * network_input_height_ * 3;
+            input_buffer_.gpu(infer_batch_size * input_numel);
+            bbox_predict_.gpu(infer_batch_size * bbox_head_dims_[1]);
+            output_boxarray_.cpu(infer_batch_size * bbox_head_dims_[1]);
+            if (static_cast<int>(preprocess_buffers_.size()) < infer_batch_size) {
+                for (int i = preprocess_buffers_.size(); i < infer_batch_size; ++i)
+                    preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
+            }
 
             vector<AffineMatrix> affine_matrixs(num_image);
             auto stream_ = static_cast<cudaStream_t>(stream);
