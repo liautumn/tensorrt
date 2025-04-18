@@ -17,8 +17,7 @@ namespace seg {
         this->height = 0;
     }
 
-    __host__ __device__ void affine_project(float *matrix, float x, float y, float *ox,
-                                            float *oy) {
+    __device__ __host__ void affine_project(float *matrix, float x, float y, float *ox, float *oy) {
         *ox = matrix[0] * x + matrix[1] * y + matrix[2];
         *oy = matrix[3] * x + matrix[4] * y + matrix[5];
     }
@@ -107,8 +106,9 @@ namespace seg {
         }
     }
 
-    __global__ void decode_single_mask_kernel(int left, int top, float *mask_weights, float *mask_predict,
-                                              int mask_width, int mask_height, unsigned char *mask_out,
+    __global__ void decode_single_mask_kernel(int left, int top, float *mask_weights,
+                                              float *mask_predict, int mask_width,
+                                              int mask_height, unsigned char *mask_out,
                                               int mask_dim, int out_width, int out_height) {
         // mask_predict to mask_out
         // mask_weights @ mask_predict
@@ -130,7 +130,7 @@ namespace seg {
             cumprod += cval * wval;
         }
 
-        float alpha = 1.0f / (1.0f + exp(-cumprod)); // sigmoid
+        float alpha = 1.0f / (1.0f + exp(-cumprod));
         mask_out[dy * out_width + dx] = alpha * 255;
     }
 

@@ -346,6 +346,7 @@ namespace yolo {
 
                         float scale_to_predict_x = segment_head_dims_[3] / static_cast<float>(network_input_width_);
                         float scale_to_predict_y = segment_head_dims_[2] / static_cast<float>(network_input_height_);
+
                         int mask_out_width = box_width * scale_to_predict_x + 0.5f;
                         int mask_out_height = box_height * scale_to_predict_y + 0.5f;
 
@@ -371,6 +372,8 @@ namespace yolo {
                                 box_segment_output_memory->gpu_bytes(),
                                 cudaMemcpyDeviceToHost, stream_));
                         }
+                        result_object_box.seg->left = left * scale_to_predict_x;
+                        result_object_box.seg->top  = top  * scale_to_predict_y;
                         output.emplace_back(result_object_box);
                     }
                 }

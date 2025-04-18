@@ -159,6 +159,7 @@ static void draw_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
     result_masked.copyTo(image, mask_indices);
 }
 
+
 void syncInferSeg() {
     cudaStreamCreate(&cudaStream1);
 
@@ -181,7 +182,7 @@ void syncInferSeg() {
 
     std::string windowName = "Image Window";
     cv::namedWindow(windowName, cv::WINDOW_NORMAL);
-    int width_ = 1024;
+    int width_ = 640;
     int height = 640;
     cv::resizeWindow(windowName, width_, height);
 
@@ -191,7 +192,6 @@ void syncInferSeg() {
             draw_mask(mat, obj, color);
         }
     }
-
     for (auto &obj: boxes) {
         cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(255, 0, 255), 5);
         auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
@@ -200,9 +200,26 @@ void syncInferSeg() {
                       cv::Scalar(255, 0, 255), -1);
         cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
     }
-
     cv::imshow(windowName, mat);
     cv::waitKey(0);
+    // int i = 0;
+    // for (auto &obj: boxes) {
+    //     cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom),
+    //                   cv::Scalar(255, 0, 255), 5);
+    //
+    //     auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
+    //     int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+    //     cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33),
+    //                   cv::Point(obj.left + width, obj.top), cv::Scalar(255, 0, 255), -1);
+    //     cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
+    //
+    //     if (obj.seg) {
+    //         cv::imwrite(cv::format("%d_mask.jpg", i),
+    //                     cv::Mat(obj.seg->height, obj.seg->width, CV_8U, obj.seg->data));
+    //         i++;
+    //     }
+    // }
+    // cv::imwrite("Result.jpg", mat);
 }
 
 // 检测结果绘制函数
@@ -234,7 +251,7 @@ void videoDemo() {
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->obb_forward(yrImage, cudaStream1);
+        auto objs = yolo->seg_forward(yrImage, cudaStream1);
     }
 
     // 打开视频流（优先尝试作为文件打开）
@@ -277,11 +294,26 @@ void videoDemo() {
 
         // CUDA加速推理
         timer.start(cudaStream1);
-        auto objs = yolo->obb_forward(image, cudaStream1);
+        auto objs = yolo->seg_forward(image, cudaStream1);
         timer.stop("batch one");
 
         // 绘制检测结果
-        draw_detection_results(mat, objs);
+        // draw_detection_results(mat, objs);
+
+        for (auto &obj: objs) {
+            cv::Scalar color(255, 0, 255);
+            if (obj.seg) {
+                draw_mask(mat, obj, color);
+            }
+        }
+        for (auto &obj: objs) {
+            cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(255, 0, 255), 5);
+            auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
+            int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+            cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33), cv::Point(obj.left + width, obj.top),
+                          cv::Scalar(255, 0, 255), -1);
+            cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
+        }
 
         // 计算处理耗时
         double process_time = (cv::getTickCount() - start_time) / cv::getTickFrequency();
@@ -399,11 +431,11 @@ void syncInferCls() {
 }
 
 int main() {
-    syncInferSeg();
+    // syncInferSeg();
     // syncInferCls();
     // syncInferObb();
     // syncInfer();
     // asyncInfer();
-    // videoDemo();
+    videoDemo();
     return 0;
 }
