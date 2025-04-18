@@ -55,6 +55,7 @@ add_executable(${PROJECT_NAME}
         src/preprocess.cu
         src/detect_postprocess.cu
         src/obb_postprocess.cu
+        src/seg_postprocess.cu
         src/timer.cpp
         src/yolo.cpp
         workspace/example/main.cpp

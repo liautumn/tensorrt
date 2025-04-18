@@ -15,7 +15,7 @@ namespace trt {
 
     class infer {
     public:
-        virtual bool forward(const vector<void *> &bindings, void *stream = nullptr) = 0;
+        virtual bool forward(const vector<void *> &bindings, int n, void *stream = nullptr) = 0;
 
         virtual string name(int index) = 0;
 

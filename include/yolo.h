@@ -8,6 +8,7 @@
 #include <vector>
 #include "detect_postprocess.cuh"
 #include "obb_postprocess.cuh"
+#include "seg_postprocess.cuh"
 
 namespace yolo {
     using namespace std;
@@ -26,6 +27,9 @@ namespace yolo {
     public:
         virtual detect::BoxArray forward(const Image &image, void *stream = nullptr) = 0;
         virtual vector<detect::BoxArray> forwards(const vector<Image> &images, void *stream = nullptr) = 0;
+
+        virtual seg::BoxArray seg_forward(const Image &image, void *stream = nullptr) = 0;
+        virtual vector<seg::BoxArray> seg_forwards(const vector<Image> &images, void *stream = nullptr) = 0;
 
         virtual obb::BoxArray obb_forward(const Image &image, void *stream = nullptr) = 0;
         virtual vector<obb::BoxArray> obb_forwards(const vector<Image> &images, void *stream = nullptr) = 0;

@@ -147,11 +147,11 @@ namespace trt {
             return iter->second;
         }
 
-        virtual bool forward(const vector<void *> &bindings, void *stream) override {
-            auto inputName = binding_index_to_name_[0];
-            auto outputName = binding_index_to_name_[1];
-            this->context_->context_->setTensorAddress(inputName.c_str(), bindings[0]);
-            this->context_->context_->setTensorAddress(outputName.c_str(), bindings[1]);
+        virtual bool forward(const vector<void *> &bindings, int n, void *stream) override {
+            for (int i = 0; i < n; ++i) {
+                auto inputName = binding_index_to_name_[i];
+                this->context_->context_->setTensorAddress(inputName.c_str(), bindings[i]);
+            }
             return this->context_->context_->enqueueV3(static_cast<cudaStream_t>(stream));
         }
 

@@ -5,7 +5,7 @@ using namespace std;
 
 class Config {
 public:
-    const string MODEL = "/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-cls.engine";
+    const string MODEL = "/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-seg.transd.engine";
     const string TEST_IMG = "/home/autumn/Documents/GitHub/tensorrt/workspace/images/bus.jpg";
     const string VIDEO_PATH = "/home/autumn/Documents/GitHub/tensorrt/workspace/images/001.mp4";
 };

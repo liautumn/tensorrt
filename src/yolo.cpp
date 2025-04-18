@@ -33,6 +33,10 @@ namespace yolo {
         vector<int> bbox_head_dims_;
         bool isDynamic_model_ = false;
 
+        vector<int> segment_head_dims_;
+        trt_memory::Memory<float> segment_predict_;
+        vector<shared_ptr<trt_memory::Memory<unsigned char> > > box_segment_cache_;
+
         virtual ~InferImpl() {
             cudaStreamDestroy(static_cast<cudaStream_t>(cuda_stream_));
         };
@@ -115,15 +119,14 @@ namespace yolo {
             this->confidence_threshold_ = confidence_threshold;
             this->nms_threshold_ = nms_threshold;
 
-            auto inputName = trt_->name(0);
-            auto outputName = trt_->name(1);
-            auto input_dim = trt_->static_dims(inputName);
-            bbox_head_dims_ = trt_->static_dims(outputName);
+            auto input_dim = trt_->static_dims(trt_->name(0));
+            bbox_head_dims_ = trt_->static_dims(trt_->name(1));
             network_input_width_ = input_dim[3];
             network_input_height_ = input_dim[2];
             isDynamic_model_ = trt_->has_dynamic_dim();
-
             normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
+
+            segment_head_dims_ = trt_->static_dims(trt_->name(2));
             return true;
         }
 
@@ -136,6 +139,7 @@ namespace yolo {
 
         vector<detect::BoxArray> forwards(const vector<Image> &images,
                                           void *stream = nullptr) override {
+            auto num_classes_ = bbox_head_dims_[2] - 4;
             int num_image = images.size();
             if (num_image == 0) return {};
             auto inputName = trt_->name(0);
@@ -167,7 +171,7 @@ namespace yolo {
 
             vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
 
-            if (!trt_->forward(bindings, stream)) {
+            if (!trt_->forward(bindings, 2, stream)) {
                 INFO("Failed to tensorRT forward.");
                 return {};
             }
@@ -178,7 +182,6 @@ namespace yolo {
                 float *affine_matrix_device = reinterpret_cast<float *>(preprocess_buffers_[ib]->gpu());
                 float *image_based_bbox_output = bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
                 checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
-                auto num_classes_ = bbox_head_dims_[2] - 4;
                 detect::decode_kernel_invoker(image_based_bbox_output,
                                               bbox_head_dims_[1],
                                               num_classes_,
@@ -224,6 +227,158 @@ namespace yolo {
             return arrout;
         }
 
+        seg::BoxArray seg_forward(const Image &image,
+                                  void *stream = nullptr) override {
+            auto output = seg_forwards({image}, stream);
+            if (output.empty()) return {};
+            return output[0];
+        }
+
+
+        vector<seg::BoxArray> seg_forwards(const vector<Image> &images,
+                                           void *stream = nullptr) override {
+            auto num_classes_ = bbox_head_dims_[2] - 4 - segment_head_dims_[1];
+
+            int num_image = images.size();
+            if (num_image == 0) return {};
+            auto inputName = trt_->name(0);
+            auto input_dims = trt_->static_dims(inputName);
+            int infer_batch_size = input_dims[0];
+            if (infer_batch_size != num_image) {
+                if (isDynamic_model_) {
+                    infer_batch_size = num_image;
+                    input_dims[0] = num_image;
+                    if (!trt_->set_run_dims(inputName, input_dims)) return {};
+                } else {
+                    if (infer_batch_size < num_image) {
+                        INFO(
+                            "When using static shape model, number of images[%d] must be "
+                            "less than or equal to the maximum batch[%d].",
+                            num_image, infer_batch_size);
+                        return {};
+                    }
+                }
+            }
+
+            // the inference batch_size
+            size_t input_numel = network_input_width_ * network_input_height_ * 3;
+            input_buffer_.gpu(num_image * input_numel);
+            bbox_predict_.gpu(num_image * bbox_head_dims_[1] * bbox_head_dims_[2]);
+            output_boxarray_.gpu(num_image * (32 + MAX_IMAGE_BOXES * seg::NUM_BOX_ELEMENT));
+            output_boxarray_.cpu(num_image * (32 + MAX_IMAGE_BOXES * seg::NUM_BOX_ELEMENT));
+
+            segment_predict_.gpu(num_image * segment_head_dims_[1] * segment_head_dims_[2] *
+                                 segment_head_dims_[3]);
+
+            if (static_cast<int>(preprocess_buffers_.size()) < num_image) {
+                for (int i = preprocess_buffers_.size(); i < num_image; ++i)
+                    preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
+            }
+
+            vector<AffineMatrix> affine_matrixs(num_image);
+            auto stream_ = static_cast<cudaStream_t>(stream);
+            for (int i = 0; i < num_image; ++i)
+                preprocess(i, images[i], preprocess_buffers_[i], affine_matrixs[i], stream);
+
+            float *bbox_output_device = bbox_predict_.gpu();
+
+            vector<void *> bindings{input_buffer_.gpu(), bbox_output_device, segment_predict_.gpu()};;
+
+            if (!trt_->forward(bindings, 3, stream)) {
+                INFO("Failed to tensorRT forward.");
+                return {};
+            }
+
+            for (int ib = 0; ib < num_image; ++ib) {
+                float *boxarray_device =
+                        output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * seg::NUM_BOX_ELEMENT);
+                float *affine_matrix_device = reinterpret_cast<float *>(preprocess_buffers_[ib]->gpu());
+                float *image_based_bbox_output = bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
+                checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
+                seg::decode_kernel_invoker(image_based_bbox_output,
+                                           bbox_head_dims_[1],
+                                           num_classes_,
+                                           bbox_head_dims_[2],
+                                           confidence_threshold_,
+                                           nms_threshold_,
+                                           affine_matrix_device,
+                                           boxarray_device,
+                                           MAX_IMAGE_BOXES,
+                                           stream_);
+            }
+            checkRuntime(
+                cudaMemcpyAsync(
+                    output_boxarray_.cpu(),
+                    output_boxarray_.gpu(),
+                    output_boxarray_.gpu_bytes(),
+                    cudaMemcpyDeviceToHost,
+                    stream_)
+            );
+            checkRuntime(cudaStreamSynchronize(stream_));
+
+            vector<seg::BoxArray> arrout(num_image);
+            int imemory = 0;
+            for (int ib = 0; ib < num_image; ++ib) {
+                float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * seg::NUM_BOX_ELEMENT);
+                int count = min(MAX_IMAGE_BOXES, (int) *parray);
+                seg::BoxArray &output = arrout[ib];
+                output.reserve(count);
+                for (int i = 0; i < count; ++i) {
+                    float *pbox = parray + 1 + i * seg::NUM_BOX_ELEMENT;
+                    int label = pbox[5];
+                    int keepflag = pbox[6];
+                    if (keepflag == 1) {
+                        seg::Box result_object_box(pbox[0], pbox[1], pbox[2], pbox[3], pbox[4], label);
+                        int row_index = pbox[7];
+                        int mask_dim = segment_head_dims_[1];
+                        float *mask_weights = bbox_output_device +
+                                              (ib * bbox_head_dims_[1] + row_index) * bbox_head_dims_[2] +
+                                              num_classes_ + 4;
+
+                        float *mask_head_predict = segment_predict_.gpu();
+                        float left, top, right, bottom;
+                        float *i2d = affine_matrixs[ib].i2d;
+                        seg::affine_project(i2d, pbox[0], pbox[1], &left, &top);
+                        seg::affine_project(i2d, pbox[2], pbox[3], &right, &bottom);
+
+                        float box_width = right - left;
+                        float box_height = bottom - top;
+
+                        float scale_to_predict_x = segment_head_dims_[3] / static_cast<float>(network_input_width_);
+                        float scale_to_predict_y = segment_head_dims_[2] / static_cast<float>(network_input_height_);
+                        int mask_out_width = box_width * scale_to_predict_x + 0.5f;
+                        int mask_out_height = box_height * scale_to_predict_y + 0.5f;
+
+                        if (mask_out_width > 0 && mask_out_height > 0) {
+                            if (imemory >= (int) box_segment_cache_.size()) {
+                                box_segment_cache_.push_back(std::make_shared<trt_memory::Memory<unsigned char> >());
+                            }
+
+                            int bytes_of_mask_out = mask_out_width * mask_out_height;
+                            auto box_segment_output_memory = box_segment_cache_[imemory];
+                            result_object_box.seg =
+                                    make_shared<seg::InstanceSegmentMap>(mask_out_width, mask_out_height);
+
+                            unsigned char *mask_out_device = box_segment_output_memory->gpu(bytes_of_mask_out);
+                            unsigned char *mask_out_host = result_object_box.seg->data;
+                            seg::decode_single_mask(left * scale_to_predict_x, top * scale_to_predict_y, mask_weights,
+                                                    mask_head_predict + ib * segment_head_dims_[1] *
+                                                    segment_head_dims_[2] *
+                                                    segment_head_dims_[3],
+                                                    segment_head_dims_[3], segment_head_dims_[2], mask_out_device,
+                                                    mask_dim, mask_out_width, mask_out_height, stream_);
+                            checkRuntime(cudaMemcpyAsync(mask_out_host, mask_out_device,
+                                box_segment_output_memory->gpu_bytes(),
+                                cudaMemcpyDeviceToHost, stream_));
+                        }
+                        output.emplace_back(result_object_box);
+                    }
+                }
+            }
+            checkRuntime(cudaStreamSynchronize(stream_));
+            return arrout;
+        }
+
         obb::BoxArray obb_forward(const Image &image,
                                   void *stream = nullptr) override {
             auto output = obb_forwards({image}, stream);
@@ -233,6 +388,7 @@ namespace yolo {
 
         vector<obb::BoxArray> obb_forwards(const vector<Image> &images,
                                            void *stream = nullptr) override {
+            auto num_classes_ = bbox_head_dims_[2] - 5;
             int num_image = images.size();
             if (num_image == 0) return {};
             auto inputName = trt_->name(0);
@@ -264,7 +420,7 @@ namespace yolo {
 
             vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
 
-            if (!trt_->forward(bindings, stream)) {
+            if (!trt_->forward(bindings, 2, stream)) {
                 INFO("Failed to tensorRT forward.");
                 return {};
             }
@@ -275,7 +431,6 @@ namespace yolo {
                 float *affine_matrix_device = reinterpret_cast<float *>(preprocess_buffers_[ib]->gpu());
                 float *image_based_bbox_output = bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
                 checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
-                auto num_classes_ = bbox_head_dims_[2] - 5;
                 obb::decode_kernel_invoker(image_based_bbox_output,
                                            bbox_head_dims_[1],
                                            num_classes_,
@@ -368,7 +523,7 @@ namespace yolo {
 
             vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
 
-            if (!trt_->forward(bindings, stream)) {
+            if (!trt_->forward(bindings, 2, stream)) {
                 INFO("Failed to tensorRT forward.");
                 return {};
             }

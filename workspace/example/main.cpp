@@ -85,29 +85,23 @@ void syncInfer() {
         auto objs = yolo->forward(yrImage, cudaStream1);
     }
 
-    std::string windowName = "Image Window";
-    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
-    int width_ = 1024;
-    int height = 640;
-    cv::resizeWindow(windowName, width_, height);
-
     trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
     timer.start(cudaStream1);
     auto objs = yolo->forward(image, cudaStream1);
     timer.stop("batch one");
-    for (auto &obj: objs) {
-        cout << "class_label: " << obj.class_label << " caption: " << obj.confidence << " (L T R B): (" << obj.left
-                << ", "
-                << obj.top << ", " << obj.right << ", " << obj.bottom << ")" << endl;
 
+    std::string windowName = "Image Window";
+    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
+    int width_ = 1024;
+    int height = 640;
+    cv::resizeWindow(windowName, width_, height);
+    for (auto &obj: objs) {
         rectangle(mat, cv::Point(static_cast<int>(obj.left), static_cast<int>(obj.top)),
                   cv::Point(static_cast<int>(obj.right), static_cast<int>(obj.bottom)),
                   cv::Scalar(255, 0, 255), 2);
-
-        auto name = obj.class_label;
-        auto caption = cv::format("%i %.2f", name, obj.confidence);
+        auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
         int width = cv::getTextSize(caption, 0, 1, 1, nullptr).width + 10;
         rectangle(mat, cv::Point(static_cast<int>(obj.left) - 3, static_cast<int>(obj.top) - 33),
                   cv::Point(static_cast<int>(obj.left) + width, static_cast<int>(obj.top)), cv::Scalar(255, 0, 255),
@@ -116,6 +110,97 @@ void syncInfer() {
                 cv::Scalar::all(0), 1,
                 16);
     }
+    cv::imshow(windowName, mat);
+    cv::waitKey(0);
+}
+
+static void draw_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
+    // compute IM
+    float scale_x = 640 / static_cast<float>(image.cols);
+    float scale_y = 640 / static_cast<float>(image.rows);
+    float scale = std::min(scale_x, scale_y);
+    float ox = -scale * image.cols * 0.5 + 640 * 0.5 + scale * 0.5 - 0.5;
+    float oy = -scale * image.rows * 0.5 + 640 * 0.5 + scale * 0.5 - 0.5;
+    cv::Mat M = (cv::Mat_<float>(2, 3) << scale, 0, ox, 0, scale, oy);
+
+    cv::Mat IM;
+    cv::invertAffineTransform(M, IM);
+
+    cv::Mat mask_map = cv::Mat::zeros(cv::Size(160, 160), CV_8UC1);
+    cv::Mat small_mask(obj.seg->height, obj.seg->width, CV_8UC1, obj.seg->data);
+    cv::Rect roi(obj.seg->left, obj.seg->top, obj.seg->width, obj.seg->height);
+    small_mask.copyTo(mask_map(roi));
+    cv::resize(mask_map, mask_map, cv::Size(640, 640)); // 640x640
+    cv::threshold(mask_map, mask_map, 128, 1, cv::THRESH_BINARY);
+
+    cv::Mat mask_resized;
+    cv::warpAffine(mask_map, mask_resized, IM, image.size(), cv::INTER_LINEAR);
+
+    // create color mask
+    cv::Mat colored_mask = cv::Mat::ones(image.size(), CV_8UC3);
+    colored_mask.setTo(color);
+
+    cv::Mat masked_colored_mask;
+    cv::bitwise_and(colored_mask, colored_mask, masked_colored_mask, mask_resized);
+
+    // create mask indices
+    cv::Mat mask_indices;
+    cv::compare(mask_resized, 1, mask_indices, cv::CMP_EQ);
+
+    cv::Mat image_masked, colored_mask_masked;
+    image.copyTo(image_masked, mask_indices);
+    masked_colored_mask.copyTo(colored_mask_masked, mask_indices);
+
+    // weighted sum
+    cv::Mat result_masked;
+    cv::addWeighted(image_masked, 0.6, colored_mask_masked, 0.4, 0, result_masked);
+
+    // copy result to image
+    result_masked.copyTo(image, mask_indices);
+}
+
+void syncInferSeg() {
+    cudaStreamCreate(&cudaStream1);
+
+    Config config;
+    auto yolo = yolo::load(config.MODEL, 0.1, 0.4, cudaStream1);
+    if (yolo == nullptr) return;
+
+    cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
+    auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
+    for (int i = 0; i < 10; ++i) {
+        auto objs = yolo->seg_forward(yrImage, cudaStream1);
+    }
+
+    trt_timer::Timer timer;
+    cv::Mat mat = cv::imread(config.TEST_IMG);
+    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
+    timer.start(cudaStream1);
+    auto boxes = yolo->seg_forward(image, cudaStream1);
+    timer.stop("batch one");
+
+    std::string windowName = "Image Window";
+    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
+    int width_ = 1024;
+    int height = 640;
+    cv::resizeWindow(windowName, width_, height);
+
+    for (auto &obj: boxes) {
+        cv::Scalar color(255, 0, 255);
+        if (obj.seg) {
+            draw_mask(mat, obj, color);
+        }
+    }
+
+    for (auto &obj: boxes) {
+        cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(255, 0, 255), 5);
+        auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
+        int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+        cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33), cv::Point(obj.left + width, obj.top),
+                      cv::Scalar(255, 0, 255), -1);
+        cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
+    }
+
     cv::imshow(windowName, mat);
     cv::waitKey(0);
 }
@@ -314,7 +399,8 @@ void syncInferCls() {
 }
 
 int main() {
-    syncInferCls();
+    syncInferSeg();
+    // syncInferCls();
     // syncInferObb();
     // syncInfer();
     // asyncInfer();
