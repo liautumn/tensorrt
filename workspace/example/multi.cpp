@@ -9,37 +9,32 @@
 
 using namespace std;
 
-static yolo::Image cvimg(const cv::Mat& image) { return {image.data, image.cols, image.rows}; }
+static yolo::Image cvimg(const cv::Mat &image) { return {image.data, image.cols, image.rows}; }
 
 shared_ptr<yolo::Infer> my_yolo;
 cudaStream_t cudaStream2;
 
-bool initBatch(const string& engine_file, const float& confidence, const float& nms)
-{
+bool initBatch(const string &engine_file, const float &confidence, const float &nms) {
+    Config config;
     cudaStreamCreate(&cudaStream2);
-    my_yolo = yolo::load(engine_file, confidence, nms, cudaStream2);
-    if (my_yolo == nullptr)
-    {
+    my_yolo = yolo::load(engine_file, confidence, nms, config.GPU_DEVICE, cudaStream2);
+    if (my_yolo == nullptr) {
         cout << "================================= TensorRT INIT FAIL =================================" << endl;
         return false;
-    }
-    else
-    {
+    } else {
         cout << "================================= TensorRT INIT SUCCESS =================================" << endl;
         return true;
     }
 }
 
-vector<vector<detect::Box>> inferBatch(const vector<cv::Mat>& mats)
-{
+vector<vector<detect::Box> > inferBatch(const vector<cv::Mat> &mats) {
     trt_timer::Timer timer;
-    vector<yolo::Image> yoloimages(mats.size());
-    transform(mats.begin(), mats.end(), yoloimages.begin(), cvimg);
+    vector<yolo::Image> yolo_images(mats.size());
+    transform(mats.begin(), mats.end(), yolo_images.begin(), cvimg);
     timer.start(cudaStream2);
-    auto objs = my_yolo->forwards(yoloimages, cudaStream2);
-    vector<vector<detect::Box>> res;
-    for (int i = 0; i < objs.size(); ++i)
-    {
+    auto objs = my_yolo->detect_forwards(yolo_images, cudaStream2);
+    vector<vector<detect::Box> > res;
+    for (int i = 0; i < objs.size(); ++i) {
         res.emplace_back(objs[i]);
     }
     timer.stop("batch 12");

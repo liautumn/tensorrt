@@ -9,7 +9,6 @@
 #include "preprocess.cuh"
 #include "detect_postprocess.cuh"
 
-
 namespace yolo {
     using namespace std;
 
@@ -92,9 +91,12 @@ namespace yolo {
                                                      stream_);
         }
 
-        bool load(const string &engine_file,
+        bool load(int gpu_device,
+                  const string &engine_file,
                   float confidence_threshold,
-                  float nms_threshold, void *stream = nullptr) {
+                  float nms_threshold,
+                  void *stream = nullptr) {
+            checkRuntime(cudaSetDevice(gpu_device));
             trt_ = trt::load(engine_file);
             if (trt_ == nullptr) return false;
 
@@ -659,9 +661,10 @@ namespace yolo {
     shared_ptr<Infer> load(const string &engine_file,
                            const float confidence_threshold,
                            const float nms_threshold,
+                           const int gpu_device,
                            void *stream) {
         auto *impl = new InferImpl();
-        if (!impl->load(engine_file, confidence_threshold, nms_threshold, stream)) {
+        if (!impl->load(gpu_device, engine_file, confidence_threshold, nms_threshold, stream)) {
             delete impl;
             impl = nullptr;
         }

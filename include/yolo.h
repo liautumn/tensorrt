@@ -1,8 +1,6 @@
 #ifndef YOLO_H
 #define YOLO_H
-
 #include <cls_postprocess.h>
-#include <future>
 #include <memory>
 #include <string>
 #include <vector>
@@ -50,6 +48,7 @@ namespace yolo {
     shared_ptr<Infer> load(const string &engine_file,
                            float confidence_threshold = 0.2f,
                            float nms_threshold = 0.5f,
+                           int gpu_device = 0,
                            void *stream = nullptr);
 }; // namespace yolo
 

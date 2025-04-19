@@ -34,15 +34,13 @@ set(LIBS
         cudnn
 )
 
+file(GLOB SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu
+)
+
 #add_library(${PROJECT_NAME} SHARED
-#        src/base_memory.cpp
-#        src/detect_postprocess.cu
-#        src/infer.cpp
-#        src/logger.cpp
-#        src/obb_postprocess.cu
-#        src/preprocess.cu
-#        src/timer.cpp
-#        src/yolo.cpp
+#        ${SOURCES}
 #        workspace/export/export_multiple.cpp
 #        workspace/export/export_multiple_cpm.cpp
 #        workspace/export/export_single.cpp
@@ -50,17 +48,9 @@ set(LIBS
 #)
 
 add_executable(${PROJECT_NAME}
-        src/base_memory.cpp
-        src/timer.cpp
-        src/infer.cpp
-        src/logger.cpp
-        src/preprocess.cu
-        src/obb_postprocess.cu
-        src/seg_postprocess.cu
-        src/pose_postprocess.cu
-        src/detect_postprocess.cu
-        src/yolo.cpp
+        ${SOURCES}
         workspace/example/main.cpp
+        workspace/example/multi.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

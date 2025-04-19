@@ -86,7 +86,7 @@ void syncInferObb() {
     cudaStreamCreate(&cudaStream1);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.2, 0.5, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.5, config.GPU_DEVICE, cudaStream1);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
@@ -128,7 +128,7 @@ void syncInferDetect() {
     cudaStreamCreate(&cudaStream1);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream1);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
@@ -211,12 +211,11 @@ static void draw_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
     result_masked.copyTo(image, mask_indices);
 }
 
-
 void syncInferSeg() {
     cudaStreamCreate(&cudaStream1);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.1, 0.4, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.1, 0.4, config.GPU_DEVICE, cudaStream1);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
@@ -297,7 +296,7 @@ void videoDemo() {
     cudaStreamCreate(&cudaStream1);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream1);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
@@ -400,10 +399,10 @@ void videoDemo() {
     cv::destroyAllWindows();
 }
 
-bool initSingleCpm(const string &engineFile, float confidence, float nms) {
+bool initSingleCpm(const int gpu_device, const string &engineFile, float confidence, float nms) {
     cudaStreamCreate(&cudaStream1);
-    bool ok = cpmi.start([&engineFile, &confidence, &nms] {
-        return yolo::load(engineFile, confidence, nms, cudaStream1);
+    bool ok = cpmi.start([ &engineFile, &confidence, &nms,&gpu_device] {
+        return yolo::load(engineFile, confidence, nms, gpu_device, cudaStream1);
     }, 1, cudaStream1);
     if (ok) {
         cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
@@ -423,7 +422,7 @@ vector<detect::Box> inferSingleCpm(const cv::Mat &mat) {
 
 void asyncInferDetect() {
     Config config;
-    if (initSingleCpm(config.MODEL, 0.2, 0.5)) {
+    if (initSingleCpm(config.GPU_DEVICE, config.MODEL, 0.2, 0.5)) {
         trt_timer::Timer timer;
         const cv::Mat mat = cv::imread(config.TEST_IMG);
         while (true) {
@@ -438,7 +437,7 @@ void syncInferCls() {
     cudaStreamCreate(&cudaStream1);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.1, 0, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.1, 0, config.GPU_DEVICE, cudaStream1);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
@@ -475,7 +474,7 @@ void syncInferPose() {
     cudaStreamCreate(&cudaStream1);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream1);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);

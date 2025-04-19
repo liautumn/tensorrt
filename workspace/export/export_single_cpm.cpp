@@ -10,11 +10,11 @@ using namespace std;
 static cpm::Instance<detect::BoxArray, yolo::Image, yolo::Infer> cpmi;
 cudaStream_t customStream2;
 
-bool initSingleCpm(const string &engineFile, const float confidence, const float nms) {
+bool initSingleCpm(const int gpu_device, const string &engineFile, const float confidence, const float nms) {
     // 创建非阻塞流
     cudaStreamCreate(&customStream2);
-    bool ok = cpmi.start([&engineFile, &confidence, &nms] {
-        return yolo::load(engineFile, confidence, nms, customStream2);
+    bool ok = cpmi.start([&gpu_device, &engineFile, &confidence, &nms] {
+        return yolo::load(gpu_device, engineFile, confidence, nms, customStream2);
     }, 1, customStream2);
     if (!ok) {
         return false;
@@ -33,8 +33,9 @@ vector<detect::Box> inferSingleCpm(cv::Mat *mat) {
     return cpmi.commit(yolo::Image(mat->data, mat->cols, mat->rows)).get();
 }
 
-extern "C" __declspec(dllexport) bool TENSORRT_SINGLE_CPM_INIT(const char *engineFile, float confidence, float nms) {
-    return initSingleCpm(engineFile, confidence, nms);
+extern "C" __declspec(dllexport) bool TENSORRT_SINGLE_CPM_INIT(const int gpu_device, const char *engineFile,
+                                                               float confidence, float nms) {
+    return initSingleCpm(gpu_device, engineFile, confidence, nms);
 }
 
 extern "C" __declspec(dllexport) void TENSORRT_SINGLE_CPM_INFER(cv::Mat *mat, detect::Box **result, int *size) {
