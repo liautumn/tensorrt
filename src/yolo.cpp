@@ -3,7 +3,6 @@
 #include <algorithm>
 #include "infer.h"
 #include <iostream>
-#include <cstring>
 #include "cls_postprocess.h"
 #include "memory.h"
 #include "logger.h"
@@ -112,19 +111,19 @@ namespace yolo {
             isDynamic_model_ = trt_->has_dynamic_dim();
             normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
 
-            segment_head_dims_ = trt_->static_dims(trt_->name(2));
+            // segment_head_dims_ = trt_->static_dims(trt_->name(2));
             return true;
         }
 
-        detect::BoxArray forward(const Image &image,
-                                 void *stream = nullptr) override {
-            auto output = forwards({image}, stream);
+        detect::BoxArray detect_forward(const Image &image,
+                                        void *stream = nullptr) override {
+            auto output = detect_forwards({image}, stream);
             if (output.empty()) return {};
             return output[0];
         }
 
-        vector<detect::BoxArray> forwards(const vector<Image> &images,
-                                          void *stream = nullptr) override {
+        vector<detect::BoxArray> detect_forwards(const vector<Image> &images,
+                                                 void *stream = nullptr) override {
             auto num_classes_ = bbox_head_dims_[2] - 4;
             int num_image = images.size();
             if (num_image == 0) return {};
@@ -229,7 +228,6 @@ namespace yolo {
             if (output.empty()) return {};
             return output[0];
         }
-
 
         vector<seg::BoxArray> seg_forwards(const vector<Image> &images,
                                            void *stream = nullptr) override {
@@ -409,8 +407,8 @@ namespace yolo {
             size_t input_numel = network_input_width_ * network_input_height_ * 3;
             input_buffer_.gpu(infer_batch_size * input_numel);
             bbox_predict_.gpu(infer_batch_size * bbox_head_dims_[1] * bbox_head_dims_[2]);
-            output_boxarray_.gpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
-            output_boxarray_.cpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
+            output_boxarray_.gpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * obb::NUM_BOX_ELEMENT));
+            output_boxarray_.cpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * obb::NUM_BOX_ELEMENT));
             if (static_cast<int>(preprocess_buffers_.size()) < infer_batch_size) {
                 for (int i = preprocess_buffers_.size(); i < infer_batch_size; ++i)
                     preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
@@ -551,6 +549,109 @@ namespace yolo {
                 // float confidence = parray[label];
             }
 
+            return arrout;
+        }
+
+        pose::BoxArray pose_forward(const Image &image,
+                                    void *stream = nullptr) override {
+            auto output = pose_forwards({image}, stream);
+            if (output.empty()) return {};
+            return output[0];
+        }
+
+        vector<pose::BoxArray> pose_forwards(const vector<Image> &images,
+                                             void *stream = nullptr) override {
+            int num_image = images.size();
+            if (num_image == 0) return {};
+            auto inputName = trt_->name(0);
+            auto input_dims = trt_->static_dims(inputName);
+            int infer_batch_size = input_dims[0];
+            if (infer_batch_size != num_image) {
+                if (isDynamic_model_) {
+                    infer_batch_size = num_image;
+                    input_dims[0] = num_image;
+                    if (!trt_->set_run_dims(inputName, input_dims)) return {};
+                } else {
+                    if (infer_batch_size < num_image) {
+                        INFO(
+                            "When using static shape model, number of images[%d] must be "
+                            "less than or equal to the maximum batch[%d].",
+                            num_image, infer_batch_size);
+                        return {};
+                    }
+                }
+            }
+
+            size_t input_numel = network_input_width_ * network_input_height_ * 3;
+            input_buffer_.gpu(infer_batch_size * input_numel);
+            bbox_predict_.gpu(infer_batch_size * bbox_head_dims_[1] * bbox_head_dims_[2]);
+            output_boxarray_.gpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * pose::NUM_BOX_ELEMENT));
+            output_boxarray_.cpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * pose::NUM_BOX_ELEMENT));
+
+            if (static_cast<int>(preprocess_buffers_.size()) < infer_batch_size) {
+                for (int i = preprocess_buffers_.size(); i < infer_batch_size; ++i)
+                    preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
+            }
+
+            vector<AffineMatrix> affine_matrixs(num_image);
+            auto stream_ = static_cast<cudaStream_t>(stream);
+            for (int i = 0; i < num_image; ++i)
+                preprocess(i, images[i], preprocess_buffers_[i], affine_matrixs[i], stream);
+
+            float *bbox_output_device = bbox_predict_.gpu();
+
+            vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
+
+            if (!trt_->forward(bindings, 2, stream)) {
+                INFO("Failed to tensorRT forward.");
+                return {};
+            }
+
+            for (int ib = 0; ib < num_image; ++ib) {
+                float *boxarray_device =
+                        output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * pose::NUM_BOX_ELEMENT);
+                float *affine_matrix_device = reinterpret_cast<float *>(preprocess_buffers_[ib]->gpu());
+                float *image_based_bbox_output = bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
+                checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
+                pose::decode_kernel_invoker(image_based_bbox_output,
+                                            bbox_head_dims_[1],
+                                            bbox_head_dims_[2],
+                                            confidence_threshold_,
+                                            nms_threshold_,
+                                            affine_matrix_device,
+                                            boxarray_device,
+                                            MAX_IMAGE_BOXES,
+                                            stream_);
+            }
+            checkRuntime(
+                cudaMemcpyAsync(
+                    output_boxarray_.cpu(),
+                    output_boxarray_.gpu(),
+                    output_boxarray_.gpu_bytes(),
+                    cudaMemcpyDeviceToHost,
+                    stream_)
+            );
+            checkRuntime(cudaStreamSynchronize(stream_));
+
+            vector<pose::BoxArray> arrout(num_image);
+            for (int ib = 0; ib < num_image; ++ib) {
+                float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * pose::NUM_BOX_ELEMENT);
+                int count = min(MAX_IMAGE_BOXES, static_cast<int>(*parray));
+                pose::BoxArray &output = arrout[ib];
+                output.reserve(count);
+                for (int i = 0; i < count; ++i) {
+                    float *pbox = parray + 1 + i * pose::NUM_BOX_ELEMENT;
+                    int keepflag = pbox[5];
+                    if (keepflag == 1) {
+                        pose::Box box(pbox[0], pbox[1], pbox[2], pbox[3], pbox[4]);
+                        float *pkeypoint_start = pbox + 6;
+                        float *pkeypoint_end = pkeypoint_start + 3 * pose::NUM_KEYPOINTS;
+                        box.keypoints.insert(box.keypoints.end(), reinterpret_cast<cv::Point3f *>(pkeypoint_start),
+                                             reinterpret_cast<cv::Point3f *>(pkeypoint_end));
+                        output.emplace_back(box);
+                    }
+                }
+            }
             return arrout;
         }
     };

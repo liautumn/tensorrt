@@ -13,6 +13,58 @@ namespace fs = std::filesystem;
 static cpm::Instance<detect::BoxArray, yolo::Image, yolo::Infer> cpmi;
 cudaStream_t cudaStream1;
 
+static void draw_pose(cv::Mat &image, const vector<cv::Point3f> &keypoints) {
+    vector<cv::Scalar> pose_palette = {
+        {255, 128, 0}, {255, 153, 51}, {255, 178, 102}, {230, 230, 0}, {255, 153, 255},
+        {153, 204, 255}, {255, 102, 255}, {255, 51, 255}, {102, 178, 255}, {51, 153, 255},
+        {255, 153, 153}, {255, 102, 102}, {255, 51, 51}, {153, 255, 153}, {102, 255, 102},
+        {51, 255, 51}, {0, 255, 0}, {0, 0, 255}, {255, 0, 0}, {255, 255, 255}
+    };
+
+    vector<cv::Point> skeleton = {
+        {15, 13}, {13, 11}, {16, 14}, {14, 12}, {11, 12}, {5, 11}, {6, 12},
+        {5, 6}, {5, 7}, {6, 8}, {7, 9}, {8, 10}, {1, 2}, {0, 1},
+        {0, 2}, {1, 3}, {2, 4}, {3, 5}, {4, 6}
+    };
+    // 16 0 9
+    //
+    vector<cv::Scalar> limb_color = {
+        pose_palette[9], pose_palette[9], pose_palette[9], pose_palette[9], pose_palette[7],
+        pose_palette[7], pose_palette[7], pose_palette[0], pose_palette[0], pose_palette[0],
+        pose_palette[0], pose_palette[0], pose_palette[16], pose_palette[16], pose_palette[16],
+        pose_palette[16], pose_palette[16], pose_palette[16], pose_palette[16]
+    };
+
+    vector<cv::Scalar> kpt_color = {
+        pose_palette[16], pose_palette[16], pose_palette[16], pose_palette[16], pose_palette[16],
+        pose_palette[0], pose_palette[0], pose_palette[0], pose_palette[0], pose_palette[0],
+        pose_palette[0], pose_palette[9], pose_palette[9], pose_palette[9], pose_palette[9],
+        pose_palette[9], pose_palette[9]
+    };
+
+    for (int i = 0; i < keypoints.size(); ++i) {
+        auto &keypoint = keypoints[i];
+        if (keypoint.z < 0.5)
+            continue;
+        if (keypoint.x != 0 && keypoint.y != 0)
+            cv::circle(image, cv::Point(keypoint.x, keypoint.y), 5, kpt_color[i], -1, cv::LINE_AA);
+    }
+
+    for (int i = 0; i < skeleton.size(); ++i) {
+        auto &index = skeleton[i];
+        auto &pos1 = keypoints[index.x];
+        auto &pos2 = keypoints[index.y];
+
+        if (pos1.z < 0.5 || pos2.z < 0.5)
+            continue;
+
+        if (pos1.x == 0 || pos1.y == 0 || pos2.x == 0 || pos2.y == 0)
+            continue;
+
+        cv::line(image, cv::Point(pos1.x, pos1.y), cv::Point(pos2.x, pos2.y), limb_color[i], 2, cv::LINE_AA);
+    }
+}
+
 static vector<cv::Point> xywhr2xyxyxyxy(const obb::Box &box) {
     float cos_value = std::cos(box.angle);
     float sin_value = std::sin(box.angle);
@@ -72,7 +124,7 @@ void syncInferObb() {
     cv::waitKey(0);
 }
 
-void syncInfer() {
+void syncInferDetect() {
     cudaStreamCreate(&cudaStream1);
 
     Config config;
@@ -82,14 +134,14 @@ void syncInfer() {
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->forward(yrImage, cudaStream1);
+        auto objs = yolo->detect_forward(yrImage, cudaStream1);
     }
 
     trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
     timer.start(cudaStream1);
-    auto objs = yolo->forward(image, cudaStream1);
+    auto objs = yolo->detect_forward(image, cudaStream1);
     timer.stop("batch one");
 
     std::string windowName = "Image Window";
@@ -245,13 +297,13 @@ void videoDemo() {
     cudaStreamCreate(&cudaStream1);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.1, 0.4, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, cudaStream1);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->seg_forward(yrImage, cudaStream1);
+        auto objs = yolo->pose_forward(yrImage, cudaStream1);
     }
 
     // 打开视频流（优先尝试作为文件打开）
@@ -294,25 +346,14 @@ void videoDemo() {
 
         // CUDA加速推理
         timer.start(cudaStream1);
-        auto objs = yolo->seg_forward(image, cudaStream1);
+        auto objs = yolo->pose_forward(image, cudaStream1);
         timer.stop("batch one");
 
         // 绘制检测结果
         // draw_detection_results(mat, objs);
 
         for (auto &obj: objs) {
-            cv::Scalar color(255, 0, 255);
-            if (obj.seg) {
-                draw_mask(mat, obj, color);
-            }
-        }
-        for (auto &obj: objs) {
-            cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(255, 0, 255), 5);
-            auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-            int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-            cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33), cv::Point(obj.left + width, obj.top),
-                          cv::Scalar(255, 0, 255), -1);
-            cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
+            draw_pose(mat, obj.keypoints);
         }
 
         // 计算处理耗时
@@ -380,7 +421,7 @@ vector<detect::Box> inferSingleCpm(const cv::Mat &mat) {
     return cpmi.commit(yolo::Image(mat.data, mat.cols, mat.rows)).get();
 }
 
-void asyncInfer() {
+void asyncInferDetect() {
     Config config;
     if (initSingleCpm(config.MODEL, 0.2, 0.5)) {
         trt_timer::Timer timer;
@@ -430,12 +471,52 @@ void syncInferCls() {
     cv::waitKey(0);
 }
 
+void syncInferPose() {
+    cudaStreamCreate(&cudaStream1);
+
+    Config config;
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, cudaStream1);
+    if (yolo == nullptr) return;
+
+    cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
+    auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
+    for (int i = 0; i < 10; ++i) {
+        auto objs = yolo->pose_forward(yrImage, cudaStream1);
+    }
+
+    trt_timer::Timer timer;
+    cv::Mat mat = cv::imread(config.TEST_IMG);
+    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
+    timer.start(cudaStream1);
+    auto objs = yolo->pose_forward(image, cudaStream1);
+    timer.stop("batch one");
+
+    std::string windowName = "Image Window";
+    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
+    int width_ = 1024;
+    int height = 640;
+    cv::resizeWindow(windowName, width_, height);
+    for (auto &obj: objs) {
+        // cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(255, 0, 255), 5);
+        //
+        // auto caption = cv::format("person %.2f", obj.confidence);
+        // int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+        // cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33), cv::Point(obj.left + width, obj.top),
+        //               cv::Scalar(255, 0, 255), -1);
+        // cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
+        draw_pose(mat, obj.keypoints);
+    }
+    cv::imshow(windowName, mat);
+    cv::waitKey(0);
+}
+
 int main() {
+    // syncInferPose();
     // syncInferSeg();
     // syncInferCls();
     // syncInferObb();
-    // syncInfer();
-    // asyncInfer();
+    // syncInferDetect();
+    // asyncInferDetect();
     videoDemo();
     return 0;
 }

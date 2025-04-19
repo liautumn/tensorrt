@@ -2,16 +2,16 @@
 #include <logger.h>
 
 namespace detect {
-    __device__ void affine_project(float *matrix, float x, float y, float *ox,
-                                   float *oy) {
+    static __device__ void affine_project(float *matrix, float x, float y, float *ox,
+                                          float *oy) {
         *ox = matrix[0] * x + matrix[1] * y + matrix[2];
         *oy = matrix[3] * x + matrix[4] * y + matrix[5];
     }
 
-    __global__ void decode_kernel_v8(float *predict, int num_bboxes, int num_classes,
-                                     int output_cdim, float confidence_threshold,
-                                     float *invert_affine_matrix, float *parray,
-                                     int MAX_IMAGE_BOXES) {
+    static __global__ void decode_kernel_v8(float *predict, int num_bboxes, int num_classes,
+                                            int output_cdim, float confidence_threshold,
+                                            float *invert_affine_matrix, float *parray,
+                                            int MAX_IMAGE_BOXES) {
         int position = blockDim.x * blockIdx.x + threadIdx.x;
         if (position >= num_bboxes) return;
 
@@ -53,8 +53,8 @@ namespace detect {
         *pout_item++ = position;
     }
 
-    __device__ float box_iou(float aleft, float atop, float aright, float abottom, float bleft,
-                             float btop, float bright, float bbottom) {
+    static __device__ float box_iou(float aleft, float atop, float aright, float abottom, float bleft,
+                                    float btop, float bright, float bbottom) {
         float cleft = max(aleft, bleft);
         float ctop = max(atop, btop);
         float cright = min(aright, bright);
@@ -68,7 +68,7 @@ namespace detect {
         return c_area / (a_area + b_area - c_area);
     }
 
-    __global__ void fast_nms_kernel(float *bboxes, int MAX_IMAGE_BOXES, float threshold) {
+    static __global__ void fast_nms_kernel(float *bboxes, int MAX_IMAGE_BOXES, float threshold) {
         int position = blockDim.x * blockIdx.x + threadIdx.x;
         int count = min(static_cast<int>(*bboxes), MAX_IMAGE_BOXES);
         if (position >= count) return;

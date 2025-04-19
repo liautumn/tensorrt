@@ -108,7 +108,7 @@ namespace cpm {
                 transform(fetch_items.begin(), fetch_items.end(), inputs.begin(),
                           [](Item &item) { return item.input; });
 
-                auto ret = model->forwards(inputs, stream_);
+                auto ret = model->detect_forwards(inputs, stream_);
                 for (int i = 0; i < static_cast<int>(fetch_items.size()); ++i) {
                     if (i < static_cast<int>(ret.size())) {
                         fetch_items[i].pro->set_value(ret[i]);

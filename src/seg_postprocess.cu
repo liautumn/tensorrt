@@ -22,10 +22,10 @@ namespace seg {
         *oy = matrix[3] * x + matrix[4] * y + matrix[5];
     }
 
-    __global__ void decode_kernel_v8(float *predict, int num_bboxes, int num_classes,
-                                     int output_cdim, float confidence_threshold,
-                                     float *invert_affine_matrix, float *parray,
-                                     int MAX_IMAGE_BOXES) {
+    static __global__ void decode_kernel_v8(float *predict, int num_bboxes, int num_classes,
+                                            int output_cdim, float confidence_threshold,
+                                            float *invert_affine_matrix, float *parray,
+                                            int MAX_IMAGE_BOXES) {
         int position = blockDim.x * blockIdx.x + threadIdx.x;
         if (position >= num_bboxes) return;
 
@@ -66,8 +66,8 @@ namespace seg {
         *pout_item++ = position;
     }
 
-    __device__ float box_iou(float aleft, float atop, float aright, float abottom, float bleft,
-                             float btop, float bright, float bbottom) {
+    static __device__ float box_iou(float aleft, float atop, float aright, float abottom, float bleft,
+                                    float btop, float bright, float bbottom) {
         float cleft = max(aleft, bleft);
         float ctop = max(atop, btop);
         float cright = min(aright, bright);
@@ -81,7 +81,7 @@ namespace seg {
         return c_area / (a_area + b_area - c_area);
     }
 
-    __global__ void fast_nms_kernel(float *bboxes, int MAX_IMAGE_BOXES, float threshold) {
+    static __global__ void fast_nms_kernel(float *bboxes, int MAX_IMAGE_BOXES, float threshold) {
         int position = (blockDim.x * blockIdx.x + threadIdx.x);
         int count = min((int) *bboxes, MAX_IMAGE_BOXES);
         if (position >= count) return;
@@ -106,10 +106,10 @@ namespace seg {
         }
     }
 
-    __global__ void decode_single_mask_kernel(int left, int top, float *mask_weights,
-                                              float *mask_predict, int mask_width,
-                                              int mask_height, unsigned char *mask_out,
-                                              int mask_dim, int out_width, int out_height) {
+    static __global__ void decode_single_mask_kernel(int left, int top, float *mask_weights,
+                                                     float *mask_predict, int mask_width,
+                                                     int mask_height, unsigned char *mask_out,
+                                                     int mask_dim, int out_width, int out_height) {
         // mask_predict to mask_out
         // mask_weights @ mask_predict
         int dx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -169,4 +169,4 @@ namespace seg {
         block = block_dims(MAX_IMAGE_BOXES);
         checkKernel(fast_nms_kernel<<<grid, block, 0, stream>>>(parray, MAX_IMAGE_BOXES, nms_threshold));
     }
-};
+}
