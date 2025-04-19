@@ -22,7 +22,7 @@ namespace seg {
         *oy = matrix[3] * x + matrix[4] * y + matrix[5];
     }
 
-    static __global__ void decode_kernel_v8(float *predict, int num_bboxes, int num_classes,
+    static __global__ void decode_kernel_v8_Seg(float *predict, int num_bboxes, int num_classes,
                                             int output_cdim, float confidence_threshold,
                                             float *invert_affine_matrix, float *parray,
                                             int MAX_IMAGE_BOXES) {
@@ -161,7 +161,7 @@ namespace seg {
                                cudaStream_t stream) {
         auto grid = grid_dims(num_bboxes);
         auto block = block_dims(num_bboxes);
-        checkKernel(decode_kernel_v8<<<grid, block, 0, stream>>>(
+        checkKernel(decode_kernel_v8_Seg<<<grid, block, 0, stream>>>(
                         predict, num_bboxes, num_classes, output_cdim, confidence_threshold, invert_affine_matrix,
                         parray, MAX_IMAGE_BOXES));
 
