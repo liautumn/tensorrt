@@ -40,7 +40,6 @@ objs
 /cmake-build-release
 /cmake-build-debug
 
-*.onnx
 *.engine
 
 /workspace/yolo/runs
