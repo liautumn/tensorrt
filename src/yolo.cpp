@@ -661,12 +661,11 @@ namespace yolo {
                            const float nms_threshold,
                            const int gpu_device,
                            void *stream) {
-        auto *impl = new InferImpl();
+        auto impl = std::make_shared<InferImpl>();
         if (!impl->load(gpu_device, engine_file, confidence_threshold, nms_threshold, stream)) {
-            delete impl;
-            impl = nullptr;
+            return nullptr;
         }
-        return shared_ptr<InferImpl>(impl);
+        return impl;
     }
 }
 
