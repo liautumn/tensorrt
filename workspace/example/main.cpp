@@ -512,10 +512,10 @@ void syncInferPose() {
 int main() {
     // syncInferPose();
     // syncInferSeg();
-    // syncInferCls();
+    syncInferCls();
     // syncInferObb();
     // syncInferDetect();
     // asyncInferDetect();
-    videoDemo();
+    // videoDemo();
     return 0;
 }

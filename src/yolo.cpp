@@ -508,7 +508,7 @@ namespace yolo {
             size_t input_numel = network_input_width_ * network_input_height_ * 3;
             input_buffer_.gpu(infer_batch_size * input_numel);
             bbox_predict_.gpu(infer_batch_size * bbox_head_dims_[1]);
-            output_boxarray_.cpu(infer_batch_size * bbox_head_dims_[1]);
+            bbox_predict_.cpu(infer_batch_size * bbox_head_dims_[1]);
             if (static_cast<int>(preprocess_buffers_.size()) < infer_batch_size) {
                 for (int i = preprocess_buffers_.size(); i < infer_batch_size; ++i)
                     preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
@@ -519,9 +519,7 @@ namespace yolo {
             for (int i = 0; i < num_image; ++i)
                 preprocess(i, images[i], preprocess_buffers_[i], affine_matrixs[i], stream);
 
-            float *bbox_output_device = bbox_predict_.gpu();
-
-            vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
+            vector<void *> bindings{input_buffer_.gpu(), bbox_predict_.gpu()};
 
             if (!trt_->forward(bindings, 2, stream)) {
                 INFO("Failed to tensorRT forward.");
@@ -530,9 +528,9 @@ namespace yolo {
 
             checkRuntime(
                 cudaMemcpyAsync(
-                    output_boxarray_.cpu(),
-                    bbox_output_device,
-                    output_boxarray_.cpu_bytes(),
+                    bbox_predict_.cpu(),
+                    bbox_predict_.gpu(),
+                    bbox_predict_.gpu_bytes(),
                     cudaMemcpyDeviceToHost,
                     stream_)
             );
@@ -540,8 +538,8 @@ namespace yolo {
 
             vector<cls::ProbArray> arrout(num_image);
             for (int ib = 0; ib < num_image; ++ib) {
-                cls::ProbArray &prob_array = arrout[ib];;
-                float *parray = output_boxarray_.cpu() + ib * bbox_head_dims_[1];
+                cls::ProbArray &prob_array = arrout[ib];
+                float *parray = bbox_predict_.cpu() + ib * bbox_head_dims_[1];
                 for (int i = 0; i < bbox_head_dims_[1]; ++i) {
                     if (parray[i] > confidence_threshold_) {
                         prob_array.emplace_back(i, parray[i]);
