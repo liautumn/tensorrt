@@ -34,15 +34,15 @@ public class Config
     
 
     public const string Yolodll =
-        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\cmake-build-release\tensorrt.dll";
+        @"C:\ProgramData\Autumn\tensorrt.dll";
 
     public const string Model =
         @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\workspace\model\engine\best8.0.engine";
 
     public const string ImageSrc =
-        @"D:\autumn\Documents\JetBrainsProjects\CLionProjects\tensorrt\C#\TestDLL\TestDLL\TensorRT\images\1_1743641671.jpeg.jpeg";
+        @"D:\autumn\Desktop\1_10_1744877524.jpeg";
 
-    public const float Confidence = (float)0.2;
+    public const float Confidence = (float)0.01;
     public const float Nms = (float)0.45;
     
 }
