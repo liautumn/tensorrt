@@ -352,6 +352,13 @@ void videoDemo() {
         // draw_detection_results(mat, objs);
 
         for (auto &obj: objs) {
+            cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(255, 0, 255), 5);
+
+            auto caption = cv::format("person %.2f", obj.confidence);
+            int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+            cv::rectangle(mat, cv::Point(obj.left - 3, obj.top - 33), cv::Point(obj.left + width, obj.top),
+                          cv::Scalar(255, 0, 255), -1);
+            cv::putText(mat, caption, cv::Point(obj.left, obj.top - 5), 0, 1, cv::Scalar::all(0), 2, 16);
             draw_pose(mat, obj.keypoints);
         }
 
