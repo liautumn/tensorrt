@@ -7,9 +7,7 @@
 *.o
 *.obj
 
-workspace/pro
 *.engine
-.kiwi
 objs
 
 # Precompiled Headers
@@ -40,9 +38,6 @@ objs
 /cmake-build-release
 /cmake-build-debug
 
-*.engine
-
-/workspace/yolo/runs
 /C\#/TestDLL/TestDLL/TensorRT/bin
 /C\#/TestDLL/TestDLL/TensorRT/obj
 *.mp4

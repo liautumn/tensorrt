@@ -1,17 +1,4 @@
-#include <cuda_runtime_api.h>
-#include <driver_types.h>
-#include <opencv2/opencv.hpp>
-#include <filesystem>
-#include "yolo.h"
 #include "config.h"
-#include "cpm.h"
-#include "timer.h"
-
-using namespace std;
-namespace fs = std::filesystem;
-
-static cpm::Instance<detect::BoxArray, yolo::Image, yolo::Infer> cpmi;
-cudaStream_t cudaStream1;
 
 static void draw_pose(cv::Mat &image, const vector<cv::Point3f> &keypoints) {
     vector<cv::Scalar> pose_palette = {
@@ -83,24 +70,24 @@ static vector<cv::Point> xywhr2xyxyxyxy(const obb::Box &box) {
 }
 
 void syncInferObb() {
-    cudaStreamCreate(&cudaStream1);
+    cudaStreamCreate(&cudaStream);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.2, 0.5, config.GPU_DEVICE, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.5, config.GPU_DEVICE, cudaStream);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->obb_forward(yrImage, cudaStream1);
+        auto objs = yolo->obb_forward(yrImage, cudaStream);
     }
 
     trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
 
-    timer.start(cudaStream1);
-    auto objs = yolo->obb_forward(image, cudaStream1);
+    timer.start(cudaStream);
+    auto objs = yolo->obb_forward(image, cudaStream);
     timer.stop("batch one");
 
     std::string windowName = "Image Window";
@@ -125,23 +112,23 @@ void syncInferObb() {
 }
 
 void syncInferDetect() {
-    cudaStreamCreate(&cudaStream1);
+    cudaStreamCreate(&cudaStream);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->detect_forward(yrImage, cudaStream1);
+        auto objs = yolo->detect_forward(yrImage, cudaStream);
     }
 
     trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-    timer.start(cudaStream1);
-    auto objs = yolo->detect_forward(image, cudaStream1);
+    timer.start(cudaStream);
+    auto objs = yolo->detect_forward(image, cudaStream);
     timer.stop("batch one");
 
     std::string windowName = "Image Window";
@@ -212,23 +199,23 @@ static void draw_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
 }
 
 void syncInferSeg() {
-    cudaStreamCreate(&cudaStream1);
+    cudaStreamCreate(&cudaStream);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.1, 0.4, config.GPU_DEVICE, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.1, 0.4, config.GPU_DEVICE, cudaStream);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->seg_forward(yrImage, cudaStream1);
+        auto objs = yolo->seg_forward(yrImage, cudaStream);
     }
 
     trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-    timer.start(cudaStream1);
-    auto boxes = yolo->seg_forward(image, cudaStream1);
+    timer.start(cudaStream);
+    auto boxes = yolo->seg_forward(image, cudaStream);
     timer.stop("batch one");
 
     std::string windowName = "Image Window";
@@ -293,16 +280,16 @@ void draw_detection_results(cv::Mat &mat, const obb::BoxArray &objs) {
 }
 
 void videoDemo() {
-    cudaStreamCreate(&cudaStream1);
+    cudaStreamCreate(&cudaStream);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->pose_forward(yrImage, cudaStream1);
+        auto objs = yolo->pose_forward(yrImage, cudaStream);
     }
 
     // 打开视频流（优先尝试作为文件打开）
@@ -344,15 +331,16 @@ void videoDemo() {
         image = yolo::Image(mat.data, mat.cols, mat.rows);
 
         // CUDA加速推理
-        timer.start(cudaStream1);
-        auto objs = yolo->pose_forward(image, cudaStream1);
+        timer.start(cudaStream);
+        auto objs = yolo->pose_forward(image, cudaStream);
         timer.stop("batch one");
 
         // 绘制检测结果
         // draw_detection_results(mat, objs);
 
         for (auto &obj: objs) {
-            cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(255, 0, 255), 5);
+            cv::rectangle(mat, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(255, 0, 255),
+                          5);
 
             auto caption = cv::format("person %.2f", obj.confidence);
             int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
@@ -407,10 +395,10 @@ void videoDemo() {
 }
 
 bool initSingleCpm(const int gpu_device, const string &engineFile, float confidence, float nms) {
-    cudaStreamCreate(&cudaStream1);
+    cudaStreamCreate(&cudaStream);
     bool ok = cpmi.start([ &engineFile, &confidence, &nms,&gpu_device] {
-        return yolo::load(engineFile, confidence, nms, gpu_device, cudaStream1);
-    }, 1, cudaStream1);
+        return yolo::load(engineFile, confidence, nms, gpu_device, cudaStream);
+    }, 1, cudaStream);
     if (ok) {
         cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
         auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
@@ -433,7 +421,7 @@ void asyncInferDetect() {
         trt_timer::Timer timer;
         const cv::Mat mat = cv::imread(config.TEST_IMG);
         while (true) {
-            timer.start();
+            timer.start(cudaStream);
             inferSingleCpm(mat);
             timer.stop("batch one");
         }
@@ -441,23 +429,23 @@ void asyncInferDetect() {
 }
 
 void syncInferCls() {
-    cudaStreamCreate(&cudaStream1);
+    cudaStreamCreate(&cudaStream);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.1, 0, config.GPU_DEVICE, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.1, 0, config.GPU_DEVICE, cudaStream);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->cls_forward(yrImage, cudaStream1);
+        auto objs = yolo->cls_forward(yrImage, cudaStream);
     }
 
     trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-    timer.start(cudaStream1);
-    auto objs = yolo->cls_forward(image, cudaStream1);
+    timer.start(cudaStream);
+    auto objs = yolo->cls_forward(image, cudaStream);
     timer.stop("batch one");
 
     std::string windowName = "Image Window";
@@ -478,23 +466,23 @@ void syncInferCls() {
 }
 
 void syncInferPose() {
-    cudaStreamCreate(&cudaStream1);
+    cudaStreamCreate(&cudaStream);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream1);
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->pose_forward(yrImage, cudaStream1);
+        auto objs = yolo->pose_forward(yrImage, cudaStream);
     }
 
     trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-    timer.start(cudaStream1);
-    auto objs = yolo->pose_forward(image, cudaStream1);
+    timer.start(cudaStream);
+    auto objs = yolo->pose_forward(image, cudaStream);
     timer.stop("batch one");
 
     std::string windowName = "Image Window";

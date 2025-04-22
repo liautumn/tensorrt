@@ -1,21 +1,11 @@
-#include <cuda_runtime.h>
-#include <driver_types.h>
-#include <opencv2/opencv.hpp>
-#include "infer.h"
-#include "cpm.h"
-#include "yolo.h"
+#include "export_common.h"
 
-using namespace std;
-
-static cpm::Instance<detect::BoxArray, yolo::Image, yolo::Infer> cpmi;
-cudaStream_t customStream2;
-
-bool initSingleCpm(const int gpu_device, const string &engineFile, const float confidence, const float nms) {
+bool initSingleCpm(const string &engineFile, const float confidence, const float nms, const int gpu_device) {
     // 创建非阻塞流
-    cudaStreamCreate(&customStream2);
-    bool ok = cpmi.start([&gpu_device, &engineFile, &confidence, &nms] {
-        return yolo::load(gpu_device, engineFile, confidence, nms, customStream2);
-    }, 1, customStream2);
+    cudaStreamCreate(&cudaStream);
+    bool ok = cpmi.start([&engineFile, &confidence, &nms, &gpu_device] {
+        return yolo::load(engineFile, confidence, nms, gpu_device, cudaStream);
+    }, 1, cudaStream);
     if (!ok) {
         return false;
     } else {
@@ -33,12 +23,11 @@ vector<detect::Box> inferSingleCpm(cv::Mat *mat) {
     return cpmi.commit(yolo::Image(mat->data, mat->cols, mat->rows)).get();
 }
 
-extern "C" __declspec(dllexport) bool TENSORRT_SINGLE_CPM_INIT(const int gpu_device, const char *engineFile,
-                                                               float confidence, float nms) {
-    return initSingleCpm(gpu_device, engineFile, confidence, nms);
+EXPORT_API bool TENSORRT_SINGLE_CPM_INIT(const char *engineFile, float confidence, float nms, const int gpu_device) {
+    return initSingleCpm(engineFile, confidence, nms, gpu_device);
 }
 
-extern "C" __declspec(dllexport) void TENSORRT_SINGLE_CPM_INFER(cv::Mat *mat, detect::Box **result, int *size) {
+EXPORT_API void TENSORRT_SINGLE_CPM_INFER(cv::Mat *mat, detect::Box **result, int *size) {
     // 调用推理函数获取检测框
     std::vector<detect::Box> boxes = inferSingleCpm(mat);
     // 设置返回的大小
@@ -49,6 +38,6 @@ extern "C" __declspec(dllexport) void TENSORRT_SINGLE_CPM_INFER(cv::Mat *mat, de
     std::copy(boxes.begin(), boxes.end(), *result);
 }
 
-extern "C" __declspec(dllexport) void TENSORRT_SINGLE_CPM_DESTROY() {
+EXPORT_API void TENSORRT_SINGLE_CPM_DESTROY() {
     cpmi.stop();
 }

@@ -1,7 +1,19 @@
 #ifndef YOLO_CONFIG_H
 #define YOLO_CONFIG_H
+#include <cuda_runtime_api.h>
+#include <driver_types.h>
+#include <opencv2/opencv.hpp>
+#include <filesystem>
+#include "yolo.h"
+#include "config.h"
+#include "cpm.h"
+#include "timer.h"
 
 using namespace std;
+namespace fs = std::filesystem;
+
+static cpm::Instance<detect::BoxArray, yolo::Image, yolo::Infer> cpmi;
+inline cudaStream_t cudaStream;
 
 class Config {
 public:

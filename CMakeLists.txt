@@ -9,6 +9,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+file(GLOB SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu
+)
 
 find_package(OpenCV REQUIRED)
 set(TensorRT_DIR /home/autumn/Documents/CUDA/TensorRT-10.9.0.34)
@@ -24,17 +28,6 @@ include_directories(
 link_directories(
         ${TensorRT_DIR}/lib
         ${CUDA_DIR}/lib64
-)
-
-set(LIBS
-        ${OpenCV_LIBS}
-        ${CUDA_LIBRARIES}
-        ${TENSORRT_LIBRARY}
-)
-
-file(GLOB SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu
 )
 
 #add_library(${PROJECT_NAME} SHARED
@@ -53,4 +46,9 @@ add_executable(${PROJECT_NAME}
 set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
 
-target_link_libraries(${PROJECT_NAME} ${LIBS})
+target_link_libraries(${PROJECT_NAME}
+        ${OpenCV_LIBS}
+        libnvinfer.so.10
+        libcuda.so
+        libcudart.so
+)
