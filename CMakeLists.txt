@@ -28,9 +28,8 @@ link_directories(
 
 set(LIBS
         ${OpenCV_LIBS}
-        libnvinfer.so.10
-        libcuda.so
-        libcudart.so
+        ${CUDA_LIBRARIES}
+        ${TENSORRT_LIBRARY}
 )
 
 file(GLOB SOURCES
