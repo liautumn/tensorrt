@@ -202,7 +202,7 @@ void syncInferSeg() {
     cudaStreamCreate(&cudaStream);
 
     Config config;
-    auto yolo = yolo::load(config.MODEL, 0.1, 0.4, config.GPU_DEVICE, cudaStream);
+    auto yolo = yolo::load(config.MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream);
     if (yolo == nullptr) return;
 
     cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
@@ -506,11 +506,11 @@ void syncInferPose() {
 
 int main() {
     // syncInferPose();
-    // syncInferSeg();
+    syncInferSeg();
     // syncInferCls();
     // syncInferObb();
     // syncInferDetect();
     // asyncInferDetect();
-    videoDemo();
+    // videoDemo();
     return 0;
 }
