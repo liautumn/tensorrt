@@ -36,12 +36,12 @@ namespace yolo {
         vector<shared_ptr<trt_memory::Memory<unsigned char> > > box_segment_cache_;
 
         virtual ~InferImpl() {
-            cudaStreamDestroy(static_cast<cudaStream_t>(cuda_stream_));
+            checkRuntime(cudaStreamDestroy(static_cast<cudaStream_t>(cuda_stream_)));
         };
 
         void preprocess(int ibatch,
                         const Image &image,
-                        shared_ptr<trt_memory::Memory<unsigned char> > preprocess_buffer,
+                        const shared_ptr<trt_memory::Memory<unsigned char> > &preprocess_buffer,
                         AffineMatrix &affine,
                         void *stream = nullptr) {
             affine.compute(make_tuple(image.width, image.height),
@@ -113,7 +113,9 @@ namespace yolo {
             isDynamic_model_ = trt_->has_dynamic_dim();
             normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
 
-            // segment_head_dims_ = trt_->static_dims(trt_->name(2));
+            if (trt_->binding_index_to_name_.size() > 2) {
+                segment_head_dims_ = trt_->static_dims(trt_->name(2));
+            }
             return true;
         }
 

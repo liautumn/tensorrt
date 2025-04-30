@@ -18,7 +18,7 @@ inline cudaStream_t cudaStream;
 class Config {
 public:
     const int GPU_DEVICE = 0;
-    const string MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-seg.transd.engine)";
+    const string MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s.dynamic.transd.engine)";
     const string TEST_IMG = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/images/bus.jpg)";
     const string VIDEO_PATH = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/images/002.mp4)";
 };

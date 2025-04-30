@@ -106,7 +106,6 @@ namespace trt {
     class InferImpl : public infer {
     public:
         shared_ptr<NativeEngineContext> context_;
-        unordered_map<int, string> binding_index_to_name_;
 
         virtual ~InferImpl() = default;
 

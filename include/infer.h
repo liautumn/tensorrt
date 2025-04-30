@@ -15,6 +15,8 @@ namespace trt {
 
     class infer {
     public:
+        unordered_map<int, string> binding_index_to_name_;
+
         virtual bool forward(const vector<void *> &bindings, int n, void *stream = nullptr) = 0;
 
         virtual string name(int index) = 0;
