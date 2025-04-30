@@ -9,7 +9,6 @@
 #include <thread>
 
 namespace cpm {
-
     using namespace std;
 
     template<typename Result, typename Input, typename Model>
@@ -17,7 +16,7 @@ namespace cpm {
     protected:
         struct Item {
             Input input;
-            shared_ptr<promise<Result>> pro;
+            shared_ptr<promise<Result> > pro;
         };
 
         condition_variable cond_;
@@ -33,8 +32,7 @@ namespace cpm {
 
         void stop() {
             run_ = false;
-            cond_.notify_one();
-            {
+            cond_.notify_one(); {
                 unique_lock<mutex> l(queue_lock_);
                 while (!input_queue_.empty()) {
                     auto &item = input_queue_.front();
@@ -52,8 +50,7 @@ namespace cpm {
         virtual shared_future<Result> commit(const Input &input) {
             Item item;
             item.input = input;
-            item.pro.reset(new promise<Result>());
-            {
+            item.pro.reset(new promise<Result>()); {
                 unique_lock<mutex> _lock_(queue_lock_);
                 input_queue_.push(item);
             }
@@ -61,9 +58,8 @@ namespace cpm {
             return item.pro->get_future();
         }
 
-        virtual vector<shared_future<Result>> commits(const vector<Input> &inputs) {
-            vector<shared_future<Result>> output;
-            {
+        virtual vector<shared_future<Result> > commits(const vector<Input> &inputs) {
+            vector<shared_future<Result> > output; {
                 unique_lock<mutex> _lock_(queue_lock_);
                 for (int i = 0; i < static_cast<int>(inputs.size()); ++i) {
                     Item item;
@@ -148,6 +144,6 @@ namespace cpm {
             return true;
         }
     };
-};  // namespace cpm
+}; // namespace cpm
 
 #endif  // CPM_H
