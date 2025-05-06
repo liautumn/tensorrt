@@ -26,26 +26,14 @@ link_directories(
         ${CUDA_DIR}/lib/x64
 )
 
-# 定义链接的库
-set(LIBS
-        ${OpenCV_LIBS}
-        nvinfer
-        nvinfer_plugin
-        nvonnxparser
-        cuda
-        cublas
-        cudart
-        cudnn
-)
-
 add_library(${PROJECT_NAME} SHARED
         include/cpm.h
         include/yolo.h
         include/infer.h
         src/infer.cu
         src/yolo.cu
-        src/export/exportMultiple.cpp
-        src/export/exportMultipleCpm.cpp
+        #        src/export/exportMultiple.cpp
+        #        src/export/exportMultipleCpm.cpp
         src/export/exportSingle.cpp
         src/export/exportSingleCpm.cpp
 )
@@ -65,4 +53,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
 
 # 链接库
-target_link_libraries(${PROJECT_NAME} ${LIBS})
+target_link_libraries(${PROJECT_NAME}
+        ${OpenCV_LIBS}
+        nvinfer
+        nvinfer_plugin
+        nvonnxparser
+        cuda
+        cublas
+        cudart
+        cudnn
+)
