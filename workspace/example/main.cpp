@@ -128,7 +128,7 @@ void syncInferObb() {
     }
 
     trt_timer::Timer timer;
-    cv::Mat mat = cv::imread(config.TEST_IMG);
+    cv::Mat mat = cv::imread(config.OBB_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
 
     timer.start(cudaStream);
@@ -340,7 +340,7 @@ void video() {
     cudaStreamCreate(&cudaStream);
 
     Config config;
-    auto yolo = yolo::load(config.POSE_MODEL, 0.3, 0.5, config.GPU_DEVICE, cudaStream);
+    auto yolo = yolo::load(config.SEG_MODEL, 0.2, 0.5, config.GPU_DEVICE, cudaStream);
     if (yolo == nullptr) return;
 
     // 打开视频流（优先尝试作为文件打开）
@@ -383,7 +383,7 @@ void video() {
 
         // CUDA加速推理
         timer.start(cudaStream);
-        auto objs = yolo->pose_forward(image, cudaStream);
+        auto objs = yolo->seg_forward(image, cudaStream);
         timer.stop("batch one");
 
         // DETECT
@@ -404,46 +404,46 @@ void video() {
         // }
 
         // POSE
-        for (const auto &obj: objs) {
-            // Convert coordinates to int (avoid floating-point coordinates)
-            const int left = static_cast<int>(obj.left);
-            const int top = static_cast<int>(obj.top);
-            const int right = static_cast<int>(obj.right);
-            const int bottom = static_cast<int>(obj.bottom);
-            // Draw bounding box (magenta, thickness 5)
-            cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
-            // Create label text (fixed "person" label + confidence)
-            const auto caption = cv::format("person %.2f", obj.confidence);
-            const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-            // Draw label background (filled magenta)
-            cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-            // Draw label text (black, font scale 1, thickness 2)
-            cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
-            // Draw pose keypoints
-            draw_pose(mat, obj.keypoints);
-        }
-
-        // SEG
-        // for (auto &obj: objs) {
-        //     cv::Scalar color(255, 0, 255);
-        //     if (obj.seg) {
-        //         draw_seg_mask(mat, obj, color);
-        //     }
-        //     // Convert coordinates to int (avoid repeated casting)
+        // for (const auto &obj: objs) {
+        //     // Convert coordinates to int (avoid floating-point coordinates)
         //     const int left = static_cast<int>(obj.left);
         //     const int top = static_cast<int>(obj.top);
         //     const int right = static_cast<int>(obj.right);
         //     const int bottom = static_cast<int>(obj.bottom);
         //     // Draw bounding box (magenta, thickness 5)
         //     cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
-        //     // Create label text (class + confidence)
-        //     const auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-        //     const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; // Text width + padding
+        //     // Create label text (fixed "person" label + confidence)
+        //     const auto caption = cv::format("person %.2f", obj.confidence);
+        //     const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
         //     // Draw label background (filled magenta)
         //     cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
         //     // Draw label text (black, font scale 1, thickness 2)
         //     cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
+        //     // Draw pose keypoints
+        //     draw_pose(mat, obj.keypoints);
         // }
+
+        // SEG
+        for (auto &obj: objs) {
+            cv::Scalar color(255, 0, 255);
+            if (obj.seg) {
+                draw_seg_mask(mat, obj, color);
+            }
+            // Convert coordinates to int (avoid repeated casting)
+            const int left = static_cast<int>(obj.left);
+            const int top = static_cast<int>(obj.top);
+            const int right = static_cast<int>(obj.right);
+            const int bottom = static_cast<int>(obj.bottom);
+            // Draw bounding box (magenta, thickness 5)
+            cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
+            // Create label text (class + confidence)
+            const auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
+            const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; // Text width + padding
+            // Draw label background (filled magenta)
+            cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
+            // Draw label text (black, font scale 1, thickness 2)
+            cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
+        }
 
         // 计算处理耗时
         double process_time = (cv::getTickCount() - start_time) / cv::getTickFrequency();
