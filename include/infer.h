@@ -1,7 +1,6 @@
 #ifndef __INFER_H__
 #define __INFER_H__
 
-#include <initializer_list>
 #include <memory>
 #include <string>
 #include <vector>

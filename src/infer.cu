@@ -1,7 +1,6 @@
-
 #include <NvInfer.h>
 #include <cuda_runtime.h>
-#include <stdarg.h>
+#include <cstdarg>
 #include <iostream>
 #include <filesystem>
 
@@ -13,7 +12,6 @@
 #include "infer.h"
 
 namespace trt {
-
     using namespace std;
     using namespace nvinfer1;
 
@@ -72,14 +70,14 @@ namespace trt {
 
     void __log_func(const char *file, int line, const char *fmt, ...) {
         va_list vl;
-                va_start(vl, fmt);
+        va_start(vl, fmt);
         char buffer[2048];
         string filename = file_name(file, true);
         int n = snprintf(buffer, sizeof(buffer), "[%s:%d]: ", filename.c_str(), line);
         vsnprintf(buffer + n, sizeof(buffer) - n, fmt, vl);
         fprintf(stdout, "%s\n", buffer);
         // 检查目录是否存在
-        std::string folder_path = "trt_log";  // 文件夹路径
+        std::string folder_path = "trt_log"; // 文件夹路径
         if (!std::filesystem::exists(folder_path)) {
             // 如果文件夹不存在，创建文件夹
             try {
@@ -89,12 +87,12 @@ namespace trt {
             }
         }
         // 打开文件并追加日志
-        FILE *log_file = fopen("trt_log/log.txt", "a");  // 以追加模式打开 log.txt
+        FILE *log_file = fopen("trt_log/log.txt", "a"); // 以追加模式打开 log.txt
         if (log_file != nullptr) {
-            fprintf(log_file, "%s\n", buffer);     // 将日志写入文件
-            fclose(log_file);                      // 关闭文件
+            fprintf(log_file, "%s\n", buffer); // 将日志写入文件
+            fclose(log_file); // 关闭文件
         }
-                va_end(vl);
+        va_end(vl);
     }
 
     static std::string format_shape(const Dims &shape) {
@@ -172,7 +170,6 @@ namespace trt {
 
             gpu_capacity_ = bytes;
             checkRuntime(cudaMalloc(&gpu_, bytes));
-            // checkRuntime(cudaMemset(gpu_, 0, size));
         }
         gpu_bytes_ = bytes;
         return gpu_;
@@ -185,7 +182,6 @@ namespace trt {
             cpu_capacity_ = bytes;
             checkRuntime(cudaMallocHost(&cpu_, bytes));
             Assert(cpu_ != nullptr);
-            // memset(cpu_, 0, size);
         }
         cpu_bytes_ = bytes;
         return cpu_;
@@ -270,15 +266,15 @@ namespace trt {
 
             if (pdata == nullptr || size == 0) return false;
 
-            runtime_ = shared_ptr<IRuntime>(createInferRuntime(gLogger), destroy_nvidia_pointer < IRuntime > );
+            runtime_ = shared_ptr<IRuntime>(createInferRuntime(gLogger), destroy_nvidia_pointer<IRuntime>);
             if (runtime_ == nullptr) return false;
 
             engine_ = shared_ptr<ICudaEngine>(runtime_->deserializeCudaEngine(pdata, size, nullptr),
-                                              destroy_nvidia_pointer < ICudaEngine > );
+                                              destroy_nvidia_pointer<ICudaEngine>);
             if (engine_ == nullptr) return false;
 
             context_ = shared_ptr<IExecutionContext>(engine_->createExecutionContext(),
-                                                     destroy_nvidia_pointer < IExecutionContext > );
+                                                     destroy_nvidia_pointer<IExecutionContext>);
             return context_ != nullptr;
         }
 
@@ -395,11 +391,9 @@ namespace trt {
         }
 
         virtual bool has_dynamic_dim() override {
-            // check if any input or output bindings have dynamic shapes
-            // code from ChatGPT
             int numBindings = this->context_->engine_->getNbBindings();
             for (int i = 0; i < numBindings; ++i) {
-                nvinfer1::Dims dims = this->context_->engine_->getBindingDimensions(i);
+                Dims dims = this->context_->engine_->getBindingDimensions(i);
                 for (int j = 0; j < dims.nbDims; ++j) {
                     if (dims.d[j] == -1) return true;
                 }
@@ -459,5 +453,4 @@ namespace trt {
         }
         return output.str();
     }
-
-};  // namespace trt
+}; // namespace trt

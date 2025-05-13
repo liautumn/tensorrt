@@ -14,33 +14,22 @@ namespace yolo {
         X = 1,
         V3 = 2,
         V7 = 3,
-        V8 = 5,
-//        V8Seg = 6 // yolov8 instance segmentation
+        V8 = 4,
     };
-
-//    struct InstanceSegmentMap {
-//        int width = 0, height = 0; // width % 8 == 0
-//        unsigned char *data = nullptr; // is width * height memory
-//
-//        InstanceSegmentMap(int width, int height);
-//
-//        virtual ~InstanceSegmentMap();
-//    };
 
     struct Box {
         float left, top, right, bottom, confidence;
         int class_label;
-//        shared_ptr<InstanceSegmentMap> seg; // valid only in segment task
 
         Box() = default;
 
         Box(float left, float top, float right, float bottom, float confidence, int class_label)
-                : left(left),
-                  top(top),
-                  right(right),
-                  bottom(bottom),
-                  confidence(confidence),
-                  class_label(class_label) {
+            : left(left),
+              top(top),
+              right(right),
+              bottom(bottom),
+              confidence(confidence),
+              class_label(class_label) {
         }
     };
 

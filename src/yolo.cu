@@ -2,7 +2,6 @@
 #include "yolo.h"
 
 namespace yolo {
-
     using namespace std;
 
 #define GPU_BLOCK_THREADS 1024
@@ -10,7 +9,7 @@ namespace yolo {
   do {                                                                                     \
     auto ___call__ret_code__ = (call);                                                     \
     if (___call__ret_code__ != cudaSuccess) {                                              \
-      INFO("CUDA Runtime error💥 %s # %s, code = %s [ %d ]", #call,                         \
+      INFO("CUDA Runtime error💥 %s # %s, code = %s [ %d ]", #call,                        \
            cudaGetErrorString(___call__ret_code__), cudaGetErrorName(___call__ret_code__), \
            ___call__ret_code__);                                                           \
       abort();                                                                             \
@@ -31,7 +30,7 @@ namespace yolo {
         None = 0, SwapRB = 1
     };
 
-/* 归一化操作，可以支持均值标准差，alpha beta，和swap RB */
+    /* 归一化操作，可以支持均值标准差，alpha beta，和swap RB */
     struct Norm {
         float mean[3];
         float std[3];
@@ -72,8 +71,8 @@ namespace yolo {
 
     Norm Norm::None() { return Norm(); }
 
-    const int NUM_BOX_ELEMENT = 8;  // left, top, right, bottom, confidence, class,
-    // keepflag, row_index(output)
+    // left, top, right, bottom, confidence, class, keepflag, row_index(output)
+    const int NUM_BOX_ELEMENT = 8;
     const int MAX_IMAGE_BOXES = 1024;
 
     inline int upbound(int n, int align = 32) { return (n + align - 1) / align * align; }
@@ -129,7 +128,7 @@ namespace yolo {
         *pout_item++ = bottom;
         *pout_item++ = confidence;
         *pout_item++ = label;
-        *pout_item++ = 1;  // 1 = keep, 0 = ignore
+        *pout_item++ = 1; // 1 = keep, 0 = ignore
     }
 
     static __global__ void decode_kernel_v8(float *predict, int num_bboxes, int num_classes,
@@ -172,7 +171,7 @@ namespace yolo {
         *pout_item++ = bottom;
         *pout_item++ = confidence;
         *pout_item++ = label;
-        *pout_item++ = 1;  // 1 = keep, 0 = ignore
+        *pout_item++ = 1; // 1 = keep, 0 = ignore
         *pout_item++ = position;
     }
 
@@ -200,7 +199,6 @@ namespace yolo {
         float *pcurrent = bboxes + 1 + position * NUM_BOX_ELEMENT;
         for (int i = 0; i < count; ++i) {
             float *pitem = bboxes + 1 + i * NUM_BOX_ELEMENT;
-//            if (i == position || pcurrent[5] != pitem[5]) continue;
             if (i == position) continue;
 
             if (pitem[4] >= pcurrent[4]) {
@@ -210,7 +208,7 @@ namespace yolo {
                                     pitem[2], pitem[3]);
 
                 if (iou > threshold) {
-                    pcurrent[6] = 0;  // 1=keep, 0=ignore
+                    pcurrent[6] = 0; // 1=keep, 0=ignore
                     return;
                 }
             }
@@ -233,15 +231,14 @@ namespace yolo {
         auto grid = grid_dims(num_bboxes);
         auto block = block_dims(num_bboxes);
 
-//  if (type == Type::V8 || type == Type::V8Seg) {
         if (type == Type::V8) {
             checkKernel(decode_kernel_v8<<<grid, block, 0, stream>>>(
-                    predict, num_bboxes, num_classes, output_cdim, confidence_threshold, invert_affine_matrix,
-                    parray, MAX_IMAGE_BOXES));
+                            predict, num_bboxes, num_classes, output_cdim, confidence_threshold, invert_affine_matrix,
+                            parray, MAX_IMAGE_BOXES));
         } else {
             checkKernel(decode_kernel_common<<<grid, block, 0, stream>>>(
-                    predict, num_bboxes, num_classes, output_cdim, confidence_threshold, invert_affine_matrix,
-                    parray, MAX_IMAGE_BOXES));
+                            predict, num_bboxes, num_classes, output_cdim, confidence_threshold, invert_affine_matrix,
+                            parray, MAX_IMAGE_BOXES));
         }
 
         grid = grid_dims(MAX_IMAGE_BOXES);
@@ -250,8 +247,8 @@ namespace yolo {
     }
 
     static __global__ void warp_affine_bilinear_and_normalize_plane_kernel(
-            uint8_t *src, int src_line_size, int src_width, int src_height, float *dst, int dst_width,
-            int dst_height, uint8_t const_value_st, float *warp_affine_matrix_2_3, Norm norm) {
+        uint8_t *src, int src_line_size, int src_width, int src_height, float *dst, int dst_width,
+        int dst_height, uint8_t const_value_st, float *warp_affine_matrix_2_3, Norm norm) {
         int dx = blockDim.x * blockIdx.x + threadIdx.x;
         int dy = blockDim.y * blockIdx.y + threadIdx.y;
         if (dx >= dst_width || dy >= dst_height) return;
@@ -340,48 +337,8 @@ namespace yolo {
         dim3 block(32, 32);
 
         checkKernel(warp_affine_bilinear_and_normalize_plane_kernel<<<grid, block, 0, stream>>>(
-                src, src_line_size, src_width, src_height, dst, dst_width, dst_height, const_value,
-                matrix_2_3, norm));
-    }
-
-    static __global__ void decode_single_mask_kernel(int left, int top, float *mask_weights,
-                                                     float *mask_predict, int mask_width,
-                                                     int mask_height, unsigned char *mask_out,
-                                                     int mask_dim, int out_width, int out_height) {
-        // mask_predict to mask_out
-        // mask_weights @ mask_predict
-        int dx = blockDim.x * blockIdx.x + threadIdx.x;
-        int dy = blockDim.y * blockIdx.y + threadIdx.y;
-        if (dx >= out_width || dy >= out_height) return;
-
-        int sx = left + dx;
-        int sy = top + dy;
-        if (sx < 0 || sx >= mask_width || sy < 0 || sy >= mask_height) {
-            mask_out[dy * out_width + dx] = 0;
-            return;
-        }
-
-        float cumprod = 0;
-        for (int ic = 0; ic < mask_dim; ++ic) {
-            float cval = mask_predict[(ic * mask_height + sy) * mask_width + sx];
-            float wval = mask_weights[ic];
-            cumprod += cval * wval;
-        }
-
-        float alpha = 1.0f / (1.0f + exp(-cumprod));
-        mask_out[dy * out_width + dx] = alpha * 255;
-    }
-
-    static void decode_single_mask(float left, float top, float *mask_weights, float *mask_predict,
-                                   int mask_width, int mask_height, unsigned char *mask_out,
-                                   int mask_dim, int out_width, int out_height, cudaStream_t stream) {
-        // mask_weights is mask_dim(32 element) gpu pointer
-        dim3 grid((out_width + 31) / 32, (out_height + 31) / 32);
-        dim3 block(32, 32);
-
-        checkKernel(decode_single_mask_kernel<<<grid, block, 0, stream>>>(
-                left, top, mask_weights, mask_predict, mask_width, mask_height, mask_out, mask_dim, out_width,
-                out_height));
+                        src, src_line_size, src_width, src_height, dst, dst_width, dst_height, const_value,
+                        matrix_2_3, norm));
     }
 
     const char *type_name(Type type) {
@@ -402,8 +359,8 @@ namespace yolo {
     }
 
     struct AffineMatrix {
-        float i2d[6];  // image to dst(network), 2x3 matrix
-        float d2i[6];  // dst to image, 2x3 matrix
+        float i2d[6]; // image to dst(network), 2x3 matrix
+        float d2i[6]; // dst to image, 2x3 matrix
 
         void compute(const std::tuple<int, int> &from, const std::tuple<int, int> &to) {
             float scale_x = get<0>(to) / (float) get<0>(from);
@@ -431,21 +388,6 @@ namespace yolo {
         }
     };
 
-//InstanceSegmentMap::InstanceSegmentMap(int width, int height) {
-//  this->width = width;
-//  this->height = height;
-//  checkRuntime(cudaMallocHost(&this->data, width * height));
-//}
-
-//InstanceSegmentMap::~InstanceSegmentMap() {
-//  if (this->data) {
-//    checkRuntime(cudaFreeHost(this->data));
-//    this->data = nullptr;
-//  }
-//  this->width = 0;
-//  this->height = 0;
-//}
-
     class InferImpl : public Infer {
     public:
         shared_ptr<trt::Infer> trt_;
@@ -453,17 +395,13 @@ namespace yolo {
         Type type_;
         float confidence_threshold_;
         float nms_threshold_;
-        vector<shared_ptr<trt::Memory<unsigned char>>> preprocess_buffers_;
+        vector<shared_ptr<trt::Memory<unsigned char> > > preprocess_buffers_;
         trt::Memory<float> input_buffer_, bbox_predict_, output_boxarray_;
-//  trt::Memory<float> segment_predict_;
         int network_input_width_, network_input_height_;
         Norm normalize_;
         vector<int> bbox_head_dims_;
-//  vector<int> segment_head_dims_;
         int num_classes_ = 0;
-//  bool has_segment_ = false;
         bool isdynamic_model_ = false;
-//  vector<shared_ptr<trt::Memory<unsigned char>>> box_segment_cache_;
 
         virtual ~InferImpl() = default;
 
@@ -475,18 +413,14 @@ namespace yolo {
             output_boxarray_.gpu(batch_size * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT));
             output_boxarray_.cpu(batch_size * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT));
 
-//    if (has_segment_)
-//      segment_predict_.gpu(batch_size * segment_head_dims_[1] * segment_head_dims_[2] *
-//                           segment_head_dims_[3]);
-
             if ((int) preprocess_buffers_.size() < batch_size) {
                 for (int i = preprocess_buffers_.size(); i < batch_size; ++i)
-                    preprocess_buffers_.push_back(make_shared<trt::Memory<unsigned char>>());
+                    preprocess_buffers_.push_back(make_shared<trt::Memory<unsigned char> >());
             }
         }
 
         void preprocess(int ibatch, const Image &image,
-                        shared_ptr<trt::Memory<unsigned char>> preprocess_buffer, AffineMatrix &affine,
+                        shared_ptr<trt::Memory<unsigned char> > preprocess_buffer, AffineMatrix &affine,
                         void *stream = nullptr) {
             affine.compute(make_tuple(image.width, image.height),
                            make_tuple(network_input_width_, network_input_height_));
@@ -508,9 +442,9 @@ namespace yolo {
             memcpy(image_host, image.bgrptr, size_image);
             memcpy(affine_matrix_host, affine.d2i, sizeof(affine.d2i));
             checkRuntime(
-                    cudaMemcpyAsync(image_device, image_host, size_image, cudaMemcpyHostToDevice, stream_));
+                cudaMemcpyAsync(image_device, image_host, size_image, cudaMemcpyHostToDevice, stream_));
             checkRuntime(cudaMemcpyAsync(affine_matrix_device, affine_matrix_host, sizeof(affine.d2i),
-                                         cudaMemcpyHostToDevice, stream_));
+                cudaMemcpyHostToDevice, stream_));
 
             warp_affine_bilinear_and_normalize_plane(image_device, image.width * 3, image.width,
                                                      image.height, input_device, network_input_width_,
@@ -530,11 +464,6 @@ namespace yolo {
 
             auto input_dim = trt_->static_dims(0);
             bbox_head_dims_ = trt_->static_dims(1);
-//    has_segment_ = type == Type::V8Seg;
-//    if (has_segment_) {
-//      bbox_head_dims_ = trt_->static_dims(2);
-//      segment_head_dims_ = trt_->static_dims(1);
-//    }
             network_input_width_ = input_dim[3];
             network_input_height_ = input_dim[2];
             isdynamic_model_ = trt_->has_dynamic_dim();
@@ -545,15 +474,7 @@ namespace yolo {
             } else if (type == Type::V8) {
                 normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
                 num_classes_ = bbox_head_dims_[2] - 4;
-            }
-//    else if (type == Type::V8Seg) {
-//      normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
-//      num_classes_ = bbox_head_dims_[2] - 4 - segment_head_dims_[1];
-//    }
-            else if (type == Type::X) {
-                // float mean[] = {0.485, 0.456, 0.406};
-                // float std[]  = {0.229, 0.224, 0.225};
-                // normalize_ = Norm::mean_std(mean, std, 1/255.0f, ChannelType::SwapRB);
+            } else if (type == Type::X) {
                 normalize_ = Norm::None();
                 num_classes_ = bbox_head_dims_[2] - 5;
             } else {
@@ -582,9 +503,9 @@ namespace yolo {
                 } else {
                     if (infer_batch_size < num_image) {
                         INFO(
-                                "When using static shape model, number of images[%d] must be "
-                                "less than or equal to the maximum batch[%d].",
-                                num_image, infer_batch_size);
+                            "When using static shape model, number of images[%d] must be "
+                            "less than or equal to the maximum batch[%d].",
+                            num_image, infer_batch_size);
                         return {};
                     }
                 }
@@ -598,10 +519,6 @@ namespace yolo {
 
             float *bbox_output_device = bbox_predict_.gpu();
             vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
-
-//    if (has_segment_) {
-//      bindings = {input_buffer_.gpu(), segment_predict_.gpu(), bbox_output_device};
-//    }
 
             if (!trt_->forward(bindings, stream)) {
                 INFO("Failed to tensorRT forward.");
@@ -620,11 +537,11 @@ namespace yolo {
                                       affine_matrix_device, boxarray_device, MAX_IMAGE_BOXES, type_, stream_);
             }
             checkRuntime(cudaMemcpyAsync(output_boxarray_.cpu(), output_boxarray_.gpu(),
-                                         output_boxarray_.gpu_bytes(), cudaMemcpyDeviceToHost, stream_));
+                output_boxarray_.gpu_bytes(), cudaMemcpyDeviceToHost, stream_));
             checkRuntime(cudaStreamSynchronize(stream_));
 
             vector<BoxArray> arrout(num_image);
-//    int imemory = 0;
+            //    int imemory = 0;
             for (int ib = 0; ib < num_image; ++ib) {
                 float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
                 int count = min(MAX_IMAGE_BOXES, (int) *parray);
@@ -636,56 +553,10 @@ namespace yolo {
                     int keepflag = pbox[6];
                     if (keepflag == 1) {
                         Box result_object_box(pbox[0], pbox[1], pbox[2], pbox[3], pbox[4], label);
-//          if (has_segment_) {
-//            int row_index = pbox[7];
-//            int mask_dim = segment_head_dims_[1];
-//            float *mask_weights = bbox_output_device +
-//                                  (ib * bbox_head_dims_[1] + row_index) * bbox_head_dims_[2] +
-//                                  num_classes_ + 4;
-//
-//            float *mask_head_predict = segment_predict_.gpu();
-//            float left, top, right, bottom;
-//            float *i2d = affine_matrixs[ib].i2d;
-//            affine_project(i2d, pbox[0], pbox[1], &left, &top);
-//            affine_project(i2d, pbox[2], pbox[3], &right, &bottom);
-//
-//            float box_width = right - left;
-//            float box_height = bottom - top;
-//
-//            float scale_to_predict_x = segment_head_dims_[3] / (float)network_input_width_;
-//            float scale_to_predict_y = segment_head_dims_[2] / (float)network_input_height_;
-//            int mask_out_width = box_width * scale_to_predict_x + 0.5f;
-//            int mask_out_height = box_height * scale_to_predict_y + 0.5f;
-//
-//            if (mask_out_width > 0 && mask_out_height > 0) {
-//              if (imemory >= (int)box_segment_cache_.size()) {
-//                box_segment_cache_.push_back(std::make_shared<trt::Memory<unsigned char>>());
-//              }
-//
-//              int bytes_of_mask_out = mask_out_width * mask_out_height;
-//              auto box_segment_output_memory = box_segment_cache_[imemory];
-//              result_object_box.seg =
-//                  make_shared<InstanceSegmentMap>(mask_out_width, mask_out_height);
-//
-//              unsigned char *mask_out_device = box_segment_output_memory->gpu(bytes_of_mask_out);
-//              unsigned char *mask_out_host = result_object_box.seg->data;
-//              decode_single_mask(left * scale_to_predict_x, top * scale_to_predict_y, mask_weights,
-//                                 mask_head_predict + ib * segment_head_dims_[1] *
-//                                                         segment_head_dims_[2] *
-//                                                         segment_head_dims_[3],
-//                                 segment_head_dims_[3], segment_head_dims_[2], mask_out_device,
-//                                 mask_dim, mask_out_width, mask_out_height, stream_);
-//              checkRuntime(cudaMemcpyAsync(mask_out_host, mask_out_device,
-//                                           box_segment_output_memory->gpu_bytes(),
-//                                           cudaMemcpyDeviceToHost, stream_));
-//            }
-//          }
                         output.emplace_back(result_object_box);
                     }
                 }
             }
-
-//    if (has_segment_) checkRuntime(cudaStreamSynchronize(stream_));
 
             return arrout;
         }
@@ -704,7 +575,7 @@ namespace yolo {
     shared_ptr<Infer> load(const string &engine_file, Type type, float confidence_threshold,
                            float nms_threshold) {
         return std::shared_ptr<InferImpl>(
-                (InferImpl *) loadraw(engine_file, type, confidence_threshold, nms_threshold));
+            (InferImpl *) loadraw(engine_file, type, confidence_threshold, nms_threshold));
     }
 
     std::tuple<uint8_t, uint8_t, uint8_t> hsv2bgr(float h, float s, float v) {
@@ -746,5 +617,4 @@ namespace yolo {
         float s_plane = ((((unsigned int) id << 3) ^ 0x315793) % 100) / 100.0f;
         return hsv2bgr(h_plane, s_plane, 1);
     }
-
-};  // namespace yolo
+}; // namespace yolo

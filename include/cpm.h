@@ -1,8 +1,6 @@
 #ifndef __CPM_H__
 #define __CPM_H__
 
-// Comsumer Producer Model
-
 #include <algorithm>
 #include <condition_variable>
 #include <future>

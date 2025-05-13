@@ -29,7 +29,7 @@ link_directories(
 add_library(${PROJECT_NAME} SHARED
         src/infer.cu
         src/yolo.cu
-        src/export/exportSingleCpm.cpp
+        src/export/export_single_cpm.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
