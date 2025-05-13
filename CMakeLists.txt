@@ -27,27 +27,10 @@ link_directories(
 )
 
 add_library(${PROJECT_NAME} SHARED
-        include/cpm.h
-        include/yolo.h
-        include/infer.h
         src/infer.cu
         src/yolo.cu
-        #        src/export/exportMultiple.cpp
-        #        src/export/exportMultipleCpm.cpp
-        src/export/exportSingle.cpp
         src/export/exportSingleCpm.cpp
 )
-
-#add_executable(${PROJECT_NAME}
-#        include/cpm.h
-#        include/yolo.h
-#        include/infer.h
-#        src/infer.cu
-#        src/yolo.cu
-#        src/demo/config.h
-#        src/demo/main.cpp
-#        src/demo/barchDemo.cpp
-#)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON)
@@ -56,8 +39,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 target_link_libraries(${PROJECT_NAME}
         ${OpenCV_LIBS}
         nvinfer
-        nvinfer_plugin
-        nvonnxparser
         cuda
         cublas
         cudart
