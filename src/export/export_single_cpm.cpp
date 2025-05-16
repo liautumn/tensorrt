@@ -22,15 +22,8 @@ bool initSingleCpm(const string &engineFile, float confidence, float nms) {
     }, 1, stream);
     if (!ok) {
         return false;
-    } else {
-        //‘§»»
-        cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
-        auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
-        for (int i = 0; i < 10; ++i) {
-            cpmi.commit(yrImage).get();
-        }
-        return true;
     }
+    return true;
 }
 
 vector<yolo::Box> inferSingleCpm(cv::Mat *mat) {
