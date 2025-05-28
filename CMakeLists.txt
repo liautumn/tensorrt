@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.28)
+
+set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 72 75 86 89 90)
+set(CMAKE_CUDA_COMPILER /usr/local/cuda-12.8/bin/nvcc)
+
 project(tensorrt CUDA CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -10,10 +14,9 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu
 )
 
-set(OpenCV_DIR $ENV{OPENCV_PATH})
 find_package(OpenCV REQUIRED)
-set(TensorRT_DIR $ENV{TENSORRT_PATH})
-set(CUDA_DIR $ENV{CUDA_PATH})
+set(TensorRT_DIR /home/autumn/Documents/CUDA/TensorRT-10.9.0.34)
+set(CUDA_DIR /usr/local/cuda-12.8)
 
 include_directories(
         ${OpenCV_INCLUDE_DIRS}
@@ -24,7 +27,7 @@ include_directories(
 
 link_directories(
         ${TensorRT_DIR}/lib
-        ${CUDA_DIR}/lib/x64
+        ${CUDA_DIR}/lib64
 )
 
 #add_library(${PROJECT_NAME} SHARED
@@ -45,11 +48,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 target_link_libraries(${PROJECT_NAME}
         ${OpenCV_LIBS}
-        nvinfer_10
-        nvinfer_plugin_10
-        nvonnxparser_10
-        cuda
-        cublas
-        cudart
-        cudnn
+        libnvinfer.so.10
+        libcuda.so
+        libcudart.so
 )
