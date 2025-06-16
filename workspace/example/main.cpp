@@ -536,7 +536,7 @@ int main() {
     // syncInferSeg();
     // syncInferCls();
     // syncInferObb();
-    // syncInferDetect();
-    video();
+    syncInferDetect();
+    // video();
     return 0;
 }

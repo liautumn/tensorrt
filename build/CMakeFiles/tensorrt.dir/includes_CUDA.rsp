@@ -1,1 +1,0 @@
--I/home/autumn/Documents/GitHub/tensorrt/include -I"/home/autumn/Documents/CUDA/TensorRT-10.9.0.34/include" -I"/home/autumn/Documents/CUDA/TensorRT-10.9.0.34/samples/common" -I"/usr/local/cuda-12.8/include" -isystem /usr/include/opencv4

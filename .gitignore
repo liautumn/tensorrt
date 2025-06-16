@@ -41,3 +41,4 @@ objs
 /C\#/TestDLL/TestDLL/TensorRT/bin
 /C\#/TestDLL/TestDLL/TensorRT/obj
 *.mp4
+/build
