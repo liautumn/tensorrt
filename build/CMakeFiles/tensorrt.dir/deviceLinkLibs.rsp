@@ -1,0 +1,1 @@
+  -L"/home/autumn/Documents/CUDA/TensorRT-10.9.0.34/lib"  -L"/usr/local/cuda-12.8/lib64"  -L"/usr/local/cuda-12.8/targets/x86_64-linux/lib/stubs"  -L"/usr/local/cuda-12.8/targets/x86_64-linux/lib"  -lnvinfer -lcuda -lcudart -lcudadevrt -lcudart_static -lrt -lpthread -ldl 

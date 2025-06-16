@@ -70,22 +70,23 @@ static vector<cv::Point> xywhr2xyxyxyxy(const obb::Box &box) {
 }
 
 // static void draw_seg_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
+//     constexpr int target_size = 1024; // 目标尺寸改为1024
 //     // compute IM
-//     float scale_x = 640 / static_cast<float>(image.cols);
-//     float scale_y = 640 / static_cast<float>(image.rows);
+//     float scale_x = target_size / static_cast<float>(image.cols);
+//     float scale_y = target_size / static_cast<float>(image.rows);
 //     float scale = std::min(scale_x, scale_y);
-//     float ox = -scale * image.cols * 0.5 + 640 * 0.5 + scale * 0.5 - 0.5;
-//     float oy = -scale * image.rows * 0.5 + 640 * 0.5 + scale * 0.5 - 0.5;
+//     float ox = -scale * image.cols * 0.5 + target_size * 0.5 + scale * 0.5 - 0.5;
+//     float oy = -scale * image.rows * 0.5 + target_size * 0.5 + scale * 0.5 - 0.5;
 //     cv::Mat M = (cv::Mat_<float>(2, 3) << scale, 0, ox, 0, scale, oy);
 //
 //     cv::Mat IM;
 //     cv::invertAffineTransform(M, IM);
 //
-//     cv::Mat mask_map = cv::Mat::zeros(cv::Size(160, 160), CV_8UC1);
+//     cv::Mat mask_map = cv::Mat::zeros(cv::Size(256, 256), CV_8UC1);
 //     cv::Mat small_mask(obj.seg->height, obj.seg->width, CV_8UC1, obj.seg->data);
 //     cv::Rect roi(obj.seg->left, obj.seg->top, obj.seg->width, obj.seg->height);
 //     small_mask.copyTo(mask_map(roi));
-//     cv::resize(mask_map, mask_map, cv::Size(640, 640)); // 640x640
+//     cv::resize(mask_map, mask_map, cv::Size(target_size, target_size)); // 640x640
 //     cv::threshold(mask_map, mask_map, 128, 1, cv::THRESH_BINARY);
 //
 //     cv::Mat mask_resized;
@@ -115,7 +116,7 @@ static vector<cv::Point> xywhr2xyxyxyxy(const obb::Box &box) {
 // }
 
 static void draw_seg_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
-    int target_size = 1024; // 目标尺寸改为1024
+    constexpr int target_size = 1024; // 目标尺寸改为1024
     // 计算缩放和偏移量
     float scale_x = target_size / static_cast<float>(image.cols);
     float scale_y = target_size / static_cast<float>(image.rows);
@@ -134,7 +135,7 @@ static void draw_seg_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
     cv::Rect roi(obj.seg->left, obj.seg->top, obj.seg->width, obj.seg->height);
     small_mask.copyTo(mask_map(roi));
 
-    // 将掩码缩放到 1024x1024 并二值化  // 修改注释：640->1024
+    // 将掩码缩放到 1024x1024 并二值化
     cv::resize(mask_map, mask_map, cv::Size(target_size, target_size)); // 目标尺寸改为1024
     cv::threshold(mask_map, mask_map, 128, 255, cv::THRESH_BINARY); // 注意阈值设为255（用于轮廓检测）
 
@@ -153,7 +154,7 @@ static void draw_seg_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
     cv::findContours(mask_resized, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
     // 在原始图像上绘制轮廓（边线）
-    const int thickness = 2; // 轮廓线粗细
+    constexpr int thickness = 2; // 轮廓线粗细
     cv::drawContours(image, contours, -1, color, thickness);
 }
 
@@ -274,23 +275,21 @@ void syncInferSeg() {
         if (obj.seg) {
             draw_seg_mask(mat, obj, color);
         }
+        // // Convert coordinates to int (avoid repeated casting)
+        // const int left = static_cast<int>(obj.left);
+        // const int top = static_cast<int>(obj.top);
+        // const int right = static_cast<int>(obj.right);
+        // const int bottom = static_cast<int>(obj.bottom);
+        // // Draw bounding box (magenta, thickness 5)
+        // cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
+        // // Create label text (class + confidence)
+        // const auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
+        // const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; // Text width + padding
+        // // Draw label background (filled magenta)
+        // cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
+        // // Draw label text (black, font scale 1, thickness 2)
+        // cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
     }
-    // for (const auto &obj: boxes) {
-    //     // Convert coordinates to int (avoid repeated casting)
-    //     const int left = static_cast<int>(obj.left);
-    //     const int top = static_cast<int>(obj.top);
-    //     const int right = static_cast<int>(obj.right);
-    //     const int bottom = static_cast<int>(obj.bottom);
-    //     // Draw bounding box (magenta, thickness 5)
-    //     cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
-    //     // Create label text (class + confidence)
-    //     const auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-    //     const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; // Text width + padding
-    //     // Draw label background (filled magenta)
-    //     cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-    //     // Draw label text (black, font scale 1, thickness 2)
-    //     cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
-    // }
     cv::imshow(windowName, mat);
     cv::waitKey(0);
 }
@@ -415,7 +414,7 @@ void video() {
 
     while (true) {
         // 精确计时开始
-        double start_time = cv::getTickCount();
+        auto start_time = static_cast<double>(cv::getTickCount());
 
         // 读取视频帧
         cap >> mat;
@@ -489,7 +488,7 @@ void video() {
         }
 
         // 计算处理耗时
-        double process_time = (cv::getTickCount() - start_time) / cv::getTickFrequency();
+        double process_time = (static_cast<double>(cv::getTickCount()) - start_time) / cv::getTickFrequency();
         total_processed_time += process_time;
         processed_frames++;
 
@@ -534,10 +533,10 @@ void video() {
 
 int main() {
     // syncInferPose();
-    syncInferSeg();
+    // syncInferSeg();
     // syncInferCls();
     // syncInferObb();
     // syncInferDetect();
-    // video();
+    video();
     return 0;
 }
