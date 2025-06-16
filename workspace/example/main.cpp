@@ -69,49 +69,92 @@ static vector<cv::Point> xywhr2xyxyxyxy(const obb::Box &box) {
     return corners;
 }
 
+// static void draw_seg_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
+//     // compute IM
+//     float scale_x = 640 / static_cast<float>(image.cols);
+//     float scale_y = 640 / static_cast<float>(image.rows);
+//     float scale = std::min(scale_x, scale_y);
+//     float ox = -scale * image.cols * 0.5 + 640 * 0.5 + scale * 0.5 - 0.5;
+//     float oy = -scale * image.rows * 0.5 + 640 * 0.5 + scale * 0.5 - 0.5;
+//     cv::Mat M = (cv::Mat_<float>(2, 3) << scale, 0, ox, 0, scale, oy);
+//
+//     cv::Mat IM;
+//     cv::invertAffineTransform(M, IM);
+//
+//     cv::Mat mask_map = cv::Mat::zeros(cv::Size(160, 160), CV_8UC1);
+//     cv::Mat small_mask(obj.seg->height, obj.seg->width, CV_8UC1, obj.seg->data);
+//     cv::Rect roi(obj.seg->left, obj.seg->top, obj.seg->width, obj.seg->height);
+//     small_mask.copyTo(mask_map(roi));
+//     cv::resize(mask_map, mask_map, cv::Size(640, 640)); // 640x640
+//     cv::threshold(mask_map, mask_map, 128, 1, cv::THRESH_BINARY);
+//
+//     cv::Mat mask_resized;
+//     cv::warpAffine(mask_map, mask_resized, IM, image.size(), cv::INTER_LINEAR);
+//
+//     // create color mask
+//     cv::Mat colored_mask = cv::Mat::ones(image.size(), CV_8UC3);
+//     colored_mask.setTo(color);
+//
+//     cv::Mat masked_colored_mask;
+//     cv::bitwise_and(colored_mask, colored_mask, masked_colored_mask, mask_resized);
+//
+//     // create mask indices
+//     cv::Mat mask_indices;
+//     cv::compare(mask_resized, 1, mask_indices, cv::CMP_EQ);
+//
+//     cv::Mat image_masked, colored_mask_masked;
+//     image.copyTo(image_masked, mask_indices);
+//     masked_colored_mask.copyTo(colored_mask_masked, mask_indices);
+//
+//     // weighted sum
+//     cv::Mat result_masked;
+//     cv::addWeighted(image_masked, 0.6, colored_mask_masked, 0.4, 0, result_masked);
+//
+//     // copy result to image
+//     result_masked.copyTo(image, mask_indices);
+// }
+
 static void draw_seg_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
-    // compute IM
-    float scale_x = 640 / static_cast<float>(image.cols);
-    float scale_y = 640 / static_cast<float>(image.rows);
+    int target_size = 1024; // 目标尺寸改为1024
+    // 计算缩放和偏移量
+    float scale_x = target_size / static_cast<float>(image.cols);
+    float scale_y = target_size / static_cast<float>(image.rows);
     float scale = std::min(scale_x, scale_y);
-    float ox = -scale * image.cols * 0.5 + 640 * 0.5 + scale * 0.5 - 0.5;
-    float oy = -scale * image.rows * 0.5 + 640 * 0.5 + scale * 0.5 - 0.5;
+    float ox = -scale * image.cols * 0.5 + target_size * 0.5 + scale * 0.5 - 0.5;
+    float oy = -scale * image.rows * 0.5 + target_size * 0.5 + scale * 0.5 - 0.5;
     cv::Mat M = (cv::Mat_<float>(2, 3) << scale, 0, ox, 0, scale, oy);
 
+    // 获取原始图像空间到缩放后空间的逆变换
     cv::Mat IM;
     cv::invertAffineTransform(M, IM);
 
-    cv::Mat mask_map = cv::Mat::zeros(cv::Size(160, 160), CV_8UC1);
+    // 准备分割掩码并将其复制到目标区域
+    cv::Mat mask_map = cv::Mat::zeros(cv::Size(256, 256), CV_8UC1);
     cv::Mat small_mask(obj.seg->height, obj.seg->width, CV_8UC1, obj.seg->data);
     cv::Rect roi(obj.seg->left, obj.seg->top, obj.seg->width, obj.seg->height);
     small_mask.copyTo(mask_map(roi));
-    cv::resize(mask_map, mask_map, cv::Size(640, 640)); // 640x640
-    cv::threshold(mask_map, mask_map, 128, 1, cv::THRESH_BINARY);
 
+    // 将掩码缩放到 1024x1024 并二值化  // 修改注释：640->1024
+    cv::resize(mask_map, mask_map, cv::Size(target_size, target_size)); // 目标尺寸改为1024
+    cv::threshold(mask_map, mask_map, 128, 255, cv::THRESH_BINARY); // 注意阈值设为255（用于轮廓检测）
+
+    // 将二值掩码反向变换回原始图像尺寸
     cv::Mat mask_resized;
-    cv::warpAffine(mask_map, mask_resized, IM, image.size(), cv::INTER_LINEAR);
+    cv::warpAffine(mask_map, mask_resized, IM, image.size(), cv::INTER_NEAREST); // 使用最近邻插值保持二值特征
 
-    // create color mask
-    cv::Mat colored_mask = cv::Mat::ones(image.size(), CV_8UC3);
-    colored_mask.setTo(color);
+    // +++ 计算分割区域的像素点数量 +++
+    int pixel_count = cv::countNonZero(mask_resized);
+    std::cout << "Segmentation pixel count: " << pixel_count << std::endl;
+    // 可选的：将像素数量存储到 obj 中
+    // obj.pixel_count = pixel_count;
 
-    cv::Mat masked_colored_mask;
-    cv::bitwise_and(colored_mask, colored_mask, masked_colored_mask, mask_resized);
+    // 查找轮廓
+    std::vector<std::vector<cv::Point> > contours;
+    cv::findContours(mask_resized, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
 
-    // create mask indices
-    cv::Mat mask_indices;
-    cv::compare(mask_resized, 1, mask_indices, cv::CMP_EQ);
-
-    cv::Mat image_masked, colored_mask_masked;
-    image.copyTo(image_masked, mask_indices);
-    masked_colored_mask.copyTo(colored_mask_masked, mask_indices);
-
-    // weighted sum
-    cv::Mat result_masked;
-    cv::addWeighted(image_masked, 0.6, colored_mask_masked, 0.4, 0, result_masked);
-
-    // copy result to image
-    result_masked.copyTo(image, mask_indices);
+    // 在原始图像上绘制轮廓（边线）
+    const int thickness = 2; // 轮廓线粗细
+    cv::drawContours(image, contours, -1, color, thickness);
 }
 
 void syncInferObb() {
@@ -232,22 +275,22 @@ void syncInferSeg() {
             draw_seg_mask(mat, obj, color);
         }
     }
-    for (const auto &obj: boxes) {
-        // Convert coordinates to int (avoid repeated casting)
-        const int left = static_cast<int>(obj.left);
-        const int top = static_cast<int>(obj.top);
-        const int right = static_cast<int>(obj.right);
-        const int bottom = static_cast<int>(obj.bottom);
-        // Draw bounding box (magenta, thickness 5)
-        cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
-        // Create label text (class + confidence)
-        const auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-        const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; // Text width + padding
-        // Draw label background (filled magenta)
-        cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-        // Draw label text (black, font scale 1, thickness 2)
-        cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
-    }
+    // for (const auto &obj: boxes) {
+    //     // Convert coordinates to int (avoid repeated casting)
+    //     const int left = static_cast<int>(obj.left);
+    //     const int top = static_cast<int>(obj.top);
+    //     const int right = static_cast<int>(obj.right);
+    //     const int bottom = static_cast<int>(obj.bottom);
+    //     // Draw bounding box (magenta, thickness 5)
+    //     cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
+    //     // Create label text (class + confidence)
+    //     const auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
+    //     const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; // Text width + padding
+    //     // Draw label background (filled magenta)
+    //     cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
+    //     // Draw label text (black, font scale 1, thickness 2)
+    //     cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
+    // }
     cv::imshow(windowName, mat);
     cv::waitKey(0);
 }
@@ -340,7 +383,7 @@ void video() {
     cudaStreamCreate(&cudaStream);
 
     Config config;
-    auto yolo = yolo::load(config.DETECT_MODEL, 0.2, 0.5, config.GPU_DEVICE, cudaStream);
+    auto yolo = yolo::load(config.SEG_MODEL, 0.2, 0.5, config.GPU_DEVICE, cudaStream);
     if (yolo == nullptr) return;
 
     // 打开视频流（优先尝试作为文件打开）
@@ -383,25 +426,25 @@ void video() {
 
         // CUDA加速推理
         timer.start(cudaStream);
-        auto objs = yolo->detect_forward(image, cudaStream);
+        auto objs = yolo->seg_forward(image, cudaStream);
         timer.stop("batch one");
 
         // DETECT
-        for (auto &obj: objs) {
-            int left = static_cast<int>(obj.left);
-            int top = static_cast<int>(obj.top);
-            int right = static_cast<int>(obj.right);
-            int bottom = static_cast<int>(obj.bottom);
-            // Draw bounding box
-            rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 2);
-            // Create caption and calculate width
-            auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-            int width = cv::getTextSize(caption, 0, 1, 1, nullptr).width + 10;
-            // Draw caption background
-            rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-            // Draw caption text
-            putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 1, 16);
-        }
+        // for (auto &obj: objs) {
+        //     int left = static_cast<int>(obj.left);
+        //     int top = static_cast<int>(obj.top);
+        //     int right = static_cast<int>(obj.right);
+        //     int bottom = static_cast<int>(obj.bottom);
+        //     // Draw bounding box
+        //     rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 2);
+        //     // Create caption and calculate width
+        //     auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
+        //     int width = cv::getTextSize(caption, 0, 1, 1, nullptr).width + 10;
+        //     // Draw caption background
+        //     rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
+        //     // Draw caption text
+        //     putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 1, 16);
+        // }
 
         // POSE
         // for (const auto &obj: objs) {
@@ -424,26 +467,26 @@ void video() {
         // }
 
         // SEG
-        // for (auto &obj: objs) {
-        //     cv::Scalar color(255, 0, 255);
-        //     if (obj.seg) {
-        //         draw_seg_mask(mat, obj, color);
-        //     }
-        //     // Convert coordinates to int (avoid repeated casting)
-        //     const int left = static_cast<int>(obj.left);
-        //     const int top = static_cast<int>(obj.top);
-        //     const int right = static_cast<int>(obj.right);
-        //     const int bottom = static_cast<int>(obj.bottom);
-        //     // Draw bounding box (magenta, thickness 5)
-        //     cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
-        //     // Create label text (class + confidence)
-        //     const auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-        //     const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; // Text width + padding
-        //     // Draw label background (filled magenta)
-        //     cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-        //     // Draw label text (black, font scale 1, thickness 2)
-        //     cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
-        // }
+        for (auto &obj: objs) {
+            cv::Scalar color(255, 0, 255);
+            if (obj.seg) {
+                draw_seg_mask(mat, obj, color);
+            }
+            // // Convert coordinates to int (avoid repeated casting)
+            // const int left = static_cast<int>(obj.left);
+            // const int top = static_cast<int>(obj.top);
+            // const int right = static_cast<int>(obj.right);
+            // const int bottom = static_cast<int>(obj.bottom);
+            // // Draw bounding box (magenta, thickness 5)
+            // cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
+            // // Create label text (class + confidence)
+            // const auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
+            // const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; // Text width + padding
+            // // Draw label background (filled magenta)
+            // cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
+            // // Draw label text (black, font scale 1, thickness 2)
+            // cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
+        }
 
         // 计算处理耗时
         double process_time = (cv::getTickCount() - start_time) / cv::getTickFrequency();
@@ -491,10 +534,10 @@ void video() {
 
 int main() {
     // syncInferPose();
-    // syncInferSeg();
+    syncInferSeg();
     // syncInferCls();
     // syncInferObb();
     // syncInferDetect();
-    video();
+    // video();
     return 0;
 }
