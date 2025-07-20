@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
 set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 72 75 86 89 90)
-set(CMAKE_CUDA_COMPILER /usr/local/cuda-12.8/bin/nvcc)
+set(CMAKE_CUDA_COMPILER /usr/local/cuda-12.9/bin/nvcc)
 
 project(tensorrt CUDA CXX)
 
@@ -15,8 +15,8 @@ file(GLOB SOURCES
 )
 
 find_package(OpenCV REQUIRED)
-set(TensorRT_DIR /home/autumn/Documents/CUDA/TensorRT-10.9.0.34)
-set(CUDA_DIR /usr/local/cuda-12.8)
+set(TensorRT_DIR /home/autumn/dev/CUDA/TensorRT-10.12.0.36)
+set(CUDA_DIR /usr/local/cuda-12.9)
 
 include_directories(
         ${OpenCV_INCLUDE_DIRS}
