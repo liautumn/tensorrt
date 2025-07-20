@@ -18,7 +18,7 @@ inline cudaStream_t cudaStream;
 class Config {
 public:
     const int GPU_DEVICE = 0;
-    const string DETECT_MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s.dynamic.transd.engine)";
+    const string DETECT_MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s.transd.engine)";
     const string SEG_MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-seg.transd.engine)";
     const string CLS_MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-cls.engine)";
     const string OBB_MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-obb.transd.engine)";
