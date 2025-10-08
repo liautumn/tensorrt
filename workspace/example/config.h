@@ -18,14 +18,14 @@ inline cudaStream_t cudaStream;
 class Config {
 public:
     const int GPU_DEVICE = 0;
-    const string DETECT_MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s.transd.engine)";
-    const string SEG_MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-seg.transd.engine)";
-    const string CLS_MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-cls.engine)";
-    const string OBB_MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-obb.transd.engine)";
-    const string POSE_MODEL = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-pose.transd.engine)";
-    const string TEST_IMG = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/images/bus.jpg)";
-    const string OBB_IMG = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/images/P0009.jpg)";
-    const string VIDEO_PATH = R"(/home/autumn/Documents/GitHub/tensorrt/workspace/images/001.mp4)";
+    const string DETECT_MODEL = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/bird.transd.engine)";
+    const string SEG_MODEL = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-seg.transd.engine)";
+    const string CLS_MODEL = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-cls.engine)";
+    const string OBB_MODEL = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-obb.transd.engine)";
+    const string POSE_MODEL = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-pose.transd.engine)";
+    const string TEST_IMG = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/images/bus.jpg)";
+    const string OBB_IMG = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/images/P0009.jpg)";
+    const string VIDEO_PATH = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/images/001.mp4)";
 };
 
 #endif //YOLO_CONFIG_H

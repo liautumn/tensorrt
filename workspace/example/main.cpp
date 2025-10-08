@@ -204,44 +204,47 @@ void syncInferDetect() {
     cudaStreamCreate(&cudaStream);
 
     Config config;
-    auto yolo = yolo::load(config.DETECT_MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream);
+    auto yolo = yolo::load(config.DETECT_MODEL, 0.2, 0.5, config.GPU_DEVICE, cudaStream);
     if (yolo == nullptr) return;
 
-    cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
+    cv::Mat yrMat = cv::Mat(1024, 1024, CV_8UC3);
     auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
     for (int i = 0; i < 10; ++i) {
         auto objs = yolo->detect_forward(yrImage, cudaStream);
     }
 
-    trt_timer::Timer timer;
     cv::Mat mat = cv::imread(config.TEST_IMG);
     auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-    timer.start(cudaStream);
-    auto objs = yolo->detect_forward(image, cudaStream);
-    timer.stop("batch one");
 
-    std::string windowName = "Image Window";
-    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
-    int width_ = 1024;
-    int height = 640;
-    cv::resizeWindow(windowName, width_, height);
-    for (auto &obj: objs) {
-        int left = static_cast<int>(obj.left);
-        int top = static_cast<int>(obj.top);
-        int right = static_cast<int>(obj.right);
-        int bottom = static_cast<int>(obj.bottom);
-        // Draw bounding box
-        rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 2);
-        // Create caption and calculate width
-        auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-        int width = cv::getTextSize(caption, 0, 1, 1, nullptr).width + 10;
-        // Draw caption background
-        rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-        // Draw caption text
-        putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 1, 16);
+    while (true) {
+        trt_timer::Timer timer;
+        timer.start(cudaStream);
+        auto objs = yolo->detect_forward(image, cudaStream);
+        timer.stop("batch one");
     }
-    cv::imshow(windowName, mat);
-    cv::waitKey(0);
+
+    // std::string windowName = "Image Window";
+    // cv::namedWindow(windowName, cv::WINDOW_NORMAL);
+    // int width_ = 1024;
+    // int height = 640;
+    // cv::resizeWindow(windowName, width_, height);
+    // for (auto &obj: objs) {
+    //     int left = static_cast<int>(obj.left);
+    //     int top = static_cast<int>(obj.top);
+    //     int right = static_cast<int>(obj.right);
+    //     int bottom = static_cast<int>(obj.bottom);
+    //     // Draw bounding box
+    //     rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 2);
+    //     // Create caption and calculate width
+    //     auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
+    //     int width = cv::getTextSize(caption, 0, 1, 1, nullptr).width + 10;
+    //     // Draw caption background
+    //     rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
+    //     // Draw caption text
+    //     putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 1, 16);
+    // }
+    // cv::imshow(windowName, mat);
+    // cv::waitKey(0);
 }
 
 void syncInferSeg() {
@@ -532,11 +535,11 @@ void video() {
 }
 
 int main() {
+    syncInferDetect();
     // syncInferPose();
     // syncInferSeg();
     // syncInferCls();
     // syncInferObb();
-    syncInferDetect();
     // video();
     return 0;
 }
