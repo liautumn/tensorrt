@@ -1,6 +1,7 @@
 #include <cuda_runtime_api.h>
 #include "yolo.h"
 #include <algorithm>
+#include <cctype>
 #include "infer.h"
 #include <iostream>
 #include "cls_postprocess.h"
@@ -8,6 +9,7 @@
 #include "logger.h"
 #include "preprocess.cuh"
 #include "detect_postprocess.cuh"
+#include "detect_postprocess26.cuh"
 
 namespace yolo {
     using namespace std;
@@ -16,6 +18,27 @@ namespace yolo {
     const int MAX_IMAGE_BOXES = 1024;
 
     inline int upbound(int n, int align = 32) { return (n + align - 1) / align * align; }
+
+    static string to_lower_copy(string text) {
+        transform(text.begin(), text.end(), text.begin(), [](unsigned char c) {
+            return static_cast<char>(tolower(c));
+        });
+        return text;
+    }
+
+    static bool is_detect26_output(const vector<int> &bbox_head_dims, const string &engine_file) {
+        if (bbox_head_dims.size() != 3 || bbox_head_dims[2] <= 0) {
+            return false;
+        }
+
+        string engine_name = to_lower_copy(engine_file);
+        bool hinted_end2end = engine_name.find("yolo26") != string::npos ||
+                              engine_name.find("end2end") != string::npos ||
+                              engine_name.find("e2e") != string::npos;
+        bool fixed_end2end_shape = bbox_head_dims[1] == 300 && bbox_head_dims[2] == 6;
+
+        return (hinted_end2end && bbox_head_dims[2] == 6) || fixed_end2end_shape;
+    }
 
     class InferImpl : public Infer {
     public:
@@ -29,6 +52,7 @@ namespace yolo {
         int network_input_width_, network_input_height_;
         Norm normalize_;
         vector<int> bbox_head_dims_;
+        bool is_detect26_model_ = false;
         bool isDynamic_model_ = false;
 
         vector<int> segment_head_dims_;
@@ -102,16 +126,21 @@ namespace yolo {
 
             trt_->print();
 
+            this->engine_file_ = engine_file;
             this->cuda_stream_ = stream;
             this->confidence_threshold_ = confidence_threshold;
             this->nms_threshold_ = nms_threshold;
 
             auto input_dim = trt_->static_dims(trt_->name(0));
             bbox_head_dims_ = trt_->static_dims(trt_->name(1));
+            is_detect26_model_ = is_detect26_output(bbox_head_dims_, engine_file_);
             network_input_width_ = input_dim[3];
             network_input_height_ = input_dim[2];
             isDynamic_model_ = trt_->has_dynamic_dim();
             normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
+            if (is_detect26_model_) {
+                INFO("Detect postprocess: yolo26 end-to-end");
+            }
 
             if (trt_->binding_index_to_name_.size() > 2) {
                 segment_head_dims_ = trt_->static_dims(trt_->name(2));
@@ -128,7 +157,6 @@ namespace yolo {
 
         vector<detect::BoxArray> detect_forwards(const vector<Image> &images,
                                                  void *stream = nullptr) override {
-            auto num_classes_ = bbox_head_dims_[2] - 4;
             int num_image = images.size();
             if (num_image == 0) return {};
             auto inputName = trt_->name(0);
@@ -150,9 +178,31 @@ namespace yolo {
                 }
             }
 
+            auto bbox_output_dims = trt_->run_dims(trt_->name(1));
+            if (bbox_output_dims.size() != 3 || bbox_output_dims[1] <= 0 || bbox_output_dims[2] <= 0) {
+                bbox_output_dims = bbox_head_dims_;
+            }
+
+            int num_bboxes = bbox_output_dims[1];
+            int output_cdim = bbox_output_dims[2];
+            bool use_detect26_postprocess = is_detect26_model_;
+            if (!use_detect26_postprocess) {
+                use_detect26_postprocess = is_detect26_output(bbox_output_dims, engine_file_);
+                if (use_detect26_postprocess) {
+                    is_detect26_model_ = true;
+                    INFO("Detect postprocess: yolo26 end-to-end");
+                }
+            }
+
+            int num_classes_ = use_detect26_postprocess ? 0 : output_cdim - 4;
+            if (!use_detect26_postprocess && num_classes_ <= 0) {
+                INFO("Invalid detection output dims: %s", trt::format_shape(bbox_output_dims).c_str());
+                return {};
+            }
+
             size_t input_numel = network_input_width_ * network_input_height_ * 3;
             input_buffer_.gpu(infer_batch_size * input_numel);
-            bbox_predict_.gpu(infer_batch_size * bbox_head_dims_[1] * bbox_head_dims_[2]);
+            bbox_predict_.gpu(infer_batch_size * num_bboxes * output_cdim);
             output_boxarray_.gpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
             output_boxarray_.cpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT));
 
@@ -179,18 +229,29 @@ namespace yolo {
                 float *boxarray_device =
                         output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * detect::NUM_BOX_ELEMENT);
                 float *affine_matrix_device = reinterpret_cast<float *>(preprocess_buffers_[ib]->gpu());
-                float *image_based_bbox_output = bbox_output_device + ib * (bbox_head_dims_[1] * bbox_head_dims_[2]);
+                float *image_based_bbox_output = bbox_output_device + ib * (num_bboxes * output_cdim);
                 checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
-                detect::decode_kernel_invoker(image_based_bbox_output,
-                                              bbox_head_dims_[1],
-                                              num_classes_,
-                                              bbox_head_dims_[2],
-                                              confidence_threshold_,
-                                              nms_threshold_,
-                                              affine_matrix_device,
-                                              boxarray_device,
-                                              MAX_IMAGE_BOXES,
-                                              stream_);
+                if (use_detect26_postprocess) {
+                    detect26::decode_kernel_invoker(image_based_bbox_output,
+                                                    num_bboxes,
+                                                    output_cdim,
+                                                    confidence_threshold_,
+                                                    affine_matrix_device,
+                                                    boxarray_device,
+                                                    MAX_IMAGE_BOXES,
+                                                    stream_);
+                } else {
+                    detect::decode_kernel_invoker(image_based_bbox_output,
+                                                  num_bboxes,
+                                                  num_classes_,
+                                                  output_cdim,
+                                                  confidence_threshold_,
+                                                  nms_threshold_,
+                                                  affine_matrix_device,
+                                                  boxarray_device,
+                                                  MAX_IMAGE_BOXES,
+                                                  stream_);
+                }
             }
             checkRuntime(
                 cudaMemcpyAsync(
