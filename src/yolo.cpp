@@ -1,7 +1,6 @@
 #include <cuda_runtime_api.h>
 #include "yolo.h"
 #include <algorithm>
-#include <cctype>
 #include "infer.h"
 #include <iostream>
 #include "cls_postprocess.h"
@@ -9,7 +8,7 @@
 #include "logger.h"
 #include "preprocess.cuh"
 #include "detect_postprocess.cuh"
-#include "detect_postprocess26.cuh"
+#include "detect_end2end_postprocess.cuh"
 
 namespace yolo {
     using namespace std;
@@ -19,31 +18,9 @@ namespace yolo {
 
     inline int upbound(int n, int align = 32) { return (n + align - 1) / align * align; }
 
-    static string to_lower_copy(string text) {
-        transform(text.begin(), text.end(), text.begin(), [](unsigned char c) {
-            return static_cast<char>(tolower(c));
-        });
-        return text;
-    }
-
-    static bool is_detect26_output(const vector<int> &bbox_head_dims, const string &engine_file) {
-        if (bbox_head_dims.size() != 3 || bbox_head_dims[2] <= 0) {
-            return false;
-        }
-
-        string engine_name = to_lower_copy(engine_file);
-        bool hinted_end2end = engine_name.find("yolo26") != string::npos ||
-                              engine_name.find("end2end") != string::npos ||
-                              engine_name.find("e2e") != string::npos;
-        bool fixed_end2end_shape = bbox_head_dims[1] == 300 && bbox_head_dims[2] == 6;
-
-        return (hinted_end2end && bbox_head_dims[2] == 6) || fixed_end2end_shape;
-    }
-
     class InferImpl : public Infer {
     public:
         shared_ptr<trt::infer> trt_;
-        string engine_file_;
         float confidence_threshold_;
         void *cuda_stream_;
         float nms_threshold_;
@@ -52,7 +29,6 @@ namespace yolo {
         int network_input_width_, network_input_height_;
         Norm normalize_;
         vector<int> bbox_head_dims_;
-        bool is_detect26_model_ = false;
         bool isDynamic_model_ = false;
 
         vector<int> segment_head_dims_;
@@ -126,21 +102,16 @@ namespace yolo {
 
             trt_->print();
 
-            this->engine_file_ = engine_file;
             this->cuda_stream_ = stream;
             this->confidence_threshold_ = confidence_threshold;
             this->nms_threshold_ = nms_threshold;
 
             auto input_dim = trt_->static_dims(trt_->name(0));
             bbox_head_dims_ = trt_->static_dims(trt_->name(1));
-            is_detect26_model_ = is_detect26_output(bbox_head_dims_, engine_file_);
             network_input_width_ = input_dim[3];
             network_input_height_ = input_dim[2];
             isDynamic_model_ = trt_->has_dynamic_dim();
             normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
-            if (is_detect26_model_) {
-                INFO("Detect postprocess: yolo26 end-to-end");
-            }
 
             if (trt_->binding_index_to_name_.size() > 2) {
                 segment_head_dims_ = trt_->static_dims(trt_->name(2));
@@ -185,17 +156,8 @@ namespace yolo {
 
             int num_bboxes = bbox_output_dims[1];
             int output_cdim = bbox_output_dims[2];
-            bool use_detect26_postprocess = is_detect26_model_;
-            if (!use_detect26_postprocess) {
-                use_detect26_postprocess = is_detect26_output(bbox_output_dims, engine_file_);
-                if (use_detect26_postprocess) {
-                    is_detect26_model_ = true;
-                    INFO("Detect postprocess: yolo26 end-to-end");
-                }
-            }
-
-            int num_classes_ = use_detect26_postprocess ? 0 : output_cdim - 4;
-            if (!use_detect26_postprocess && num_classes_ <= 0) {
+            int num_classes_ = output_cdim - 4;
+            if (num_classes_ <= 0) {
                 INFO("Invalid detection output dims: %s", trt::format_shape(bbox_output_dims).c_str());
                 return {};
             }
@@ -231,27 +193,16 @@ namespace yolo {
                 float *affine_matrix_device = reinterpret_cast<float *>(preprocess_buffers_[ib]->gpu());
                 float *image_based_bbox_output = bbox_output_device + ib * (num_bboxes * output_cdim);
                 checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
-                if (use_detect26_postprocess) {
-                    detect26::decode_kernel_invoker(image_based_bbox_output,
-                                                    num_bboxes,
-                                                    output_cdim,
-                                                    confidence_threshold_,
-                                                    affine_matrix_device,
-                                                    boxarray_device,
-                                                    MAX_IMAGE_BOXES,
-                                                    stream_);
-                } else {
-                    detect::decode_kernel_invoker(image_based_bbox_output,
-                                                  num_bboxes,
-                                                  num_classes_,
-                                                  output_cdim,
-                                                  confidence_threshold_,
-                                                  nms_threshold_,
-                                                  affine_matrix_device,
-                                                  boxarray_device,
-                                                  MAX_IMAGE_BOXES,
-                                                  stream_);
-                }
+                detect::decode_kernel_invoker(image_based_bbox_output,
+                                              num_bboxes,
+                                              num_classes_,
+                                              output_cdim,
+                                              confidence_threshold_,
+                                              nms_threshold_,
+                                              affine_matrix_device,
+                                              boxarray_device,
+                                              MAX_IMAGE_BOXES,
+                                              stream_);
             }
             checkRuntime(
                 cudaMemcpyAsync(
@@ -271,6 +222,122 @@ namespace yolo {
                 output.reserve(count);
                 for (int i = 0; i < count; ++i) {
                     float *pbox = parray + 1 + i * detect::NUM_BOX_ELEMENT;
+                    int label = pbox[5];
+                    int keepflag = pbox[6];
+                    if (keepflag == 1) {
+                        detect::Box result_object_box(pbox[0],
+                                                      pbox[1],
+                                                      pbox[2],
+                                                      pbox[3],
+                                                      pbox[4],
+                                                      label);
+                        output.emplace_back(result_object_box);
+                    }
+                }
+            }
+            return arrout;
+        }
+
+        detect::BoxArray detect_end2end_forward(const Image &image,
+                                                void *stream = nullptr) override {
+            auto output = detect_end2end_forwards({image}, stream);
+            if (output.empty()) return {};
+            return output[0];
+        }
+
+        vector<detect::BoxArray> detect_end2end_forwards(const vector<Image> &images,
+                                                         void *stream = nullptr) override {
+            int num_image = images.size();
+            if (num_image == 0) return {};
+            auto inputName = trt_->name(0);
+            auto input_dims = trt_->static_dims(inputName);
+            int infer_batch_size = input_dims[0];
+            if (infer_batch_size != num_image) {
+                if (isDynamic_model_) {
+                    infer_batch_size = num_image;
+                    input_dims[0] = num_image;
+                    if (!trt_->set_run_dims(inputName, input_dims)) return {};
+                } else {
+                    if (infer_batch_size < num_image) {
+                        INFO(
+                            "When using static shape model, number of images[%d] must be "
+                            "less than or equal to the maximum batch[%d].",
+                            num_image, infer_batch_size);
+                        return {};
+                    }
+                }
+            }
+
+            auto bbox_output_dims = trt_->run_dims(trt_->name(1));
+            if (bbox_output_dims.size() != 3 || bbox_output_dims[1] <= 0 || bbox_output_dims[2] <= 0) {
+                bbox_output_dims = bbox_head_dims_;
+            }
+
+            int num_bboxes = bbox_output_dims[1];
+            int output_cdim = bbox_output_dims[2];
+            if (output_cdim != 6) {
+                INFO("Invalid end-to-end detection output dims: %s", trt::format_shape(bbox_output_dims).c_str());
+                return {};
+            }
+
+            size_t input_numel = network_input_width_ * network_input_height_ * 3;
+            input_buffer_.gpu(infer_batch_size * input_numel);
+            bbox_predict_.gpu(infer_batch_size * num_bboxes * output_cdim);
+            output_boxarray_.gpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * detect_end2end::NUM_BOX_ELEMENT));
+            output_boxarray_.cpu(infer_batch_size * (32 + MAX_IMAGE_BOXES * detect_end2end::NUM_BOX_ELEMENT));
+
+            if (static_cast<int>(preprocess_buffers_.size()) < infer_batch_size) {
+                for (int i = preprocess_buffers_.size(); i < infer_batch_size; ++i)
+                    preprocess_buffers_.push_back(make_shared<trt_memory::Memory<unsigned char> >());
+            }
+
+            vector<AffineMatrix> affine_matrixs(num_image);
+            auto stream_ = static_cast<cudaStream_t>(stream);
+            for (int i = 0; i < num_image; ++i)
+                preprocess(i, images[i], preprocess_buffers_[i], affine_matrixs[i], stream);
+
+            float *bbox_output_device = bbox_predict_.gpu();
+
+            vector<void *> bindings{input_buffer_.gpu(), bbox_output_device};
+
+            if (!trt_->forward(bindings, 2, stream)) {
+                INFO("Failed to tensorRT forward.");
+                return {};
+            }
+
+            for (int ib = 0; ib < num_image; ++ib) {
+                float *boxarray_device =
+                        output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * detect_end2end::NUM_BOX_ELEMENT);
+                float *affine_matrix_device = reinterpret_cast<float *>(preprocess_buffers_[ib]->gpu());
+                float *image_based_bbox_output = bbox_output_device + ib * (num_bboxes * output_cdim);
+                checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
+                detect_end2end::decode_kernel_invoker(image_based_bbox_output,
+                                                      num_bboxes,
+                                                      output_cdim,
+                                                      confidence_threshold_,
+                                                      affine_matrix_device,
+                                                      boxarray_device,
+                                                      MAX_IMAGE_BOXES,
+                                                      stream_);
+            }
+            checkRuntime(
+                cudaMemcpyAsync(
+                    output_boxarray_.cpu(),
+                    output_boxarray_.gpu(),
+                    output_boxarray_.gpu_bytes(),
+                    cudaMemcpyDeviceToHost,
+                    stream_)
+            );
+            checkRuntime(cudaStreamSynchronize(stream_));
+
+            vector<detect::BoxArray> arrout(num_image);
+            for (int ib = 0; ib < num_image; ++ib) {
+                float *parray = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * detect_end2end::NUM_BOX_ELEMENT);
+                int count = min(MAX_IMAGE_BOXES, static_cast<int>(*parray));
+                detect::BoxArray &output = arrout[ib];
+                output.reserve(count);
+                for (int i = 0; i < count; ++i) {
+                    float *pbox = parray + 1 + i * detect_end2end::NUM_BOX_ELEMENT;
                     int label = pbox[5];
                     int keepflag = pbox[6];
                     if (keepflag == 1) {

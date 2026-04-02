@@ -28,6 +28,10 @@ namespace yolo {
 
         virtual vector<detect::BoxArray> detect_forwards(const vector<Image> &images, void *stream = nullptr) = 0;
 
+        virtual detect::BoxArray detect_end2end_forward(const Image &image, void *stream = nullptr) = 0;
+
+        virtual vector<detect::BoxArray> detect_end2end_forwards(const vector<Image> &images, void *stream = nullptr) = 0;
+
         virtual seg::BoxArray seg_forward(const Image &image, void *stream = nullptr) = 0;
 
         virtual vector<seg::BoxArray> seg_forwards(const vector<Image> &images, void *stream = nullptr) = 0;

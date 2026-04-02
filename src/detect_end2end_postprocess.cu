@@ -1,8 +1,8 @@
-#include "detect_postprocess26.cuh"
+#include "detect_end2end_postprocess.cuh"
 #include <logger.h>
 
-namespace detect26 {
-    constexpr int GPU_BLOCK_THREADS_26 = 1024;
+namespace detect_end2end {
+    constexpr int GPU_BLOCK_THREADS_END2END = 1024;
 
     static __device__ void affine_project(float *matrix, float x, float y, float *ox,
                                           float *oy) {
@@ -47,12 +47,12 @@ namespace detect26 {
     }
 
     static dim3 grid_dims(int num_jobs) {
-        int num_block_threads = num_jobs < GPU_BLOCK_THREADS_26 ? num_jobs : GPU_BLOCK_THREADS_26;
+        int num_block_threads = num_jobs < GPU_BLOCK_THREADS_END2END ? num_jobs : GPU_BLOCK_THREADS_END2END;
         return dim3((num_jobs + num_block_threads - 1) / (float) num_block_threads);
     }
 
     static dim3 block_dims(int num_jobs) {
-        return num_jobs < GPU_BLOCK_THREADS_26 ? num_jobs : GPU_BLOCK_THREADS_26;
+        return num_jobs < GPU_BLOCK_THREADS_END2END ? num_jobs : GPU_BLOCK_THREADS_END2END;
     }
 
     void decode_kernel_invoker(float *predict, int num_bboxes, int output_cdim,

@@ -1,9 +1,9 @@
-#ifndef POSTPROCESS26_CUH
-#define POSTPROCESS26_CUH
+#ifndef DETECT_END2END_POSTPROCESS_CUH
+#define DETECT_END2END_POSTPROCESS_CUH
 
 #include <cuda_runtime_api.h>
 
-namespace detect26 {
+namespace detect_end2end {
     const int NUM_BOX_ELEMENT = 8; // left, top, right, bottom, confidence, class, keepflag, row_index
 
     void decode_kernel_invoker(float *predict, int num_bboxes, int output_cdim,
@@ -12,4 +12,4 @@ namespace detect26 {
                                cudaStream_t stream);
 }
 
-#endif //POSTPROCESS26_CUH
+#endif //DETECT_END2END_POSTPROCESS_CUH
