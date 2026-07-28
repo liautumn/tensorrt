@@ -1,44 +1,14 @@
-# Prerequisites
-*.d
+/.idea/
+/build/
+/cmake-build-*/
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-*.engine
-objs
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
 *.a
-*.lib
-
-# Executables
+*.dll
+*.dylib
+*.engine
 *.exe
-*.out
-*.app
-
-/.idea
-/cmake-build-release
-/cmake-build-debug
-
-/C\#/TestDLL/TestDLL/TensorRT/bin
-/C\#/TestDLL/TestDLL/TensorRT/obj
-*.mp4
-/build
+*.lib
+*.log
+*.o
+*.onnx
+*.so

@@ -1,149 +1,206 @@
-#ifndef CPM_H
-#define CPM_H
+#ifndef YOLO26_CPM_H
+#define YOLO26_CPM_H
 
 #include <algorithm>
+#include <chrono>
 #include <condition_variable>
+#include <cstddef>
+#include <deque>
+#include <exception>
 #include <future>
 #include <memory>
-#include <queue>
+#include <mutex>
+#include <stdexcept>
 #include <thread>
+#include <utility>
+#include <vector>
 
 namespace cpm {
-    using namespace std;
 
-    template<typename Result, typename Input, typename Model>
-    class Instance {
-    protected:
-        struct Item {
-            Input input;
-            shared_ptr<promise<Result> > pro;
-        };
+// 将多个调用者提交的单张图片自动合并成 N 张批量推理。
+template <typename Result, typename Input, typename Model> class Instance {
+public:
+  using Future = std::shared_future<Result>;
 
-        condition_variable cond_;
-        queue<Item> input_queue_;
-        mutex queue_lock_;
-        shared_ptr<thread> worker_;
-        volatile bool run_ = false;
-        volatile int max_items_processed_ = 0;
-        void *stream_ = nullptr;
+  Instance() = default;
+  ~Instance() { stop(); }
 
-    public:
-        virtual ~Instance() { stop(); }
+  Instance(const Instance &) = delete;
+  Instance &operator=(const Instance &) = delete;
 
-        void stop() {
-            run_ = false;
-            cond_.notify_one(); {
-                unique_lock<mutex> l(queue_lock_);
-                while (!input_queue_.empty()) {
-                    auto &item = input_queue_.front();
-                    if (item.pro) item.pro->set_value(Result());
-                    input_queue_.pop();
-                }
-            };
+  template <typename LoadMethod>
+  bool start(LoadMethod load_method, std::size_t max_batch_size) {
+    if (max_batch_size == 0) {
+      throw std::invalid_argument("CPM max batch size must be greater than 0");
+    }
+    stop();
+    max_batch_size_ = max_batch_size;
 
-            if (worker_) {
-                worker_->join();
-                worker_.reset();
-            }
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      starting_ = true;
+    }
+
+    std::promise<bool> ready;
+    std::future<bool> status = ready.get_future();
+    worker_ = std::thread([this, load_method = std::move(load_method),
+                           ready = std::move(ready)]() mutable {
+      worker(std::move(load_method), std::move(ready));
+    });
+    return status.get();
+  }
+
+  Future commit(const Input &input) {
+    Item item{input, std::make_shared<std::promise<Result>>()};
+    Future future = item.promise->get_future().share();
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!running_) {
+        throw std::runtime_error("CPM is not running");
+      }
+      queue_.push_back(std::move(item));
+    }
+    condition_.notify_one();
+    return future;
+  }
+
+  std::vector<Future> commits(const std::vector<Input> &inputs) {
+    std::vector<Future> futures;
+    futures.reserve(inputs.size());
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!running_) {
+        throw std::runtime_error("CPM is not running");
+      }
+      for (const Input &input : inputs) {
+        Item item{input, std::make_shared<std::promise<Result>>()};
+        futures.push_back(item.promise->get_future().share());
+        queue_.push_back(std::move(item));
+      }
+    }
+    condition_.notify_one();
+    return futures;
+  }
+
+  void stop() noexcept {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      running_ = false;
+      starting_ = false;
+    }
+    condition_.notify_all();
+    if (worker_.joinable()) {
+      worker_.join();
+    }
+    try {
+      fail_pending(std::make_exception_ptr(
+          std::runtime_error("CPM stopped before inference completed")));
+    } catch (...) {
+      fail_pending(std::current_exception());
+    }
+  }
+
+private:
+  struct Item {
+    Input input;
+    std::shared_ptr<std::promise<Result>> promise;
+  };
+
+  template <typename LoadMethod>
+  void worker(LoadMethod load_method, std::promise<bool> ready) noexcept {
+    std::shared_ptr<Model> model;
+    try {
+      model = load_method();
+      if (!model) {
+        throw std::runtime_error("cannot create YOLO26 detector");
+      }
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (!starting_) {
+          throw std::runtime_error("CPM was stopped while starting");
         }
+        starting_ = false;
+        running_ = true;
+      }
+      ready.set_value(true);
+    } catch (...) {
+      {
+        std::lock_guard<std::mutex> lock(mutex_);
+        starting_ = false;
+      }
+      ready.set_exception(std::current_exception());
+      return;
+    }
 
-        virtual shared_future<Result> commit(const Input &input) {
-            Item item;
-            item.input = input;
-            item.pro.reset(new promise<Result>()); {
-                unique_lock<mutex> _lock_(queue_lock_);
-                input_queue_.push(item);
-            }
-            cond_.notify_one();
-            return item.pro->get_future();
+    while (true) {
+      std::vector<Item> items;
+      {
+        std::unique_lock<std::mutex> lock(mutex_);
+        condition_.wait(lock, [this] { return !running_ || !queue_.empty(); });
+        if (!running_ && queue_.empty()) {
+          break;
         }
-
-        virtual vector<shared_future<Result> > commits(const vector<Input> &inputs) {
-            vector<shared_future<Result> > output; {
-                unique_lock<mutex> _lock_(queue_lock_);
-                for (int i = 0; i < static_cast<int>(inputs.size()); ++i) {
-                    Item item;
-                    item.input = inputs[i];
-                    item.pro.reset(new promise<Result>());
-                    output.emplace_back(item.pro->get_future());
-                    input_queue_.push(item);
-                }
-            }
-            cond_.notify_one();
-            return output;
+        // 给同一时刻到达的请求一个很短的合批窗口。
+        if (running_ && queue_.size() < max_batch_size_) {
+          condition_.wait_for(lock, batch_wait_, [this] {
+            return !running_ || queue_.size() >= max_batch_size_;
+          });
         }
-
-        template<typename LoadMethod>
-        bool start(const LoadMethod &loadmethod, int max_items_processed = 1, void *stream = nullptr) {
-            stop();
-
-            this->stream_ = stream;
-            this->max_items_processed_ = max_items_processed;
-            promise<bool> status;
-            worker_ = make_shared<thread>(&Instance::worker<LoadMethod>, this,
-                                          ref(loadmethod), ref(status));
-            return status.get_future().get();
+        const std::size_t count = std::min(max_batch_size_, queue_.size());
+        items.reserve(count);
+        for (std::size_t i = 0; i < count; ++i) {
+          items.push_back(std::move(queue_.front()));
+          queue_.pop_front();
         }
+      }
 
-    private:
-        template<typename LoadMethod>
-        void worker(const LoadMethod &loadmethod, promise<bool> &status) {
-            shared_ptr<Model> model = loadmethod();
-            if (model == nullptr) {
-                status.set_value(false);
-                return;
-            }
-
-            run_ = true;
-            status.set_value(true);
-
-            vector<Item> fetch_items;
-            vector<Input> inputs;
-            while (get_items_and_wait(fetch_items, max_items_processed_)) {
-                inputs.resize(fetch_items.size());
-                transform(fetch_items.begin(), fetch_items.end(), inputs.begin(),
-                          [](Item &item) { return item.input; });
-
-                auto ret = model->detect_forwards(inputs, stream_);
-                for (int i = 0; i < static_cast<int>(fetch_items.size()); ++i) {
-                    if (i < static_cast<int>(ret.size())) {
-                        fetch_items[i].pro->set_value(ret[i]);
-                    } else {
-                        fetch_items[i].pro->set_value(Result());
-                    }
-                }
-                inputs.clear();
-                fetch_items.clear();
-            }
-            model.reset();
-            run_ = false;
+      try {
+        std::vector<Input> inputs;
+        inputs.reserve(items.size());
+        for (const Item &item : items) {
+          inputs.push_back(item.input);
         }
-
-        virtual bool get_items_and_wait(vector<Item> &fetch_items, int max_size) {
-            unique_lock<mutex> l(queue_lock_);
-            cond_.wait(l, [&]() { return !run_ || !input_queue_.empty(); });
-
-            if (!run_) return false;
-
-            fetch_items.clear();
-            for (int i = 0; i < max_size && !input_queue_.empty(); ++i) {
-                fetch_items.emplace_back(move(input_queue_.front()));
-                input_queue_.pop();
-            }
-            return true;
+        std::vector<Result> results = model->predict(inputs);
+        if (results.size() != items.size()) {
+          throw std::runtime_error("YOLO26 returned an invalid batch size");
         }
-
-        virtual bool get_item_and_wait(Item &fetch_item) {
-            unique_lock<mutex> l(queue_lock_);
-            cond_.wait(l, [&]() { return !run_ || !input_queue_.empty(); });
-
-            if (!run_) return false;
-
-            fetch_item = move(input_queue_.front());
-            input_queue_.pop();
-            return true;
+        for (std::size_t i = 0; i < items.size(); ++i) {
+          items[i].promise->set_value(std::move(results[i]));
         }
-    };
-}; // namespace cpm
+      } catch (...) {
+        const std::exception_ptr error = std::current_exception();
+        for (Item &item : items) {
+          item.promise->set_exception(error);
+        }
+      }
+    }
+  }
 
-#endif  // CPM_H
+  void fail_pending(const std::exception_ptr &error) noexcept {
+    std::deque<Item> pending;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      pending.swap(queue_);
+    }
+    while (!pending.empty()) {
+      try {
+        pending.front().promise->set_exception(error);
+      } catch (...) {
+      }
+      pending.pop_front();
+    }
+  }
+
+  std::condition_variable condition_;
+  std::mutex mutex_;
+  std::deque<Item> queue_;
+  std::thread worker_;
+  bool running_ = false;
+  bool starting_ = false;
+  std::size_t max_batch_size_ = 1;
+  const std::chrono::milliseconds batch_wait_{2};
+};
+
+} // namespace cpm
+
+#endif // YOLO26_CPM_H

@@ -1,55 +1,33 @@
-cmake_minimum_required(VERSION 3.28)
-project(tensorrt CUDA CXX)
+# Windows 预加载配置。请在 Visual Studio x64 开发者终端中运行：
+# cmake -S . -B build/win -C doc/cmake/CmakeLists.win \
+#   -DTENSORRT_ROOT=C:/TensorRT-10.13.3.9 -DOpenCV_DIR=C:/opencv/build
+# 根 CMake 会将 src 核心与 workspace/export C ABI/CPM 一起编译，动态库和导入库输出为
+# workspace/export/yolo26.dll 与 workspace/export/yolo26.lib。
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CUDA_STANDARD 17)
+# 可按显卡修改该值，例如只为 RTX 30 系列设置 86。
+set(CMAKE_CUDA_ARCHITECTURES "75;86;89;90" CACHE STRING
+    "需要生成 CUDA 代码的 GPU 架构")
+set(YOLO26_EXPORT_SOURCE_DIR
+    "${CMAKE_CURRENT_LIST_DIR}/../../workspace/export" CACHE PATH
+    "C ABI 与 CPM 导出实现目录")
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-file(GLOB SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu
-)
+# 兼容 NVIDIA、TensorRT 和 OpenCV 常用的 Windows 环境变量。
+if(DEFINED ENV{CUDA_PATH})
+  file(TO_CMAKE_PATH "$ENV{CUDA_PATH}" _cuda_path)
+  set(CUDAToolkit_ROOT "${_cuda_path}" CACHE PATH "CUDA 安装目录")
+  if(EXISTS "${_cuda_path}/bin/nvcc.exe")
+    set(CMAKE_CUDA_COMPILER "${_cuda_path}/bin/nvcc.exe" CACHE FILEPATH
+        "CUDA 编译器")
+  endif()
+endif()
+if(DEFINED ENV{TENSORRT_PATH})
+  file(TO_CMAKE_PATH "$ENV{TENSORRT_PATH}" _tensorrt_path)
+  set(TENSORRT_ROOT "${_tensorrt_path}" CACHE PATH "TensorRT 10 安装目录")
+endif()
+if(DEFINED ENV{OPENCV_PATH})
+  file(TO_CMAKE_PATH "$ENV{OPENCV_PATH}" _opencv_path)
+  set(OpenCV_DIR "${_opencv_path}" CACHE PATH "OpenCV CMake 配置目录")
+endif()
 
-set(OpenCV_DIR $ENV{OPENCV_PATH})
-find_package(OpenCV REQUIRED)
-set(TensorRT_DIR $ENV{TENSORRT_PATH})
-set(CUDA_DIR $ENV{CUDA_PATH})
-
-include_directories(
-        ${OpenCV_INCLUDE_DIRS}
-        ${TensorRT_DIR}/include
-        ${TensorRT_DIR}/samples/common
-        ${CUDA_DIR}/include
-)
-
-link_directories(
-        ${TensorRT_DIR}/lib
-        ${CUDA_DIR}/lib/x64
-)
-
-#add_library(${PROJECT_NAME} SHARED
-#        ${SOURCES}
-#        workspace/export/export_multiple.cpp
-#        workspace/export/export_multiple_cpm.cpp
-#        workspace/export/export_single.cpp
-#        workspace/export/export_single_cpm.cpp
-#)
-
-add_executable(${PROJECT_NAME}
-        ${SOURCES}
-        workspace/example/main.cpp
-)
-
-set_target_properties(${PROJECT_NAME} PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON)
-
-target_link_libraries(${PROJECT_NAME}
-        ${OpenCV_LIBS}
-        nvinfer_10
-        nvinfer_plugin_10
-        nvonnxparser_10
-        cuda
-        cublas
-        cudart
-        cudnn
-)
+# yolo26.dll 和配置驱动示例默认同时生成。
+set(YOLO26_BUILD_EXAMPLE ON CACHE BOOL "构建由 config.h 驱动的 OpenCV 示例")

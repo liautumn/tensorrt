@@ -1,545 +1,99 @@
 #include "config.h"
+#include "yolo26.h"
 
-static void draw_pose(cv::Mat &image, const vector<cv::Point3f> &keypoints) {
-    vector<cv::Scalar> pose_palette = {
-        {255, 128, 0}, {255, 153, 51}, {255, 178, 102}, {230, 230, 0}, {255, 153, 255},
-        {153, 204, 255}, {255, 102, 255}, {255, 51, 255}, {102, 178, 255}, {51, 153, 255},
-        {255, 153, 153}, {255, 102, 102}, {255, 51, 51}, {153, 255, 153}, {102, 255, 102},
-        {51, 255, 51}, {0, 255, 0}, {0, 0, 255}, {255, 0, 0}, {255, 255, 255}
-    };
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
-    vector<cv::Point> skeleton = {
-        {15, 13}, {13, 11}, {16, 14}, {14, 12}, {11, 12}, {5, 11}, {6, 12},
-        {5, 6}, {5, 7}, {6, 8}, {7, 9}, {8, 10}, {1, 2}, {0, 1},
-        {0, 2}, {1, 3}, {2, 4}, {3, 5}, {4, 6}
-    };
-    // 16 0 9
-    //
-    vector<cv::Scalar> limb_color = {
-        pose_palette[9], pose_palette[9], pose_palette[9], pose_palette[9], pose_palette[7],
-        pose_palette[7], pose_palette[7], pose_palette[0], pose_palette[0], pose_palette[0],
-        pose_palette[0], pose_palette[0], pose_palette[16], pose_palette[16], pose_palette[16],
-        pose_palette[16], pose_palette[16], pose_palette[16], pose_palette[16]
-    };
+#include <algorithm>
+#include <exception>
+#include <filesystem>
+#include <iomanip>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
-    vector<cv::Scalar> kpt_color = {
-        pose_palette[16], pose_palette[16], pose_palette[16], pose_palette[16], pose_palette[16],
-        pose_palette[0], pose_palette[0], pose_palette[0], pose_palette[0], pose_palette[0],
-        pose_palette[0], pose_palette[9], pose_palette[9], pose_palette[9], pose_palette[9],
-        pose_palette[9], pose_palette[9]
-    };
+namespace fs = std::filesystem;
 
-    for (int i = 0; i < keypoints.size(); ++i) {
-        auto &keypoint = keypoints[i];
-        if (keypoint.z < 0.5)
-            continue;
-        if (keypoint.x != 0 && keypoint.y != 0)
-            cv::circle(image, cv::Point(keypoint.x, keypoint.y), 5, kpt_color[i], -1, cv::LINE_AA);
-    }
+namespace {
 
-    for (int i = 0; i < skeleton.size(); ++i) {
-        auto &index = skeleton[i];
-        auto &pos1 = keypoints[index.x];
-        auto &pos2 = keypoints[index.y];
-
-        if (pos1.z < 0.5 || pos2.z < 0.5)
-            continue;
-
-        if (pos1.x == 0 || pos1.y == 0 || pos2.x == 0 || pos2.y == 0)
-            continue;
-
-        cv::line(image, cv::Point(pos1.x, pos1.y), cv::Point(pos2.x, pos2.y), limb_color[i], 2, cv::LINE_AA);
-    }
+void draw_detections(cv::Mat &image, const yolo26::Detections &detections) {
+  for (const auto &detection : detections) {
+    const cv::Rect box(cv::Point(static_cast<int>(detection.left),
+                                 static_cast<int>(detection.top)),
+                       cv::Point(static_cast<int>(detection.right),
+                                 static_cast<int>(detection.bottom)));
+    cv::rectangle(image, box, cv::Scalar(0, 255, 0), 2);
+    const std::string label = std::to_string(detection.class_id) + " " +
+                              cv::format("%.2f", detection.confidence);
+    cv::putText(image, label, cv::Point(box.x, std::max(16, box.y - 5)),
+                cv::FONT_HERSHEY_SIMPLEX, 0.55, cv::Scalar(0, 255, 0), 2);
+  }
 }
 
-static vector<cv::Point> xywhr2xyxyxyxy(const obb::Box &box) {
-    float cos_value = std::cos(box.angle);
-    float sin_value = std::sin(box.angle);
-
-    float w_2 = box.width / 2, h_2 = box.height / 2;
-    float vec1_x = w_2 * cos_value, vec1_y = w_2 * sin_value;
-    float vec2_x = -h_2 * sin_value, vec2_y = h_2 * cos_value;
-
-    vector<cv::Point> corners;
-    corners.push_back(cv::Point(box.center_x + vec1_x + vec2_x, box.center_y + vec1_y + vec2_y));
-    corners.push_back(cv::Point(box.center_x + vec1_x - vec2_x, box.center_y + vec1_y - vec2_y));
-    corners.push_back(cv::Point(box.center_x - vec1_x - vec2_x, box.center_y - vec1_y - vec2_y));
-    corners.push_back(cv::Point(box.center_x - vec1_x + vec2_x, box.center_y - vec1_y + vec2_y));
-
-    return corners;
+std::vector<cv::Mat> load_images(const example::Config &config) {
+  std::vector<cv::Mat> images;
+  images.reserve(config.image_files.size());
+  for (const std::string &path : config.image_files) {
+    cv::Mat image = cv::imread(path, cv::IMREAD_COLOR);
+    if (image.empty()) {
+      throw std::runtime_error("cannot read image: " + path);
+    }
+    images.push_back(std::move(image));
+  }
+  return images;
 }
 
-// static void draw_seg_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
-//     constexpr int target_size = 1024; // 目标尺寸改为1024
-//     // compute IM
-//     float scale_x = target_size / static_cast<float>(image.cols);
-//     float scale_y = target_size / static_cast<float>(image.rows);
-//     float scale = std::min(scale_x, scale_y);
-//     float ox = -scale * image.cols * 0.5 + target_size * 0.5 + scale * 0.5 - 0.5;
-//     float oy = -scale * image.rows * 0.5 + target_size * 0.5 + scale * 0.5 - 0.5;
-//     cv::Mat M = (cv::Mat_<float>(2, 3) << scale, 0, ox, 0, scale, oy);
-//
-//     cv::Mat IM;
-//     cv::invertAffineTransform(M, IM);
-//
-//     cv::Mat mask_map = cv::Mat::zeros(cv::Size(256, 256), CV_8UC1);
-//     cv::Mat small_mask(obj.seg->height, obj.seg->width, CV_8UC1, obj.seg->data);
-//     cv::Rect roi(obj.seg->left, obj.seg->top, obj.seg->width, obj.seg->height);
-//     small_mask.copyTo(mask_map(roi));
-//     cv::resize(mask_map, mask_map, cv::Size(target_size, target_size)); // 640x640
-//     cv::threshold(mask_map, mask_map, 128, 1, cv::THRESH_BINARY);
-//
-//     cv::Mat mask_resized;
-//     cv::warpAffine(mask_map, mask_resized, IM, image.size(), cv::INTER_LINEAR);
-//
-//     // create color mask
-//     cv::Mat colored_mask = cv::Mat::ones(image.size(), CV_8UC3);
-//     colored_mask.setTo(color);
-//
-//     cv::Mat masked_colored_mask;
-//     cv::bitwise_and(colored_mask, colored_mask, masked_colored_mask, mask_resized);
-//
-//     // create mask indices
-//     cv::Mat mask_indices;
-//     cv::compare(mask_resized, 1, mask_indices, cv::CMP_EQ);
-//
-//     cv::Mat image_masked, colored_mask_masked;
-//     image.copyTo(image_masked, mask_indices);
-//     masked_colored_mask.copyTo(colored_mask_masked, mask_indices);
-//
-//     // weighted sum
-//     cv::Mat result_masked;
-//     cv::addWeighted(image_masked, 0.6, colored_mask_masked, 0.4, 0, result_masked);
-//
-//     // copy result to image
-//     result_masked.copyTo(image, mask_indices);
-// }
-
-static void draw_seg_mask(cv::Mat &image, seg::Box &obj, cv::Scalar &color) {
-    constexpr int target_size = 1024; // 目标尺寸改为1024
-    // 计算缩放和偏移量
-    float scale_x = target_size / static_cast<float>(image.cols);
-    float scale_y = target_size / static_cast<float>(image.rows);
-    float scale = std::min(scale_x, scale_y);
-    float ox = -scale * image.cols * 0.5 + target_size * 0.5 + scale * 0.5 - 0.5;
-    float oy = -scale * image.rows * 0.5 + target_size * 0.5 + scale * 0.5 - 0.5;
-    cv::Mat M = (cv::Mat_<float>(2, 3) << scale, 0, ox, 0, scale, oy);
-
-    // 获取原始图像空间到缩放后空间的逆变换
-    cv::Mat IM;
-    cv::invertAffineTransform(M, IM);
-
-    // 准备分割掩码并将其复制到目标区域
-    cv::Mat mask_map = cv::Mat::zeros(cv::Size(256, 256), CV_8UC1);
-    cv::Mat small_mask(obj.seg->height, obj.seg->width, CV_8UC1, obj.seg->data);
-    cv::Rect roi(obj.seg->left, obj.seg->top, obj.seg->width, obj.seg->height);
-    small_mask.copyTo(mask_map(roi));
-
-    // 将掩码缩放到 1024x1024 并二值化
-    cv::resize(mask_map, mask_map, cv::Size(target_size, target_size)); // 目标尺寸改为1024
-    cv::threshold(mask_map, mask_map, 128, 255, cv::THRESH_BINARY); // 注意阈值设为255（用于轮廓检测）
-
-    // 将二值掩码反向变换回原始图像尺寸
-    cv::Mat mask_resized;
-    cv::warpAffine(mask_map, mask_resized, IM, image.size(), cv::INTER_NEAREST); // 使用最近邻插值保持二值特征
-
-    // +++ 计算分割区域的像素点数量 +++
-    int pixel_count = cv::countNonZero(mask_resized);
-    std::cout << "Segmentation pixel count: " << pixel_count << std::endl;
-    // 可选的：将像素数量存储到 obj 中
-    // obj.pixel_count = pixel_count;
-
-    // 查找轮廓
-    std::vector<std::vector<cv::Point> > contours;
-    cv::findContours(mask_resized, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-    // 在原始图像上绘制轮廓（边线）
-    constexpr int thickness = 2; // 轮廓线粗细
-    cv::drawContours(image, contours, -1, color, thickness);
-}
-
-void syncInferObb() {
-    cudaStreamCreate(&cudaStream);
-
-    Config config;
-    auto yolo = yolo::load(config.OBB_MODEL, 0.2, 0.5, config.GPU_DEVICE, cudaStream);
-    if (yolo == nullptr) return;
-
-    cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
-    auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
-    for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->obb_forward(yrImage, cudaStream);
-    }
-
-    trt_timer::Timer timer;
-    cv::Mat mat = cv::imread(config.OBB_IMG);
-    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-
-    timer.start(cudaStream);
-    auto objs = yolo->obb_forward(image, cudaStream);
-    timer.stop("batch one");
-
-    std::string windowName = "Image Window";
-    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
-    int width_ = 1024;
-    int height = 640;
-    cv::resizeWindow(windowName, width_, height);
-    for (auto &obj: objs) {
-        uint8_t b = 255, g = 0, r = 255;
-        auto corners = xywhr2xyxyxyxy(obj);
-        cv::polylines(mat, vector<vector<cv::Point> >{corners}, true, cv::Scalar(b, g, r), 2, 16);
-
-        auto name = obj.class_label;
-        auto caption = cv::format("%i %.2f", name, obj.confidence);
-        int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-        cv::rectangle(mat, cv::Point(corners[0].x - 3, corners[0].y - 33),
-                      cv::Point(corners[0].x - 3 + width, corners[0].y), cv::Scalar(b, g, r), -1);
-        cv::putText(mat, caption, cv::Point(corners[0].x - 3, corners[0].y - 5), 0, 1, cv::Scalar::all(0), 2, 16);
-    }
-    cv::imshow(windowName, mat);
-    cv::waitKey(0);
-}
-
-void syncInferDetect() {
-    cudaStreamCreate(&cudaStream);
-
-    Config config;
-    auto yolo = yolo::load(config.DETECT_MODEL, 0.2, 0.5, config.GPU_DEVICE, cudaStream);
-    if (yolo == nullptr) return;
-
-    cv::Mat yrMat = cv::Mat(1024, 1024, CV_8UC3);
-    auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
-    for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->detect_forward(yrImage, cudaStream);
-    }
-
-    cv::Mat mat = cv::imread(config.TEST_IMG);
-    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-
-    while (true) {
-        trt_timer::Timer timer;
-        timer.start(cudaStream);
-        auto objs = yolo->detect_forward(image, cudaStream);
-        timer.stop("batch one");
-    }
-
-    // std::string windowName = "Image Window";
-    // cv::namedWindow(windowName, cv::WINDOW_NORMAL);
-    // int width_ = 1024;
-    // int height = 640;
-    // cv::resizeWindow(windowName, width_, height);
-    // for (auto &obj: objs) {
-    //     int left = static_cast<int>(obj.left);
-    //     int top = static_cast<int>(obj.top);
-    //     int right = static_cast<int>(obj.right);
-    //     int bottom = static_cast<int>(obj.bottom);
-    //     // Draw bounding box
-    //     rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 2);
-    //     // Create caption and calculate width
-    //     auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-    //     int width = cv::getTextSize(caption, 0, 1, 1, nullptr).width + 10;
-    //     // Draw caption background
-    //     rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-    //     // Draw caption text
-    //     putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 1, 16);
-    // }
-    // cv::imshow(windowName, mat);
-    // cv::waitKey(0);
-}
-
-void syncInferSeg() {
-    cudaStreamCreate(&cudaStream);
-
-    Config config;
-    auto yolo = yolo::load(config.SEG_MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream);
-    if (yolo == nullptr) return;
-
-    cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
-    auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
-    for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->seg_forward(yrImage, cudaStream);
-    }
-
-    trt_timer::Timer timer;
-    cv::Mat mat = cv::imread(config.TEST_IMG);
-    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-    timer.start(cudaStream);
-    auto boxes = yolo->seg_forward(image, cudaStream);
-    timer.stop("batch one");
-
-    std::string windowName = "Image Window";
-    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
-    int width_ = 640;
-    int height = 640;
-    cv::resizeWindow(windowName, width_, height);
-
-    for (auto &obj: boxes) {
-        cv::Scalar color(255, 0, 255);
-        if (obj.seg) {
-            draw_seg_mask(mat, obj, color);
-        }
-        // // Convert coordinates to int (avoid repeated casting)
-        // const int left = static_cast<int>(obj.left);
-        // const int top = static_cast<int>(obj.top);
-        // const int right = static_cast<int>(obj.right);
-        // const int bottom = static_cast<int>(obj.bottom);
-        // // Draw bounding box (magenta, thickness 5)
-        // cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
-        // // Create label text (class + confidence)
-        // const auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-        // const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; // Text width + padding
-        // // Draw label background (filled magenta)
-        // cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-        // // Draw label text (black, font scale 1, thickness 2)
-        // cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
-    }
-    cv::imshow(windowName, mat);
-    cv::waitKey(0);
-}
-
-void syncInferCls() {
-    cudaStreamCreate(&cudaStream);
-
-    Config config;
-    auto yolo = yolo::load(config.CLS_MODEL, 0.1, 0, config.GPU_DEVICE, cudaStream);
-    if (yolo == nullptr) return;
-
-    cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
-    auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
-    for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->cls_forward(yrImage, cudaStream);
-    }
-
-    trt_timer::Timer timer;
-    cv::Mat mat = cv::imread(config.TEST_IMG);
-    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-    timer.start(cudaStream);
-    auto objs = yolo->cls_forward(image, cudaStream);
-    timer.stop("batch one");
-
-    std::string windowName = "Image Window";
-    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
-    int width_ = 1024;
-    int height = 640;
-    cv::resizeWindow(windowName, width_, height);
-
-    for (int i = 0; i < objs.size(); ++i) {
-        auto obj = objs[i];
-        cv::putText(mat,
-                    std::to_string(obj.class_label) + ": " + std::to_string(obj.confidence).substr(0, 4),
-                    cv::Point(10, 30 + i * 30),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
-    }
-    cv::imshow(windowName, mat);
-    cv::waitKey(0);
-}
-
-void syncInferPose() {
-    cudaStreamCreate(&cudaStream);
-
-    Config config;
-    auto yolo = yolo::load(config.POSE_MODEL, 0.2, 0.4, config.GPU_DEVICE, cudaStream);
-    if (yolo == nullptr) return;
-
-    cv::Mat yrMat = cv::Mat(1200, 1920, CV_8UC3);
-    auto yrImage = yolo::Image(yrMat.data, yrMat.cols, yrMat.rows);
-    for (int i = 0; i < 10; ++i) {
-        auto objs = yolo->pose_forward(yrImage, cudaStream);
-    }
-
-    trt_timer::Timer timer;
-    cv::Mat mat = cv::imread(config.TEST_IMG);
-    auto image = yolo::Image(mat.data, mat.cols, mat.rows);
-    timer.start(cudaStream);
-    auto objs = yolo->pose_forward(image, cudaStream);
-    timer.stop("batch one");
-
-    std::string windowName = "Image Window";
-    cv::namedWindow(windowName, cv::WINDOW_NORMAL);
-    int width_ = 1024;
-    int height = 640;
-    cv::resizeWindow(windowName, width_, height);
-    for (const auto &obj: objs) {
-        // Convert coordinates to int (avoid floating-point coordinates)
-        const int left = static_cast<int>(obj.left);
-        const int top = static_cast<int>(obj.top);
-        const int right = static_cast<int>(obj.right);
-        const int bottom = static_cast<int>(obj.bottom);
-        // Draw bounding box (magenta, thickness 5)
-        cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
-        // Create label text (fixed "person" label + confidence)
-        const auto caption = cv::format("person %.2f", obj.confidence);
-        const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-        // Draw label background (filled magenta)
-        cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-        // Draw label text (black, font scale 1, thickness 2)
-        cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
-        // Draw pose keypoints
-        draw_pose(mat, obj.keypoints);
-    }
-    cv::imshow(windowName, mat);
-    cv::waitKey(0);
-}
-
-void video() {
-    cudaStreamCreate(&cudaStream);
-
-    Config config;
-    auto yolo = yolo::load(config.SEG_MODEL, 0.2, 0.5, config.GPU_DEVICE, cudaStream);
-    if (yolo == nullptr) return;
-
-    // 打开视频流（优先尝试作为文件打开）
-    cv::VideoCapture cap(config.VIDEO_PATH);
-    cap.set(cv::CAP_PROP_BUFFERSIZE, 1); // 减少缓冲延迟
-
-    // 获取视频属性
-    int frame_width = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_WIDTH));
-    int frame_height = static_cast<int>(cap.get(cv::CAP_PROP_FRAME_HEIGHT));
-    double fps = cap.get(cv::CAP_PROP_FPS);
-    std::cout << "Video Info: " << std::endl;
-    std::cout << " - Resolution: " << frame_width << "x" << frame_height << std::endl;
-    std::cout << " - Original FPS: " << fps << std::endl;
-
-    cv::Mat mat;
-    yolo::Image image;
-    trt_timer::Timer timer;
-
-    // 创建显示窗口
-    cv::namedWindow("YOLO Video Detection",
-                    cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
-    cv::resizeWindow("YOLO Video Detection", 1280, 720);
-
-    // 时间统计变量
-    double total_processed_time = 0.0;
-    int processed_frames = 0;
-
-    double avg_fps;
-
-    while (true) {
-        // 精确计时开始
-        auto start_time = static_cast<double>(cv::getTickCount());
-
-        // 读取视频帧
-        cap >> mat;
-        if (mat.empty()) break;
-
-        // 转换为YOLO处理格式
-        image = yolo::Image(mat.data, mat.cols, mat.rows);
-
-        // CUDA加速推理
-        timer.start(cudaStream);
-        auto objs = yolo->seg_forward(image, cudaStream);
-        timer.stop("batch one");
-
-        // DETECT
-        // for (auto &obj: objs) {
-        //     int left = static_cast<int>(obj.left);
-        //     int top = static_cast<int>(obj.top);
-        //     int right = static_cast<int>(obj.right);
-        //     int bottom = static_cast<int>(obj.bottom);
-        //     // Draw bounding box
-        //     rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 2);
-        //     // Create caption and calculate width
-        //     auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-        //     int width = cv::getTextSize(caption, 0, 1, 1, nullptr).width + 10;
-        //     // Draw caption background
-        //     rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-        //     // Draw caption text
-        //     putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 1, 16);
-        // }
-
-        // POSE
-        // for (const auto &obj: objs) {
-        //     // Convert coordinates to int (avoid floating-point coordinates)
-        //     const int left = static_cast<int>(obj.left);
-        //     const int top = static_cast<int>(obj.top);
-        //     const int right = static_cast<int>(obj.right);
-        //     const int bottom = static_cast<int>(obj.bottom);
-        //     // Draw bounding box (magenta, thickness 5)
-        //     cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
-        //     // Create label text (fixed "person" label + confidence)
-        //     const auto caption = cv::format("person %.2f", obj.confidence);
-        //     const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-        //     // Draw label background (filled magenta)
-        //     cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-        //     // Draw label text (black, font scale 1, thickness 2)
-        //     cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
-        //     // Draw pose keypoints
-        //     draw_pose(mat, obj.keypoints);
-        // }
-
-        // SEG
-        for (auto &obj: objs) {
-            cv::Scalar color(255, 0, 255);
-            if (obj.seg) {
-                draw_seg_mask(mat, obj, color);
-            }
-            // // Convert coordinates to int (avoid repeated casting)
-            // const int left = static_cast<int>(obj.left);
-            // const int top = static_cast<int>(obj.top);
-            // const int right = static_cast<int>(obj.right);
-            // const int bottom = static_cast<int>(obj.bottom);
-            // // Draw bounding box (magenta, thickness 5)
-            // cv::rectangle(mat, {left, top}, {right, bottom}, {255, 0, 255}, 5);
-            // // Create label text (class + confidence)
-            // const auto caption = cv::format("%i %.2f", obj.class_label, obj.confidence);
-            // const int width = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10; // Text width + padding
-            // // Draw label background (filled magenta)
-            // cv::rectangle(mat, {left - 3, top - 33}, {left + width, top}, {255, 0, 255}, -1);
-            // // Draw label text (black, font scale 1, thickness 2)
-            // cv::putText(mat, caption, {left, top - 5}, 0, 1, {0, 0, 0}, 2, 16);
-        }
-
-        // 计算处理耗时
-        double process_time = (static_cast<double>(cv::getTickCount()) - start_time) / cv::getTickFrequency();
-        total_processed_time += process_time;
-        processed_frames++;
-
-        // 计算并显示实时FPS
-        double current_fps = 1.0 / process_time;
-        avg_fps = processed_frames / total_processed_time;
-
-        // 在帧上叠加信息
-        cv::putText(mat,
-                    cv::format("FPS: %.1f | Avg: %.1f", current_fps, avg_fps),
-                    cv::Point(10, 30),
-                    cv::FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    cv::Scalar(0, 255, 0),
-                    2);
-
-        // 显示结果
-        cv::imshow("YOLO Video Detection", mat);
-
-        // 处理退出按键
-        const int key = cv::waitKey(1);
-        if (key == 27) {
-            // ESC键退出
-            break;
-        } else if (key == '+' && processed_frames > 0) {
-            // 动态调整显示FPS
-            std::cout << "Average FPS reset" << std::endl;
-            total_processed_time = 0.0;
-            processed_frames = 0;
-        }
-    }
-
-    // 最终统计信息
-    std::cout << "Processing completed!" << std::endl;
-    std::cout << "Total frames: " << processed_frames << std::endl;
-    std::cout << "Average FPS: " << avg_fps << std::endl;
-
-    // 释放资源
-    cap.release();
-    cv::destroyAllWindows();
-}
+} // namespace
 
 int main() {
-    syncInferDetect();
-    // syncInferPose();
-    // syncInferSeg();
-    // syncInferCls();
-    // syncInferObb();
-    // video();
+  try {
+    const example::Config config;
+    yolo26::Detector detector(config.engine_file, config.confidence_threshold,
+                              config.gpu_device);
+    std::vector<cv::Mat> images = load_images(config);
+
+    std::vector<yolo26::Image> inputs;
+    inputs.reserve(images.size());
+    for (const cv::Mat &image : images) {
+      inputs.emplace_back(image.data, image.cols, image.rows, image.step);
+    }
+
+    const std::vector<yolo26::Detections> results = detector.predict(inputs);
+    const yolo26::Timing &timing = detector.last_timing();
+    std::cout << std::fixed << std::setprecision(3) << "N=" << images.size()
+              << ", preprocess=" << timing.preprocess_ms
+              << " ms, inference=" << timing.inference_ms
+              << " ms, postprocess=" << timing.postprocess_ms
+              << " ms, total=" << timing.total_ms << " ms\n";
+
+    if (config.save_images) {
+      fs::create_directories(config.output_directory);
+    }
+    for (std::size_t index = 0; index < results.size(); ++index) {
+      if (config.print_detections) {
+        for (const auto &detection : results[index]) {
+          std::cout << "image=" << index << " class=" << detection.class_id
+                    << " score=" << detection.confidence << " box=["
+                    << detection.left << ", " << detection.top << ", "
+                    << detection.right << ", " << detection.bottom << "]\n";
+        }
+      }
+      if (config.save_images) {
+        draw_detections(images[index], results[index]);
+        const fs::path source(config.image_files[index]);
+        const fs::path output =
+            fs::path(config.output_directory) /
+            (source.stem().string() + "-result" + source.extension().string());
+        if (!cv::imwrite(output.string(), images[index])) {
+          throw std::runtime_error("cannot write image: " + output.string());
+        }
+      }
+    }
     return 0;
+  } catch (const std::exception &error) {
+    std::cerr << "Error: " << error.what() << '\n';
+    return 1;
+  }
 }

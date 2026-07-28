@@ -1,98 +1,47 @@
-#
-# SPDX-FileCopyrightText: Copyright (c) 1993-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-ARG CUDA_VERSION=12.8.0
-
+# CUDA 和 TensorRT 版本可由 build.sh 参数覆盖，两者必须使用兼容的构建版本。
+ARG CUDA_VERSION=12.9.1
 FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
-LABEL maintainer="NVIDIA CORPORATION"
 
-ENV NV_CUDNN_VERSION 8.9.6.50
-ENV NV_CUDNN_PACKAGE_NAME "libcudnn8"
+ARG TENSORRT_VERSION=10.13.3.9-1+cuda12.9
 
-ENV CUDA_VERSION_MAJOR_MINOR=12.2
+LABEL org.opencontainers.image.title="YOLO26 TensorRT build environment"
 
-ENV NV_CUDNN_PACKAGE "libcudnn8=$NV_CUDNN_VERSION-1+cuda${CUDA_VERSION_MAJOR_MINOR}"
-ENV NV_CUDNN_PACKAGE_DEV "libcudnn8-dev=$NV_CUDNN_VERSION-1+cuda${CUDA_VERSION_MAJOR_MINOR}"
-
-ENV TRT_VERSION 10.9.0.34
-SHELL ["/bin/bash", "-c"]
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ${NV_CUDNN_PACKAGE} \
-    ${NV_CUDNN_PACKAGE_DEV} \
-    && apt-mark hold ${NV_CUDNN_PACKAGE_NAME} \
-    && rm -rf /var/lib/apt/lists/*
-
-# Setup user account
-ARG uid=1000
-ARG gid=1000
-RUN groupadd -r -f -g ${gid} trtuser && useradd -o -r -l -u ${uid} -g ${gid} -ms /bin/bash trtuser
-RUN usermod -aG sudo trtuser
-RUN echo 'trtuser:nvidia' | chpasswd
-RUN mkdir -p /workspace && chown trtuser /workspace
-
-# Required to build Ubuntu 20.04 without user prompts with DLFW container
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update CUDA signing key
-RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
+# TensorRT 直接从 NVIDIA CUDA 软件源安装，并固定为 10.x，避免仓库升级到 11.x
+# 后与项目的 TensorRT 10 接口不兼容。
+# OpenCV 只用于构建 workspace/example，yolo26 动态库不链接 OpenCV。
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       build-essential \
+       ca-certificates \
+       cmake \
+       git \
+       "libnvinfer-dev=${TENSORRT_VERSION}" \
+       "libnvinfer10=${TENSORRT_VERSION}" \
+       libopencv-dev \
+       ninja-build \
+       pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install requried libraries
-# RUN apt-get update && apt-get install -y software-properties-common
-# RUN add-apt-repository ppa:ubuntu-toolchain-r/test
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    valgrind \
-    gdb \
-    cmake \
-    libopencv-dev \
-    wget \
-    git \
-    pkg-config \
-    sudo \
-    ssh \
-    libssl-dev \
-    pbzip2 \
-    pv \
-    bzip2 \
-    unzip \
-    devscripts \
-    lintian \
-    fakeroot \
-    dh-make
+# 使用宿主机 UID/GID 写入挂载目录，生成的 build 文件无需额外修改权限。
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+RUN if getent group "${GROUP_ID}" >/dev/null; then \
+         build_group="$(getent group "${GROUP_ID}" | cut -d: -f1)"; \
+       else \
+         groupadd --gid "${GROUP_ID}" yolo26; \
+         build_group="yolo26"; \
+       fi \
+    && useradd --non-unique --uid "${USER_ID}" --gid "${build_group}" \
+       --create-home --shell /bin/bash yolo26 \
+    && mkdir -p /workspace/yolo26 \
+    && chown -R yolo26:"${build_group}" /workspace/yolo26
 
-# Install TensorRT
-COPY TensorRT-10.9.0.34.Linux.x86_64-gnu.cuda-12.8.tar.gz /tmp/TensorRT-10.9.0.34.Linux.x86_64-gnu.cuda-12.8.tar.gz
-# 解压并安装到 /usr/lib/x86_64-linux-gnu
-RUN tar -xf /tmp/TensorRT-10.9.0.34.Linux.x86_64-gnu.cuda-12.8.tar.gz -C /tmp/ \
-    && cp -a /tmp/TensorRT-10.9.0.34/lib/*.so* /usr/lib/x86_64-linux-gnu/ \
-    && rm -rf /tmp/TensorRT-10.9.0.34.Linux.x86_64-gnu.cuda-12.8.tar.gz
+ENV CUDA_PATH=/usr/local/cuda
+ENV TENSORRT_ROOT=/usr
+WORKDIR /workspace/yolo26
+USER yolo26
 
-# Set environment and working directory
-ENV TRT_LIBPATH /usr/lib/x86_64-linux-gnu
-
-ENV CUDA_PATH /usr/local/cuda-12.8
-ENV PATH $CUDA_PATH/bin:$PATH
-ENV LD_LIBRARY_PATH $CUDA_PATH/lib64:$LD_LIBRARY_PATH
-
-ENV TENSORRT_PATH=/home/autumn/Documents/CUDA/TensorRT-10.9.0.34
-ENV PATH=$TENSORRT_PATH/bin:$PATH
-ENV LD_LIBRARY_PATH=$TENSORRT_PATH/lib:$LD_LIBRARY_PATH
-
-WORKDIR /workspace
-
-USER trtuser
-RUN ["/bin/bash"]
+CMD ["/bin/bash"]

@@ -1,17 +1,8 @@
-trtexec `
---onnx=D:\autumn\Documents\GitHub\tensorrt\workspace\model\onnx\yolo11s.transd.onnx `
---saveEngine=D:\autumn\Documents\GitHub\tensorrt\workspace\model\engine\yolo11s.transd.engine `
---fp16 `
---useCudaGraph `
---minShapes=images:1x3x1024x1024 --maxShapes=images:12x3x1024x1024 --optShapes=images:1x3x1024x1024
-
-
+# ONNX 必须是 YOLO26 端到端物体检测模型，输出形状为 [N,K,6]。
 trtexec \
---onnx=/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/onnx/bird.transd.onnx \
---saveEngine=/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/bird.transd.engine \
---useCudaGraph \
---fp16 \
---minShapes=images:1x3x1024x1024 --maxShapes=images:12x3x1024x1024 --optShapes=images:1x3x1024x1024 \
-
---int8 \
---calib= \
+  --onnx=workspace/model/onnx/yolo26n.onnx \
+  --saveEngine=workspace/model/engine/yolo26n.engine \
+  --fp16 \
+  --minShapes=images:1x3x640x640 \
+  --optShapes=images:4x3x640x640 \
+  --maxShapes=images:8x3x640x640

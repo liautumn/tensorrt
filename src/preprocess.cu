@@ -1,120 +1,134 @@
 #include "preprocess.cuh"
-#include "logger.h"
 
-Norm Norm::mean_std(const float mean[3], const float std[3], float alpha,
-                    ChannelType channel_type) {
-    Norm out;
-    out.type = NormType::MeanStd;
-    out.alpha = alpha;
-    out.channel_type = channel_type;
-    memcpy(out.mean, mean, sizeof(out.mean));
-    memcpy(out.std, std, sizeof(out.std));
-    return out;
+#include "cuda_utils.h"
+
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
+
+namespace yolo26::detail {
+namespace {
+
+constexpr float kPaddingValue = 114.0F;
+
+__device__ float3 read_bgr(const std::uint8_t *source, std::size_t stride,
+                           int width, int height, int x, int y) {
+  x = x < 0 ? 0 : (x >= width ? width - 1 : x);
+  y = y < 0 ? 0 : (y >= height ? height - 1 : y);
+  const std::uint8_t *pixel = source + static_cast<std::size_t>(y) * stride +
+                              static_cast<std::size_t>(x) * 3;
+  return make_float3(pixel[0], pixel[1], pixel[2]);
 }
 
-Norm Norm::alpha_beta(float alpha, float beta, ChannelType channel_type) {
-    Norm out;
-    out.type = NormType::AlphaBeta;
-    out.alpha = alpha;
-    out.beta = beta;
-    out.channel_type = channel_type;
-    return out;
+__device__ float interpolate(float a, float b, float c, float d, float weight_x,
+                             float weight_y) {
+  const float upper = a + (b - a) * weight_x;
+  const float lower = c + (d - c) * weight_x;
+  return floorf(upper + (lower - upper) * weight_y + 0.5F);
 }
 
-Norm Norm::None() { return Norm(); }
+__global__ void preprocess_kernel(const std::uint8_t *source,
+                                  std::size_t source_stride, int source_width,
+                                  int source_height, float *destination,
+                                  int target_width, int target_height,
+                                  LetterboxTransform transform) {
+  const int target_x = blockIdx.x * blockDim.x + threadIdx.x;
+  const int target_y = blockIdx.y * blockDim.y + threadIdx.y;
+  if (target_x >= target_width || target_y >= target_height) {
+    return;
+  }
 
-static __global__ void warp_affine_bilinear_and_normalize_plane_kernel(
-    uint8_t *src, int src_line_size, int src_width, int src_height, float *dst, int dst_width,
-    int dst_height, uint8_t const_value_st, float *warp_affine_matrix_2_3, Norm norm) {
-    int dx = blockDim.x * blockIdx.x + threadIdx.x;
-    int dy = blockDim.y * blockIdx.y + threadIdx.y;
-    if (dx >= dst_width || dy >= dst_height) return;
+  const std::size_t area =
+      static_cast<std::size_t>(target_width) * target_height;
+  const std::size_t index =
+      static_cast<std::size_t>(target_y) * target_width + target_x;
+  const int resized_x = target_x - transform.left;
+  const int resized_y = target_y - transform.top;
+  if (resized_x < 0 || resized_x >= transform.resized_width || resized_y < 0 ||
+      resized_y >= transform.resized_height) {
+    const float padding = kPaddingValue / 255.0F;
+    destination[index] = padding;
+    destination[area + index] = padding;
+    destination[2 * area + index] = padding;
+    return;
+  }
 
-    float m_x1 = warp_affine_matrix_2_3[0];
-    float m_y1 = warp_affine_matrix_2_3[1];
-    float m_z1 = warp_affine_matrix_2_3[2];
-    float m_x2 = warp_affine_matrix_2_3[3];
-    float m_y2 = warp_affine_matrix_2_3[4];
-    float m_z2 = warp_affine_matrix_2_3[5];
+  // This is OpenCV INTER_LINEAR's half-pixel resize mapping.
+  const float source_x =
+      (resized_x + 0.5F) * source_width / transform.resized_width - 0.5F;
+  const float source_y =
+      (resized_y + 0.5F) * source_height / transform.resized_height - 0.5F;
+  const int x0 = static_cast<int>(floorf(source_x));
+  const int y0 = static_cast<int>(floorf(source_y));
+  const int x1 = x0 + 1;
+  const int y1 = y0 + 1;
+  const float weight_x = source_x - x0;
+  const float weight_y = source_y - y0;
 
-    float src_x = m_x1 * dx + m_y1 * dy + m_z1;
-    float src_y = m_x2 * dx + m_y2 * dy + m_z2;
-    float c0, c1, c2;
+  const float3 p00 =
+      read_bgr(source, source_stride, source_width, source_height, x0, y0);
+  const float3 p01 =
+      read_bgr(source, source_stride, source_width, source_height, x1, y0);
+  const float3 p10 =
+      read_bgr(source, source_stride, source_width, source_height, x0, y1);
+  const float3 p11 =
+      read_bgr(source, source_stride, source_width, source_height, x1, y1);
 
-    if (src_x <= -1 || src_x >= src_width || src_y <= -1 || src_y >= src_height) {
-        // out of range
-        c0 = const_value_st;
-        c1 = const_value_st;
-        c2 = const_value_st;
-    } else {
-        int y_low = floorf(src_y);
-        int x_low = floorf(src_x);
-        int y_high = y_low + 1;
-        int x_high = x_low + 1;
+  const float blue =
+      interpolate(p00.x, p01.x, p10.x, p11.x, weight_x, weight_y);
+  const float green =
+      interpolate(p00.y, p01.y, p10.y, p11.y, weight_x, weight_y);
+  const float red = interpolate(p00.z, p01.z, p10.z, p11.z, weight_x, weight_y);
 
-        uint8_t const_value[] = {const_value_st, const_value_st, const_value_st};
-        float ly = src_y - y_low;
-        float lx = src_x - x_low;
-        float hy = 1 - ly;
-        float hx = 1 - lx;
-        float w1 = hy * hx, w2 = hy * lx, w3 = ly * hx, w4 = ly * lx;
-        uint8_t *v1 = const_value;
-        uint8_t *v2 = const_value;
-        uint8_t *v3 = const_value;
-        uint8_t *v4 = const_value;
-        if (y_low >= 0) {
-            if (x_low >= 0) v1 = src + y_low * src_line_size + x_low * 3;
-
-            if (x_high < src_width) v2 = src + y_low * src_line_size + x_high * 3;
-        }
-
-        if (y_high < src_height) {
-            if (x_low >= 0) v3 = src + y_high * src_line_size + x_low * 3;
-
-            if (x_high < src_width) v4 = src + y_high * src_line_size + x_high * 3;
-        }
-
-        // same to opencv
-        c0 = floorf(w1 * v1[0] + w2 * v2[0] + w3 * v3[0] + w4 * v4[0] + 0.5f);
-        c1 = floorf(w1 * v1[1] + w2 * v2[1] + w3 * v3[1] + w4 * v4[1] + 0.5f);
-        c2 = floorf(w1 * v1[2] + w2 * v2[2] + w3 * v3[2] + w4 * v4[2] + 0.5f);
-    }
-
-    if (norm.channel_type == ChannelType::SwapRB) {
-        float t = c2;
-        c2 = c0;
-        c0 = t;
-    }
-
-    if (norm.type == NormType::MeanStd) {
-        c0 = (c0 * norm.alpha - norm.mean[0]) / norm.std[0];
-        c1 = (c1 * norm.alpha - norm.mean[1]) / norm.std[1];
-        c2 = (c2 * norm.alpha - norm.mean[2]) / norm.std[2];
-    } else if (norm.type == NormType::AlphaBeta) {
-        c0 = c0 * norm.alpha + norm.beta;
-        c1 = c1 * norm.alpha + norm.beta;
-        c2 = c2 * norm.alpha + norm.beta;
-    }
-
-    int area = dst_width * dst_height;
-    float *pdst_c0 = dst + dy * dst_width + dx;
-    float *pdst_c1 = pdst_c0 + area;
-    float *pdst_c2 = pdst_c1 + area;
-    *pdst_c0 = c0;
-    *pdst_c1 = c1;
-    *pdst_c2 = c2;
+  destination[index] = red / 255.0F;
+  destination[area + index] = green / 255.0F;
+  destination[2 * area + index] = blue / 255.0F;
 }
 
+} // namespace
 
-void warp_affine_bilinear_and_normalize_plane(uint8_t *src, int src_line_size, int src_width,
-                                              int src_height, float *dst, int dst_width,
-                                              int dst_height, float *matrix_2_3,
-                                              uint8_t const_value, const Norm &norm,
-                                              cudaStream_t stream) {
-    dim3 grid((dst_width + 31) / 32, (dst_height + 31) / 32);
-    dim3 block(32, 32);
-
-    checkKernel(warp_affine_bilinear_and_normalize_plane_kernel<<<grid, block, 0, stream>>>(
-                    src, src_line_size, src_width, src_height, dst, dst_width, dst_height, const_value,
-                    matrix_2_3, norm));
+LetterboxTransform LetterboxTransform::compute(int source_width,
+                                               int source_height,
+                                               int target_width,
+                                               int target_height) {
+  const double scale =
+      std::min(target_width / static_cast<double>(source_width),
+               target_height / static_cast<double>(source_height));
+  const int resized_width =
+      static_cast<int>(std::nearbyint(source_width * scale));
+  const int resized_height =
+      static_cast<int>(std::nearbyint(source_height * scale));
+  if (resized_width <= 0 || resized_height <= 0) {
+    throw std::invalid_argument(
+        "image aspect ratio is too extreme for the model input size");
+  }
+  const double horizontal_padding = (target_width - resized_width) / 2.0;
+  const double vertical_padding = (target_height - resized_height) / 2.0;
+  return {
+      scale,
+      resized_width,
+      resized_height,
+      static_cast<int>(std::round(horizontal_padding - 0.1)),
+      static_cast<int>(std::round(vertical_padding - 0.1)),
+  };
 }
+
+void LetterboxTransform::to_source(float &x, float &y) const {
+  x = static_cast<float>((x - left) / scale);
+  y = static_cast<float>((y - top) / scale);
+}
+
+void launch_preprocess(const std::uint8_t *source, std::size_t source_stride,
+                       int source_width, int source_height, float *destination,
+                       int target_width, int target_height,
+                       LetterboxTransform transform, cudaStream_t stream) {
+  const dim3 block(16, 16);
+  const dim3 grid((target_width + block.x - 1) / block.x,
+                  (target_height + block.y - 1) / block.y);
+  preprocess_kernel<<<grid, block, 0, stream>>>(
+      source, source_stride, source_width, source_height, destination,
+      target_width, target_height, transform);
+  YOLO26_CHECK_CUDA(cudaGetLastError());
+}
+
+} // namespace yolo26::detail

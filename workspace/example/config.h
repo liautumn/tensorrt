@@ -1,31 +1,24 @@
-#ifndef YOLO_CONFIG_H
-#define YOLO_CONFIG_H
-#include <cuda_runtime_api.h>
-#include <driver_types.h>
-#include <opencv2/opencv.hpp>
-#include <filesystem>
-#include "yolo.h"
-#include "config.h"
-#include "cpm.h"
-#include "timer.h"
+#ifndef YOLO26_EXAMPLE_CONFIG_H
+#define YOLO26_EXAMPLE_CONFIG_H
 
-using namespace std;
-namespace fs = std::filesystem;
+#include <string>
+#include <vector>
 
-static cpm::Instance<detect::BoxArray, yolo::Image, yolo::Infer> cpmi;
-inline cudaStream_t cudaStream;
+namespace example {
 
-class Config {
-public:
-    const int GPU_DEVICE = 0;
-    const string DETECT_MODEL = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/bird.transd.engine)";
-    const string SEG_MODEL = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-seg.transd.engine)";
-    const string CLS_MODEL = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-cls.engine)";
-    const string OBB_MODEL = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-obb.transd.engine)";
-    const string POSE_MODEL = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/model/engine/yolo11s-pose.transd.engine)";
-    const string TEST_IMG = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/images/bus.jpg)";
-    const string OBB_IMG = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/images/P0009.jpg)";
-    const string VIDEO_PATH = R"(/mnt/d/autumn/Documents/GitHub/tensorrt/workspace/images/001.mp4)";
+struct Config {
+  // 修改这里即可运行示例，不需要命令行参数。
+  std::string engine_file = "workspace/model/engine/yolo26n.engine";
+  std::vector<std::string> image_files = {
+      "workspace/images/bus.jpg",
+  };
+  std::string output_directory = "workspace/output";
+  float confidence_threshold = 0.25F;
+  int gpu_device = 0;
+  bool save_images = true;
+  bool print_detections = true;
 };
 
-#endif //YOLO_CONFIG_H
+} // namespace example
+
+#endif // YOLO26_EXAMPLE_CONFIG_H

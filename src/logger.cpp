@@ -1,50 +1,64 @@
-#include <iostream>
-#include <string>
-#include <cstdarg>
-#include <filesystem>
 #include "logger.h"
 
-namespace trt_log {
+#include <chrono>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <mutex>
+#include <sstream>
 
-    static string file_name(const string &path, bool include_suffix) {
-        if (path.empty()) return "";
+namespace yolo26::detail {
+namespace {
 
-        int p = path.rfind('/');
-        int e = path.rfind('\\');
-        p = max(p, e);
-        p += 1;
+std::mutex log_mutex;
 
-        // include suffix
-        if (include_suffix) return path.substr(p);
-
-        int u = path.rfind('.');
-        if (u == -1) return path.substr(p);
-
-        if (u <= p) u = path.size();
-        return path.substr(p, u - p);
-    }
-
-    void _log_func(const char *file, int line, const char *fmt, ...) {
-        va_list vl;
-        va_start(vl, fmt);
-        char buffer[2048];
-        string filename = file_name(file, true);
-        int n = snprintf(buffer, sizeof(buffer), "[%s:%d]: ", filename.c_str(), line);
-        vsnprintf(buffer + n, sizeof(buffer) - n, fmt, vl);
-        fprintf(stdout, "%s\n", buffer);
-        string folder_path = "trt_log";
-        if (!filesystem::exists(folder_path)) {
-            try {
-                filesystem::create_directory(folder_path);
-            } catch (const exception &e) {
-                cerr << "create_directory trt_log error" << e.what() << endl;
-            }
-        }
-        FILE *log_file = fopen("trt_log/log.txt", "a");
-        if (log_file != nullptr) {
-            fprintf(log_file, "%s\n", buffer);
-            fclose(log_file);
-        }
-        va_end(vl);
-    }
+std::tm local_time(std::time_t value) {
+  std::tm result{};
+#ifdef _WIN32
+  localtime_s(&result, &value);
+#else
+  localtime_r(&value, &result);
+#endif
+  return result;
 }
+
+const char *level_name(LogLevel level) {
+  switch (level) {
+  case LogLevel::info:
+    return "INFO";
+  case LogLevel::warning:
+    return "WARN";
+  case LogLevel::error:
+    return "ERROR";
+  }
+  return "INFO";
+}
+
+} // namespace
+
+void log(LogLevel level, const std::string &message) noexcept {
+  try {
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t time = std::chrono::system_clock::to_time_t(now);
+    const std::tm local = local_time(time);
+
+    std::ostringstream file_name;
+    file_name << std::put_time(&local, "%Y-%m-%d") << "-trt.log";
+
+    std::ostringstream line;
+    line << std::put_time(&local, "%Y-%m-%d %H:%M:%S") << " ["
+         << level_name(level) << "] " << message;
+
+    std::lock_guard<std::mutex> lock(log_mutex);
+    std::cout << line.str() << '\n';
+    std::ofstream file(file_name.str(), std::ios::app);
+    if (file) {
+      file << line.str() << '\n';
+    }
+  } catch (...) {
+    // 日志失败不能中断推理。
+  }
+}
+
+} // namespace yolo26::detail

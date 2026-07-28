@@ -1,54 +1,29 @@
-cmake_minimum_required(VERSION 3.28)
+# Linux 预加载配置。用法：
+# cmake -S . -B build/linux -C doc/cmake/CMakeLists.linux \
+#   -DTENSORRT_ROOT=/opt/TensorRT-10.13.3.9
+# 根 CMake 会将 src 核心与 workspace/export C ABI/CPM 一起编译，动态库输出为
+# workspace/export/libyolo26.so。
 
-set(CMAKE_CUDA_ARCHITECTURES 60 61 62 70 72 75 86 89 90)
-set(CMAKE_CUDA_COMPILER /usr/local/cuda-13.0/bin/nvcc)
+# 可通过命令行覆盖 GPU 架构，例如 -DCMAKE_CUDA_ARCHITECTURES=86。
+set(CMAKE_CUDA_ARCHITECTURES "75;86;89;90" CACHE STRING
+    "需要生成 CUDA 代码的 GPU 架构")
+set(YOLO26_EXPORT_SOURCE_DIR
+    "${CMAKE_CURRENT_LIST_DIR}/../../workspace/export" CACHE PATH
+    "C ABI 与 CPM 导出实现目录")
 
-project(tensorrt CUDA CXX)
+# 优先读取环境变量，同时允许后续使用 -D 参数覆盖。
+if(DEFINED ENV{CUDA_PATH})
+  set(CUDAToolkit_ROOT "$ENV{CUDA_PATH}" CACHE PATH "CUDA 安装目录")
+  if(EXISTS "$ENV{CUDA_PATH}/bin/nvcc")
+    set(CMAKE_CUDA_COMPILER "$ENV{CUDA_PATH}/bin/nvcc" CACHE FILEPATH
+        "CUDA 编译器")
+  endif()
+endif()
+if(DEFINED ENV{TENSORRT_ROOT})
+  set(TENSORRT_ROOT "$ENV{TENSORRT_ROOT}" CACHE PATH "TensorRT 10 安装目录")
+elseif(DEFINED ENV{TENSORRT_PATH})
+  set(TENSORRT_ROOT "$ENV{TENSORRT_PATH}" CACHE PATH "TensorRT 10 安装目录")
+endif()
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CUDA_STANDARD 17)
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-file(GLOB SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu
-)
-
-find_package(OpenCV REQUIRED)
-set(TensorRT_DIR /home/autumn/dev/TensorRT-10.13.3.9)
-set(CUDA_DIR /usr/local/cuda-12.8)
-
-include_directories(
-        ${OpenCV_INCLUDE_DIRS}
-        ${TensorRT_DIR}/include
-        ${TensorRT_DIR}/samples/common
-        ${CUDA_DIR}/include
-)
-
-link_directories(
-        ${TensorRT_DIR}/lib
-        ${CUDA_DIR}/lib64
-)
-
-#add_library(${PROJECT_NAME} SHARED
-#        ${SOURCES}
-#        workspace/export/export_multiple.cpp
-#        workspace/export/export_multiple_cpm.cpp
-#        workspace/export/export_single.cpp
-#        workspace/export/export_single_cpm.cpp
-#)
-
-add_executable(${PROJECT_NAME}
-        ${SOURCES}
-        workspace/example/main.cpp
-)
-
-set_target_properties(${PROJECT_NAME} PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON)
-
-target_link_libraries(${PROJECT_NAME}
-        ${OpenCV_LIBS}
-        libnvinfer.so.10
-        libcuda.so
-        libcudart.so
-)
+# 示例默认开启；只构建动态库时传入 -DYOLO26_BUILD_EXAMPLE=OFF。
+set(YOLO26_BUILD_EXAMPLE ON CACHE BOOL "构建由 config.h 驱动的 OpenCV 示例")

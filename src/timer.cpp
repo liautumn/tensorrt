@@ -1,35 +1,71 @@
-#include <cuda_runtime_api.h>
-#include <cstdlib>
-#include <cstdio>
 #include "timer.h"
-#include "logger.h"
 
-namespace trt_timer {
-    Timer::Timer() {
-        checkRuntime(cudaEventCreate(reinterpret_cast<cudaEvent_t *>(&start_)));
-        checkRuntime(cudaEventCreate(reinterpret_cast<cudaEvent_t *>(&stop_)));
-    }
+#include "cuda_utils.h"
 
-    Timer::~Timer() {
-        checkRuntime(cudaEventDestroy(static_cast<cudaEvent_t>(start_)));
-        checkRuntime(cudaEventDestroy(static_cast<cudaEvent_t>(stop_)));
-    }
+namespace yolo26::detail {
 
-    void Timer::start(void *stream) {
-        stream_ = stream;
-        checkRuntime(cudaEventRecord(static_cast<cudaEvent_t>(start_), static_cast<cudaStream_t>(stream_)));
-    }
-
-    float Timer::stop(const char *prefix, bool print) {
-        checkRuntime(cudaEventRecord(static_cast<cudaEvent_t>(stop_), static_cast<cudaStream_t>(stream_)));
-        checkRuntime(cudaEventSynchronize(static_cast<cudaEvent_t>(stop_)));
-
-        float latency = 0;
-        checkRuntime(cudaEventElapsedTime(&latency, static_cast<cudaEvent_t>(start_), static_cast<cudaEvent_t>(stop_)));
-
-        if (print) {
-            printf("[%s]: %.5f ms\n", prefix, latency);
-        }
-        return latency;
-    }
+CudaStageTimer::CudaStageTimer() {
+  YOLO26_CHECK_CUDA(cudaEventCreate(&start_));
+  try {
+    YOLO26_CHECK_CUDA(cudaEventCreate(&stop_));
+  } catch (...) {
+    cudaEventDestroy(start_);
+    throw;
+  }
 }
+
+CudaStageTimer::~CudaStageTimer() {
+  if (stop_ != nullptr) {
+    cudaEventDestroy(stop_);
+  }
+  if (start_ != nullptr) {
+    cudaEventDestroy(start_);
+  }
+}
+
+void CudaStageTimer::start(cudaStream_t stream) {
+  YOLO26_CHECK_CUDA(cudaEventRecord(start_, stream));
+}
+
+float CudaStageTimer::stop(cudaStream_t stream) {
+  YOLO26_CHECK_CUDA(cudaEventRecord(stop_, stream));
+  YOLO26_CHECK_CUDA(cudaEventSynchronize(stop_));
+  float milliseconds = 0.0F;
+  YOLO26_CHECK_CUDA(cudaEventElapsedTime(&milliseconds, start_, stop_));
+  return milliseconds;
+}
+
+PredictionTimer::PredictionTimer() : total_start_(Clock::now()) {}
+
+void PredictionTimer::start_preprocess(cudaStream_t stream) {
+  cuda_timer_.start(stream);
+}
+
+void PredictionTimer::stop_preprocess(cudaStream_t stream) {
+  timing_.preprocess_ms = cuda_timer_.stop(stream);
+}
+
+void PredictionTimer::start_inference(cudaStream_t stream) {
+  cuda_timer_.start(stream);
+}
+
+void PredictionTimer::stop_inference(cudaStream_t stream) {
+  timing_.inference_ms = cuda_timer_.stop(stream);
+}
+
+void PredictionTimer::start_postprocess() { postprocess_start_ = Clock::now(); }
+
+void PredictionTimer::stop_postprocess() {
+  timing_.postprocess_ms = std::chrono::duration<float, std::milli>(
+                               Clock::now() - postprocess_start_)
+                               .count();
+}
+
+const Timing &PredictionTimer::finish() {
+  timing_.total_ms =
+      std::chrono::duration<float, std::milli>(Clock::now() - total_start_)
+          .count();
+  return timing_;
+}
+
+} // namespace yolo26::detail
