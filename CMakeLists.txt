@@ -85,3 +85,29 @@ target_link_libraries(yolo26_trt PRIVATE
     CUDA::cudart
     # OpenCV core、imgcodecs 和 imgproc 库。
     ${OpenCV_LIBS})
+
+# Keep the runtime DLLs beside the executable so IDE launches do not depend on
+# machine-specific PATH entries.
+if(WIN32)
+    find_file(TENSORRT_RUNTIME_DLL
+        NAMES nvinfer_11.dll nvinfer.dll
+        HINTS ${TENSORRT_ROOT} $ENV{TENSORRT_ROOT}
+        PATH_SUFFIXES bin lib)
+    if(NOT TENSORRT_RUNTIME_DLL)
+        message(FATAL_ERROR "TensorRT runtime DLL not found under TENSORRT_ROOT")
+    endif()
+
+    add_custom_command(TARGET yolo26_trt POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${TENSORRT_RUNTIME_DLL}"
+            "$<TARGET_FILE_DIR:yolo26_trt>"
+        VERBATIM)
+
+    if(TARGET opencv_world)
+        add_custom_command(TARGET yolo26_trt POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:opencv_world>"
+                "$<TARGET_FILE_DIR:yolo26_trt>"
+            VERBATIM)
+    endif()
+endif()

@@ -17,6 +17,15 @@ TensorRT engine 与构建它的 TensorRT 版本、GPU 平台相关，建议直�
 
 安装或更新导出工具。TensorRT 11 的 FP16/INT8 是 strongly typed 工作流，Ultralytics 会调用 NVIDIA ModelOpt，把精度或 Q/DQ 节点写进 ONNX 后再构建 engine：
 
+./trtexec.exe `
+--onnx=beat.onnx `
+--saveEngine=best.engine `
+--fp16 `
+--useCudaGraph `
+--minShapes=images:1x3x640x640 `
+--optShapes=images:4x3x640x640 `
+--maxShapes=images:12x3x640x640
+
 ```bash
 python -m pip install -U ultralytics "nvidia-modelopt[onnx]>=0.44"
 ```

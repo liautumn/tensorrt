@@ -1,321 +1,324 @@
-// å¼•å…¥ TensorRT C++ æ¨ç†æ¥å£ï¼Œç±»ä¼¼ Java ä¸­ import TensorRT ç›¸å…³ç±»ã€‚
+// ÒıÈë TensorRT C++ ÍÆÀí½Ó¿Ú£¬ÀàËÆ Java ÖĞ import TensorRT Ïà¹ØÀà¡£
 #include <NvInfer.h>
-// å¼•å…¥ CUDA Runtime æ¥å£ï¼Œç”¨æ¥åˆ›å»º streamã€ç”³è¯·æ˜¾å­˜å’Œå¤åˆ¶æ•°æ®ã€‚
+// ÒıÈë CUDA Runtime ½Ó¿Ú£¬ÓÃÀ´´´½¨ stream¡¢ÉêÇëÏÔ´æºÍ¸´ÖÆÊı¾İ¡£
 #include <cuda_runtime_api.h>
-// å¼•å…¥ OpenCV å›¾ç‰‡è¯»å–æ¥å£ï¼Œä¸»è¦ä½¿ç”¨ cv::imreadã€‚
+// ÒıÈë OpenCV Í¼Æ¬¶ÁÈ¡½Ó¿Ú£¬Ö÷ÒªÊ¹ÓÃ cv::imread¡£
 #include <opencv2/imgcodecs.hpp>
-// å¼•å…¥ OpenCV å›¾ç‰‡å¤„ç†æ¥å£ï¼Œä¸»è¦ä½¿ç”¨ resizeã€cvtColor å’Œ splitã€‚
+// ÒıÈë OpenCV ´°¿Ú½Ó¿Ú£¬ÓÃÀ´ÏÔÊ¾±ê×¢ºóµÄ¼ì²â½á¹û¡£
+#include <opencv2/highgui.hpp>
+// ÒıÈë OpenCV Í¼Æ¬´¦Àí½Ó¿Ú£¬Ö÷ÒªÊ¹ÓÃ resize¡¢cvtColor ºÍ split¡£
 #include <opencv2/imgproc.hpp>
 
-// æä¾› minã€maxã€clamp å’Œ copy_n ç­‰é€šç”¨ç®—æ³•ã€‚
+// Ìá¹© min¡¢max¡¢clamp ºÍ copy_n µÈÍ¨ÓÃËã·¨¡£
 #include <algorithm>
-// æä¾› round ç­‰æ•°å­¦å‡½æ•°ã€‚
+// Ìá¹© round µÈÊıÑ§º¯Êı¡£
 #include <cmath>
-// æä¾› int32_tã€int64_t ç­‰é•¿åº¦å›ºå®šçš„æ•´æ•°ç±»å‹ã€‚
+// Ìá¹© int32_t¡¢int64_t µÈ³¤¶È¹Ì¶¨µÄÕûÊıÀàĞÍ¡£
 #include <cstdint>
-// æä¾› memcpyï¼Œç”¨æ¥è¯»å– Ultralytics engine çš„å…ƒæ•°æ®é•¿åº¦ã€‚
+// Ìá¹© memcpy£¬ÓÃÀ´¶ÁÈ¡ Ultralytics engine µÄÔªÊı¾İ³¤¶È¡£
 #include <cstring>
-// æä¾› ifstreamï¼Œç”¨äºŒè¿›åˆ¶æ–¹å¼è¯»å– engine æ–‡ä»¶ã€‚
+// Ìá¹© ifstream£¬ÓÃ¶ş½øÖÆ·½Ê½¶ÁÈ¡ engine ÎÄ¼ş¡£
 #include <fstream>
-// æä¾› setprecisionï¼Œç”¨æ¥æ§åˆ¶ç½®ä¿¡åº¦å’Œåæ ‡çš„æ‰“å°ç²¾åº¦ã€‚
+// Ìá¹© setprecision£¬ÓÃÀ´¿ØÖÆÖÃĞÅ¶ÈºÍ×ø±êµÄ´òÓ¡¾«¶È¡£
 #include <iomanip>
-// æä¾› cout å’Œ cerrï¼Œç±»ä¼¼ Java çš„ System.out å’Œ System.errã€‚
+// Ìá¹© cout ºÍ cerr£¬ÀàËÆ Java µÄ System.out ºÍ System.err¡£
 #include <iostream>
-// æä¾› unique_ptrï¼Œä½œç”¨ç±»ä¼¼è‡ªåŠ¨é‡Šæ”¾èµ„æºçš„ç‹¬å å¼•ç”¨ã€‚
+// Ìá¹© unique_ptr£¬×÷ÓÃÀàËÆ×Ô¶¯ÊÍ·Å×ÊÔ´µÄ¶ÀÕ¼ÒıÓÃ¡£
 #include <memory>
-// æä¾› runtime_errorï¼Œç±»ä¼¼ Java çš„ RuntimeExceptionã€‚
+// Ìá¹© runtime_error£¬ÀàËÆ Java µÄ RuntimeException¡£
 #include <stdexcept>
-// æä¾› std::stringï¼Œä½œç”¨ç±»ä¼¼ Java Stringã€‚
+#include <sstream>
+// Ìá¹© std::string£¬×÷ÓÃÀàËÆ Java String¡£
 #include <string>
-// æä¾›è¿ç»­å†…å­˜æ•°ç»„ std::vectorï¼ŒåŠŸèƒ½ä¸Šå¯ç±»æ¯” Java ArrayListã€‚
+// Ìá¹©Á¬ĞøÄÚ´æÊı×é std::vector£¬¹¦ÄÜÉÏ¿ÉÀà±È Java ArrayList¡£
 #include <vector>
 
-// ç¼–è¯‘æ—¶æ£€æŸ¥ TensorRT ä¸»ç‰ˆæœ¬ï¼Œä½äº 11 å°±ç›´æ¥åœæ­¢ç¼–è¯‘ã€‚
+// ±àÒëÊ±¼ì²é TensorRT Ö÷°æ±¾£¬µÍÓÚ 11 ¾ÍÖ±½ÓÍ£Ö¹±àÒë¡£
 #if NV_TENSORRT_MAJOR < 11
 #error "This example requires TensorRT 11 or newer."
 #endif
 
-// åŒ¿åå‘½åç©ºé—´è®©æœ¬æ–‡ä»¶ä¸­çš„è¾…åŠ©ç±»å’Œå‡½æ•°ä¸ä¼šæš´éœ²ç»™å…¶ä»– cpp æ–‡ä»¶ã€‚
+// ÄäÃûÃüÃû¿Õ¼äÈÃ±¾ÎÄ¼şÖĞµÄ¸¨ÖúÀàºÍº¯Êı²»»á±©Â¶¸øÆäËû cpp ÎÄ¼ş¡£
 namespace
 {
 
-// ç«¯åˆ°ç«¯è¾“å‡ºå·²ç»å®Œæˆæ¡†è§£ç å’Œ Top-Kï¼Œè¿™é‡Œåªè¿‡æ»¤ä½ç½®ä¿¡åº¦å€™é€‰æ¡†ã€‚
-// constexpr è¡¨ç¤ºç¼–è¯‘æœŸå¸¸é‡ï¼Œç±»ä¼¼ Java çš„ static finalã€‚
+// ¶Ëµ½¶ËÊä³öÒÑ¾­Íê³É¿ò½âÂëºÍ Top-K£¬ÕâÀïÖ»¹ıÂËµÍÖÃĞÅ¶ÈºòÑ¡¿ò¡£
+// constexpr ±íÊ¾±àÒëÆÚ³£Á¿£¬ÀàËÆ Java µÄ static final¡£
 constexpr float kConfidenceThreshold = 0.25F;
 
-// TensorRT æ—¥å¿—å™¨ï¼šåªè¾“å‡ºè­¦å‘Šå’Œé”™è¯¯ï¼Œé¿å…æ­£å¸¸è¿è¡Œæ—¶æ—¥å¿—è¿‡å¤šã€‚
-// final è¡¨ç¤ºä¸å…è®¸å†ç»§æ‰¿ï¼›â€œ: public ILoggerâ€ç›¸å½“äº Java implements ILoggerã€‚
+// TensorRT ÈÕÖ¾Æ÷£ºÖ»Êä³ö¾¯¸æºÍ´íÎó£¬±ÜÃâÕı³£ÔËĞĞÊ±ÈÕÖ¾¹ı¶à¡£
+// final ±íÊ¾²»ÔÊĞíÔÙ¼Ì³Ğ£»¡°: public ILogger¡±Ïàµ±ÓÚ Java implements ILogger¡£
 class Logger final : public nvinfer1::ILogger
 {
 public:
-    // override è¡¨ç¤ºé‡å†™çˆ¶æ¥å£æ–¹æ³•ï¼›noexcept è¡¨ç¤ºè¯¥å‡½æ•°ä¸ä¼šå‘å¤–æŠ›å¼‚å¸¸ã€‚
+    // override ±íÊ¾ÖØĞ´¸¸½Ó¿Ú·½·¨£»noexcept ±íÊ¾¸Ãº¯Êı²»»áÏòÍâÅ×Òì³£¡£
     void log(Severity severity, char const* message) noexcept override
     {
-        // TensorRT ä¸¥é‡ç­‰çº§æ•°å€¼è¶Šå°è¶Šä¸¥é‡ï¼Œåªä¿ç•™ warningã€error å’Œ internal errorã€‚
+        // TensorRT ÑÏÖØµÈ¼¶ÊıÖµÔ½Ğ¡Ô½ÑÏÖØ£¬Ö»±£Áô warning¡¢error ºÍ internal error¡£
         if (severity <= Severity::kWARNING)
         {
-            // æŠŠ TensorRT æ—¥å¿—å†™åˆ°æ ‡å‡†é”™è¯¯æµã€‚
+            // °Ñ TensorRT ÈÕÖ¾Ğ´µ½±ê×¼´íÎóÁ÷¡£
             std::cerr << "[TensorRT] " << message << '\n';
         }
     }
 };
 
-// æŠŠ CUDA è¿”å›ç è½¬æ¢æˆ C++ å¼‚å¸¸ï¼Œä¸»å‡½æ•°ç»Ÿä¸€å¤„ç†é”™è¯¯ã€‚
-// char const* æ˜¯åªè¯» C å­—ç¬¦ä¸²ï¼Œå¯ç®€å•ç†è§£ä¸º Java String çš„åº•å±‚å½¢å¼ã€‚
+// °Ñ CUDA ·µ»ØÂë×ª»»³É C++ Òì³££¬Ö÷º¯ÊıÍ³Ò»´¦Àí´íÎó¡£
+// char const* ÊÇÖ»¶Á C ×Ö·û´®£¬¿É¼òµ¥Àí½âÎª Java String µÄµ×²ãĞÎÊ½¡£
 void checkCuda(cudaError_t status, char const* operation)
 {
-    // cudaSuccess è¡¨ç¤º CUDA è°ƒç”¨æˆåŠŸï¼Œå…¶ä»–å€¼éƒ½è¡¨ç¤ºå¤±è´¥ã€‚
+    // cudaSuccess ±íÊ¾ CUDA µ÷ÓÃ³É¹¦£¬ÆäËûÖµ¶¼±íÊ¾Ê§°Ü¡£
     if (status != cudaSuccess)
     {
-        // æ‹¼æ¥â€œæ“ä½œåç§° + CUDA é”™è¯¯æ–‡æœ¬â€ï¼Œå†æŠ›ç»™ main çš„ catch å¤„ç†ã€‚
+        // Æ´½Ó¡°²Ù×÷Ãû³Æ + CUDA ´íÎóÎÄ±¾¡±£¬ÔÙÅ×¸ø main µÄ catch ´¦Àí¡£
         throw std::runtime_error(std::string(operation) + ": " + cudaGetErrorString(status));
     }
 }
 
-// CUDA stream çš„ RAII å°è£…ï¼Œç¦»å¼€ä½œç”¨åŸŸæ—¶è‡ªåŠ¨é‡Šæ”¾ã€‚
-// RAII å¯ä»¥ç±»æ¯” Java try-with-resourcesï¼šå¯¹è±¡é”€æ¯æ—¶è‡ªåŠ¨æ¸…ç†åº•å±‚èµ„æºã€‚
+// CUDA stream µÄ RAII ·â×°£¬Àë¿ª×÷ÓÃÓòÊ±×Ô¶¯ÊÍ·Å¡£
+// RAII ¿ÉÒÔÀà±È Java try-with-resources£º¶ÔÏóÏú»ÙÊ±×Ô¶¯ÇåÀíµ×²ã×ÊÔ´¡£
 class CudaStream
 {
 public:
-    // æ„é€ å‡½æ•°ï¼šåˆ›å»ºä¸€æ¡ CUDA å‘½ä»¤é˜Ÿåˆ—ã€‚
+    // ¹¹Ôìº¯Êı£º´´½¨Ò»Ìõ CUDA ÃüÁî¶ÓÁĞ¡£
     CudaStream()
     {
-        // &stream_ ä¼ å…¥å­—æ®µåœ°å€ï¼Œè®© CUDA æŠŠæ–° stream å†™å›è¯¥å­—æ®µã€‚
+        // &stream_ ´«Èë×Ö¶ÎµØÖ·£¬ÈÃ CUDA °ÑĞÂ stream Ğ´»Ø¸Ã×Ö¶Î¡£
         checkCuda(cudaStreamCreate(&stream_), "cudaStreamCreate");
     }
 
-    // ææ„å‡½æ•°ï¼šå¯¹è±¡ç¦»å¼€ä½œç”¨åŸŸæ—¶è‡ªåŠ¨æ‰§è¡Œï¼Œç±»ä¼¼ AutoCloseable.close()ã€‚
+    // Îö¹¹º¯Êı£º¶ÔÏóÀë¿ª×÷ÓÃÓòÊ±×Ô¶¯Ö´ĞĞ£¬ÀàËÆ AutoCloseable.close()¡£
     ~CudaStream()
     {
-        // ç©ºæŒ‡é’ˆä¸éœ€è¦é‡Šæ”¾ã€‚
+        // ¿ÕÖ¸Õë²»ĞèÒªÊÍ·Å¡£
         if (stream_ != nullptr)
         {
-            // é‡Šæ”¾æ„é€ å‡½æ•°åˆ›å»ºçš„ CUDA streamã€‚
+            // ÊÍ·Å¹¹Ôìº¯Êı´´½¨µÄ CUDA stream¡£
             cudaStreamDestroy(stream_);
         }
     }
 
-    // ç¦æ­¢å¤åˆ¶ stream å¯¹è±¡ï¼Œé¿å…ä¸¤ä¸ªå¯¹è±¡é‡å¤é‡Šæ”¾åŒä¸€æ¡ streamã€‚
+    // ½ûÖ¹¸´ÖÆ stream ¶ÔÏó£¬±ÜÃâÁ½¸ö¶ÔÏóÖØ¸´ÊÍ·ÅÍ¬Ò»Ìõ stream¡£
     CudaStream(CudaStream const&) = delete;
-    // åŒæ ·ç¦æ­¢å¤åˆ¶èµ‹å€¼ã€‚
+    // Í¬Ñù½ûÖ¹¸´ÖÆ¸³Öµ¡£
     CudaStream& operator=(CudaStream const&) = delete;
 
-    // å…è®¸æŠŠ CudaStream å¯¹è±¡ç›´æ¥ä¼ ç»™éœ€è¦ cudaStream_t çš„ CUDA/TensorRT å‡½æ•°ã€‚
+    // ÔÊĞí°Ñ CudaStream ¶ÔÏóÖ±½Ó´«¸øĞèÒª cudaStream_t µÄ CUDA/TensorRT º¯Êı¡£
     operator cudaStream_t() const { return stream_; }
 
 private:
-    // ä¿å­˜ CUDA stream å¥æŸ„ï¼›nullptr è¡¨ç¤ºå½“å‰æ²¡æœ‰èµ„æºã€‚
+    // ±£´æ CUDA stream ¾ä±ú£»nullptr ±íÊ¾µ±Ç°Ã»ÓĞ×ÊÔ´¡£
     cudaStream_t stream_{nullptr};
 };
 
-// GPU æ˜¾å­˜çš„ RAII å°è£…ï¼Œé¿å…å¼‚å¸¸è·¯å¾„æ³„æ¼æ˜¾å­˜ã€‚
+// GPU ÏÔ´æµÄ RAII ·â×°£¬±ÜÃâÒì³£Â·¾¶Ğ¹Â©ÏÔ´æ¡£
 class DeviceBuffer
 {
 public:
-    // æ„é€ å‡½æ•°æ¥æ”¶éœ€è¦ç”³è¯·çš„å­—èŠ‚æ•°ã€‚
+    // ¹¹Ôìº¯Êı½ÓÊÕĞèÒªÉêÇëµÄ×Ö½ÚÊı¡£
     explicit DeviceBuffer(std::size_t bytes)
     {
-        // cudaMalloc åœ¨ GPU ä¸Šç”³è¯·æ˜¾å­˜ï¼Œå¹¶æŠŠåœ°å€å†™å…¥ data_ã€‚
+        // cudaMalloc ÔÚ GPU ÉÏÉêÇëÏÔ´æ£¬²¢°ÑµØÖ·Ğ´Èë data_¡£
         checkCuda(cudaMalloc(&data_, bytes), "cudaMalloc");
     }
 
-    // ææ„å‡½æ•°è´Ÿè´£è‡ªåŠ¨é‡Šæ”¾ GPU æ˜¾å­˜ã€‚
+    // Îö¹¹º¯Êı¸ºÔğ×Ô¶¯ÊÍ·Å GPU ÏÔ´æ¡£
     ~DeviceBuffer()
     {
-        // åªé‡Šæ”¾æœ‰æ•ˆåœ°å€ã€‚
+        // Ö»ÊÍ·ÅÓĞĞ§µØÖ·¡£
         if (data_ != nullptr)
         {
-            // cudaFree å¯¹åº”å‰é¢çš„ cudaMallocã€‚
+            // cudaFree ¶ÔÓ¦Ç°ÃæµÄ cudaMalloc¡£
             cudaFree(data_);
         }
     }
 
-    // GPU æ˜¾å­˜åŒæ ·ä¸èƒ½è¢«ä¸¤ä¸ªå¯¹è±¡å…±åŒæ‹¥æœ‰ï¼Œå› æ­¤ç¦æ­¢å¤åˆ¶ã€‚
+    // GPU ÏÔ´æÍ¬Ñù²»ÄÜ±»Á½¸ö¶ÔÏó¹²Í¬ÓµÓĞ£¬Òò´Ë½ûÖ¹¸´ÖÆ¡£
     DeviceBuffer(DeviceBuffer const&) = delete;
-    // ç¦æ­¢å¤åˆ¶èµ‹å€¼ï¼Œé˜²æ­¢é‡å¤ cudaFreeã€‚
+    // ½ûÖ¹¸´ÖÆ¸³Öµ£¬·ÀÖ¹ÖØ¸´ cudaFree¡£
     DeviceBuffer& operator=(DeviceBuffer const&) = delete;
 
-    // è¿”å›åº•å±‚ GPU åœ°å€ï¼Œä¾› cudaMemcpyAsync å’Œ TensorRT ä½¿ç”¨ã€‚
+    // ·µ»Øµ×²ã GPU µØÖ·£¬¹© cudaMemcpyAsync ºÍ TensorRT Ê¹ÓÃ¡£
     void* get() const { return data_; }
 
 private:
-    // void* æ˜¯ä¸æŒ‡å®šå…ƒç´ ç±»å‹çš„åŸå§‹åœ°å€ï¼Œå› ä¸ºè¿™é‡Œåªå…³å¿ƒæ˜¾å­˜èµ·ç‚¹ã€‚
+    // void* ÊÇ²»Ö¸¶¨ÔªËØÀàĞÍµÄÔ­Ê¼µØÖ·£¬ÒòÎªÕâÀïÖ»¹ØĞÄÏÔ´æÆğµã¡£
     void* data_{nullptr};
 };
 
-// ä¸€æ¬¡æ€§æŠŠ TensorRT engine è¯»å…¥å†…å­˜ï¼Œä¾› runtime ååºåˆ—åŒ–ã€‚
-// const& è¡¨ç¤ºåªè¯»å¼•ç”¨ï¼šä¸å¤åˆ¶ pathï¼Œä¹Ÿä¸å…è®¸ä¿®æ”¹å®ƒã€‚
+// Ò»´ÎĞÔ°Ñ TensorRT engine ¶ÁÈëÄÚ´æ£¬¹© runtime ·´ĞòÁĞ»¯¡£
+// const& ±íÊ¾Ö»¶ÁÒıÓÃ£º²»¸´ÖÆ path£¬Ò²²»ÔÊĞíĞŞ¸ÄËü¡£
 std::vector<char> readFile(std::string const& path)
 {
-    // binary è¡¨ç¤ºäºŒè¿›åˆ¶è¯»å–ï¼›ate è¡¨ç¤ºæ‰“å¼€åå…ˆç§»åŠ¨åˆ°æ–‡ä»¶æœ«å°¾ï¼Œæ–¹ä¾¿è·å–å¤§å°ã€‚
+    // binary ±íÊ¾¶ş½øÖÆ¶ÁÈ¡£»ate ±íÊ¾´ò¿ªºóÏÈÒÆ¶¯µ½ÎÄ¼şÄ©Î²£¬·½±ã»ñÈ¡´óĞ¡¡£
     std::ifstream file(path, std::ios::binary | std::ios::ate);
-    // ifstream å¯ç›´æ¥ä½œä¸º bool åˆ¤æ–­ï¼Œfalse è¡¨ç¤ºæ‰“å¼€å¤±è´¥ã€‚
+    // ifstream ¿ÉÖ±½Ó×÷Îª bool ÅĞ¶Ï£¬false ±íÊ¾´ò¿ªÊ§°Ü¡£
     if (!file)
     {
-        // æŠ›å‡ºå¼‚å¸¸åä¼šè·³åˆ° main æœ€åçš„ catchã€‚
+        // Å×³öÒì³£ºó»áÌøµ½ main ×îºóµÄ catch¡£
         throw std::runtime_error("Cannot open engine: " + path);
     }
 
-    // tellg è¿”å›å½“å‰ä½ç½®ï¼›å› ä¸ºå½“å‰åœ¨æ–‡ä»¶æœ«å°¾ï¼Œæ‰€ä»¥å®ƒå°±æ˜¯æ–‡ä»¶å­—èŠ‚æ•°ã€‚
+    // tellg ·µ»Øµ±Ç°Î»ÖÃ£»ÒòÎªµ±Ç°ÔÚÎÄ¼şÄ©Î²£¬ËùÒÔËü¾ÍÊÇÎÄ¼ş×Ö½ÚÊı¡£
     auto const end = file.tellg();
-    // engine æ–‡ä»¶å¿…é¡»è‡³å°‘åŒ…å«ä¸€ä¸ªå­—èŠ‚ã€‚
+    // engine ÎÄ¼ş±ØĞëÖÁÉÙ°üº¬Ò»¸ö×Ö½Ú¡£
     if (end <= 0)
     {
         throw std::runtime_error("Engine is empty: " + path);
     }
 
-    // åˆ›å»ºä¸€ä¸ªä¸æ–‡ä»¶ä¸€æ ·å¤§çš„è¿ç»­ char æ•°ç»„ï¼Œç”¨äºä¿å­˜å…¨éƒ¨äºŒè¿›åˆ¶å†…å®¹ã€‚
+    // ´´½¨Ò»¸öÓëÎÄ¼şÒ»Ñù´óµÄÁ¬Ğø char Êı×é£¬ÓÃÓÚ±£´æÈ«²¿¶ş½øÖÆÄÚÈİ¡£
     std::vector<char> bytes(static_cast<std::size_t>(end));
-    // æŠŠè¯»å–ä½ç½®ä»æ–‡ä»¶æœ«å°¾ç§»å›å¼€å¤´ã€‚
+    // °Ñ¶ÁÈ¡Î»ÖÃ´ÓÎÄ¼şÄ©Î²ÒÆ»Ø¿ªÍ·¡£
     file.seekg(0, std::ios::beg);
-    // bytes.data() è¿”å›æ•°ç»„é¦–åœ°å€ï¼›read æŠŠæ•´ä¸ªæ–‡ä»¶å†™å…¥è¯¥æ•°ç»„ã€‚
+    // bytes.data() ·µ»ØÊı×éÊ×µØÖ·£»read °ÑÕû¸öÎÄ¼şĞ´Èë¸ÃÊı×é¡£
     if (!file.read(bytes.data(), static_cast<std::streamsize>(bytes.size())))
     {
         throw std::runtime_error("Cannot read engine: " + path);
     }
-    // è¿”å› vector æ—¶ç¼–è¯‘å™¨ä¼šç§»åŠ¨æ•°æ®ï¼Œé€šå¸¸ä¸ä¼šå¤åˆ¶æ•´ä»½ engineã€‚
+    // ·µ»Ø vector Ê±±àÒëÆ÷»áÒÆ¶¯Êı¾İ£¬Í¨³£²»»á¸´ÖÆÕû·İ engine¡£
     return bytes;
 }
 
-// è¿”å›çœŸæ­£ TensorRT plan çš„èµ·å§‹åç§»ï¼›çº¯ trtexec engine çš„åç§»ä¸º 0ã€‚
+// ·µ»ØÕæÕı TensorRT plan µÄÆğÊ¼Æ«ÒÆ£»´¿ trtexec engine µÄÆ«ÒÆÎª 0¡£
 std::size_t tensorRtPlanOffset(std::vector<char> const& bytes)
 {
-    // Ultralytics æ–‡ä»¶å¤´æ ¼å¼ï¼šint32 JSON é•¿åº¦ + JSON + TensorRT planã€‚
-    // æ–‡ä»¶è¿‡çŸ­æ—¶ä¸å¯èƒ½åŒ…å«å®Œæ•´å…ƒæ•°æ®å¤´ï¼Œç›´æ¥æŒ‰çº¯ TensorRT plan å¤„ç†ã€‚
+    // Ultralytics ÎÄ¼şÍ·¸ñÊ½£ºint32 JSON ³¤¶È + JSON + TensorRT plan¡£
+    // ÎÄ¼ş¹ı¶ÌÊ±²»¿ÉÄÜ°üº¬ÍêÕûÔªÊı¾İÍ·£¬Ö±½Ó°´´¿ TensorRT plan ´¦Àí¡£
     if (bytes.size() < sizeof(std::int32_t) + 2)
     {
         return 0;
     }
 
-    // å…ˆå‡†å¤‡ä¸€ä¸ª 32 ä½æ•´æ•°ï¼Œç”¨æ¥æ¥æ”¶ JSON é•¿åº¦ã€‚
+    // ÏÈ×¼±¸Ò»¸ö 32 Î»ÕûÊı£¬ÓÃÀ´½ÓÊÕ JSON ³¤¶È¡£
     std::int32_t jsonLength = 0;
-    // æŠŠæ–‡ä»¶å¼€å¤´ 4 å­—èŠ‚å¤åˆ¶åˆ° jsonLengthï¼›ä¸èƒ½ç›´æ¥å¼ºè½¬ï¼Œé¿å…æœªå¯¹é½è®¿é—®ã€‚
+    // °ÑÎÄ¼ş¿ªÍ· 4 ×Ö½Ú¸´ÖÆµ½ jsonLength£»²»ÄÜÖ±½ÓÇ¿×ª£¬±ÜÃâÎ´¶ÔÆë·ÃÎÊ¡£
     std::memcpy(&jsonLength, bytes.data(), sizeof(jsonLength));
-    // JSON ç»“æŸä½ç½® = 4 å­—èŠ‚é•¿åº¦å­—æ®µ + JSON æœ¬èº«é•¿åº¦ã€‚
+    // JSON ½áÊøÎ»ÖÃ = 4 ×Ö½Ú³¤¶È×Ö¶Î + JSON ±¾Éí³¤¶È¡£
     auto const jsonEnd = sizeof(jsonLength) + static_cast<std::size_t>(std::max(jsonLength, 0));
-    // åŒæ—¶æ£€æŸ¥é•¿åº¦åˆæ³•ã€JSON ä»¥ { å¼€å¤´å¹¶ä»¥ } ç»“å°¾ï¼Œé™ä½è¯¯åˆ¤çº¯ plan çš„å¯èƒ½ã€‚
+    // Í¬Ê±¼ì²é³¤¶ÈºÏ·¨¡¢JSON ÒÔ { ¿ªÍ·²¢ÒÔ } ½áÎ²£¬½µµÍÎóÅĞ´¿ plan µÄ¿ÉÄÜ¡£
     if (jsonLength > 0 && jsonEnd < bytes.size() && bytes[sizeof(jsonLength)] == '{'
         && bytes[jsonEnd - 1] == '}')
     {
-        // è¿”å› JSON åç¬¬ä¸€ä¸ªå­—èŠ‚çš„ä½ç½®ï¼Œä¹Ÿå°±æ˜¯çœŸæ­£ TensorRT plan çš„èµ·ç‚¹ã€‚
+        // ·µ»Ø JSON ºóµÚÒ»¸ö×Ö½ÚµÄÎ»ÖÃ£¬Ò²¾ÍÊÇÕæÕı TensorRT plan µÄÆğµã¡£
         return jsonEnd;
     }
-    // æ²¡æ£€æµ‹åˆ° Ultralytics å…ƒæ•°æ®å¤´ï¼Œplan ä»æ–‡ä»¶ç¬¬ 0 å­—èŠ‚å¼€å§‹ã€‚
+    // Ã»¼ì²âµ½ Ultralytics ÔªÊı¾İÍ·£¬plan ´ÓÎÄ¼şµÚ 0 ×Ö½Ú¿ªÊ¼¡£
     return 0;
 }
 
-// è®¡ç®—å·²è§£æ tensor shape çš„å…ƒç´ æ€»æ•°ï¼ŒåŠ¨æ€ç»´åº¦æ²¡æœ‰ç¡®å®šæ—¶ç›´æ¥æŠ¥é”™ã€‚
+// ¼ÆËãÒÑ½âÎö tensor shape µÄÔªËØ×ÜÊı£¬¶¯Ì¬Î¬¶ÈÃ»ÓĞÈ·¶¨Ê±Ö±½Ó±¨´í¡£
 std::size_t volume(nvinfer1::Dims const& dims)
 {
-    // nbDims æ˜¯ç»´åº¦æ•°é‡ï¼›0 æˆ–è´Ÿæ•°è¡¨ç¤º shape æ— æ•ˆã€‚
+    // nbDims ÊÇÎ¬¶ÈÊıÁ¿£»0 »ò¸ºÊı±íÊ¾ shape ÎŞĞ§¡£
     if (dims.nbDims <= 0)
     {
         throw std::runtime_error("Tensor has no resolved dimensions");
     }
 
-    // ä» 1 å¼€å§‹ç´¯ä¹˜ï¼Œä¾‹å¦‚ [2,300,6] æœ€ç»ˆå¾—åˆ° 3600ã€‚
+    // ´Ó 1 ¿ªÊ¼ÀÛ³Ë£¬ÀıÈç [2,300,6] ×îÖÕµÃµ½ 3600¡£
     std::size_t result = 1;
-    // é€ä¸ªè¯»å–æ¯ä¸€ä¸ªç»´åº¦ã€‚
+    // Öğ¸ö¶ÁÈ¡Ã¿Ò»¸öÎ¬¶È¡£
     for (int i = 0; i < dims.nbDims; ++i)
     {
-        // TensorRT ç”¨ -1 è¡¨ç¤ºå°šæœªç¡®å®šçš„åŠ¨æ€ç»´åº¦ï¼Œä¸èƒ½æ®æ­¤ç”³è¯·å†…å­˜ã€‚
+        // TensorRT ÓÃ -1 ±íÊ¾ÉĞÎ´È·¶¨µÄ¶¯Ì¬Î¬¶È£¬²»ÄÜ¾İ´ËÉêÇëÄÚ´æ¡£
         if (dims.d[i] <= 0)
         {
             throw std::runtime_error("Tensor still has a dynamic dimension");
         }
-        // æŠŠå½“å‰ç»´åº¦ä¹˜è¿›å…ƒç´ æ€»æ•°ã€‚
+        // °Ñµ±Ç°Î¬¶È³Ë½øÔªËØ×ÜÊı¡£
         result *= static_cast<std::size_t>(dims.d[i]);
     }
-    // è¿”å› tensor éœ€è¦å®¹çº³çš„ float å…ƒç´ æ•°é‡ï¼Œä¸æ˜¯å­—èŠ‚æ•°ã€‚
+    // ·µ»Ø tensor ĞèÒªÈİÄÉµÄ float ÔªËØÊıÁ¿£¬²»ÊÇ×Ö½ÚÊı¡£
     return result;
 }
 
-// ä¿å­˜ letterbox å‚æ•°ï¼Œç”¨äºæŠŠç½‘ç»œåæ ‡è¿˜åŸåˆ°åŸå›¾åæ ‡ã€‚
-// struct å¯ç±»æ¯”åªæœ‰å­—æ®µçš„ Java DTOã€‚
+// ±£´æ letterbox ²ÎÊı£¬ÓÃÓÚ°ÑÍøÂç×ø±ê»¹Ô­µ½Ô­Í¼×ø±ê¡£
+// struct ¿ÉÀà±ÈÖ»ÓĞ×Ö¶ÎµÄ Java DTO¡£
 struct ImageTransform
 {
-    float scale{};        // åŸå›¾ç¼©æ”¾æ¯”ä¾‹ã€‚
-    int left{};           // å·¦ä¾§å¡«å……åƒç´ æ•°ã€‚
-    int top{};            // é¡¶éƒ¨å¡«å……åƒç´ æ•°ã€‚
-    int originalWidth{};  // åŸå›¾å®½åº¦ã€‚
-    int originalHeight{}; // åŸå›¾é«˜åº¦ã€‚
+    float scale{};        // Ô­Í¼Ëõ·Å±ÈÀı¡£
+    int left{};           // ×ó²àÌî³äÏñËØÊı¡£
+    int top{};            // ¶¥²¿Ìî³äÏñËØÊı¡£
+    int originalWidth{};  // Ô­Í¼¿í¶È¡£
+    int originalHeight{}; // Ô­Í¼¸ß¶È¡£
 };
 
-// ç¬¬ 2~4 æ­¥çš„ OpenCV é¢„å¤„ç†å‡½æ•°ã€‚
-// path æ˜¯å›¾ç‰‡è·¯å¾„ï¼ŒinputHeight/inputWidth æ˜¯æ¨¡å‹å°ºå¯¸ï¼Œchw æŒ‡å‘æœ¬å¼ å›¾çš„è¾“å‡ºæ•°ç»„ã€‚
+// µÚ 2~4 ²½µÄ OpenCV Ô¤´¦Àíº¯Êı¡£
+// path ÊÇÍ¼Æ¬Â·¾¶£¬inputHeight/inputWidth ÊÇÄ£ĞÍ³ß´ç£¬chw Ö¸Ïò±¾ÕÅÍ¼µÄÊä³öÊı×é¡£
 ImageTransform preprocess(std::string const& path, int inputHeight, int inputWidth, float* chw)
 {
-    // ç¬¬ 2 æ­¥ï¼šOpenCV ä»ç£ç›˜è¯»å–ä¸€å¼  BGR åŸå›¾ã€‚
+    // µÚ 2 ²½£ºOpenCV ´Ó´ÅÅÌ¶ÁÈ¡Ò»ÕÅ BGR Ô­Í¼¡£
     cv::Mat image = cv::imread(path, cv::IMREAD_COLOR);
-    // empty() è¡¨ç¤ºæ–‡ä»¶ä¸å­˜åœ¨ã€æ ¼å¼ä¸æ”¯æŒæˆ–è¯»å–å¤±è´¥ã€‚
+    // empty() ±íÊ¾ÎÄ¼ş²»´æÔÚ¡¢¸ñÊ½²»Ö§³Ö»ò¶ÁÈ¡Ê§°Ü¡£
     if (image.empty())
     {
-        // ç«‹å³åœæ­¢æœ¬æ¬¡æ¨ç†ï¼Œé¿å…æŠŠç©ºå›¾ç‰‡ç»§ç»­ä¼ ç»™ resizeã€‚
+        // Á¢¼´Í£Ö¹±¾´ÎÍÆÀí£¬±ÜÃâ°Ñ¿ÕÍ¼Æ¬¼ÌĞø´«¸ø resize¡£
         throw std::runtime_error("Cannot read image: " + path);
     }
 
-    // ç¬¬ 3 æ­¥ï¼šä¿æŒå®½é«˜æ¯”ç¼©æ”¾ï¼Œç©ºç™½åŒºåŸŸä½¿ç”¨ YOLO é»˜è®¤çš„ 114 ç°è‰²å¡«å……ã€‚
-    // å®½ã€é«˜ä¸¤ä¸ªç¼©æ”¾æ¯”ä¾‹å–è¾ƒå°å€¼ï¼Œç¡®ä¿ç¼©æ”¾åçš„æ•´å¼ å›¾éƒ½èƒ½æ”¾è¿›ç”»å¸ƒã€‚
+    // µÚ 3 ²½£º±£³Ö¿í¸ß±ÈËõ·Å£¬¿Õ°×ÇøÓòÊ¹ÓÃ YOLO Ä¬ÈÏµÄ 114 »ÒÉ«Ìî³ä¡£
+    // ¿í¡¢¸ßÁ½¸öËõ·Å±ÈÀıÈ¡½ÏĞ¡Öµ£¬È·±£Ëõ·ÅºóµÄÕûÕÅÍ¼¶¼ÄÜ·Å½ø»­²¼¡£
     float const scale = std::min(
-        // inputWidth / image.cols æ˜¯å®½åº¦æ–¹å‘å…è®¸çš„æœ€å¤§ç¼©æ”¾æ¯”ä¾‹ã€‚
+        // inputWidth / image.cols ÊÇ¿í¶È·½ÏòÔÊĞíµÄ×î´óËõ·Å±ÈÀı¡£
         static_cast<float>(inputWidth) / static_cast<float>(image.cols),
-        // inputHeight / image.rows æ˜¯é«˜åº¦æ–¹å‘å…è®¸çš„æœ€å¤§ç¼©æ”¾æ¯”ä¾‹ã€‚
+        // inputHeight / image.rows ÊÇ¸ß¶È·½ÏòÔÊĞíµÄ×î´óËõ·Å±ÈÀı¡£
         static_cast<float>(inputHeight) / static_cast<float>(image.rows));
-    // åŸå›¾å®½åº¦ä¹˜ç¼©æ”¾æ¯”ä¾‹å¹¶å››èˆäº”å…¥ï¼Œè‡³å°‘ä¿ç•™ 1 ä¸ªåƒç´ ã€‚
+    // Ô­Í¼¿í¶È³ËËõ·Å±ÈÀı²¢ËÄÉáÎåÈë£¬ÖÁÉÙ±£Áô 1 ¸öÏñËØ¡£
     int const resizedWidth = std::max(1, static_cast<int>(std::round(image.cols * scale)));
-    // åŸå›¾é«˜åº¦æ‰§è¡Œç›¸åŒè®¡ç®—ã€‚
+    // Ô­Í¼¸ß¶ÈÖ´ĞĞÏàÍ¬¼ÆËã¡£
     int const resizedHeight = std::max(1, static_cast<int>(std::round(image.rows * scale)));
-    // å‰©ä½™å®½åº¦å¹³å‡åˆ†åˆ°å·¦å³ä¸¤ä¾§ï¼Œè¿™é‡Œè®°å½•å·¦ä¾§å¡«å……ã€‚
+    // Ê£Óà¿í¶ÈÆ½¾ù·Öµ½×óÓÒÁ½²à£¬ÕâÀï¼ÇÂ¼×ó²àÌî³ä¡£
     int const left = (inputWidth - resizedWidth) / 2;
-    // å‰©ä½™é«˜åº¦å¹³å‡åˆ†åˆ°ä¸Šä¸‹ä¸¤ä¾§ï¼Œè¿™é‡Œè®°å½•é¡¶éƒ¨å¡«å……ã€‚
+    // Ê£Óà¸ß¶ÈÆ½¾ù·Öµ½ÉÏÏÂÁ½²à£¬ÕâÀï¼ÇÂ¼¶¥²¿Ìî³ä¡£
     int const top = (inputHeight - resizedHeight) / 2;
 
-    // å°†ç¼©æ”¾åçš„å›¾ç‰‡å±…ä¸­æ”¾åˆ°å›ºå®šè¾“å…¥ç”»å¸ƒä¸Šï¼Œè¿™å°±æ˜¯ letterboxã€‚
-    // resized å…ˆå£°æ˜ä¸ºç©ºï¼Œcv::resize ä¼šä¸ºå®ƒåˆ†é… CPU å†…å­˜ã€‚
+    // ½«Ëõ·ÅºóµÄÍ¼Æ¬¾ÓÖĞ·Åµ½¹Ì¶¨ÊäÈë»­²¼ÉÏ£¬Õâ¾ÍÊÇ letterbox¡£
+    // resized ÏÈÉùÃ÷Îª¿Õ£¬cv::resize »áÎªËü·ÖÅä CPU ÄÚ´æ¡£
     cv::Mat resized;
-    // ä½¿ç”¨åŒçº¿æ€§æ’å€¼æŠŠåŸå›¾ç¼©æ”¾åˆ°åˆšè®¡ç®—å‡ºçš„å°ºå¯¸ã€‚
+    // Ê¹ÓÃË«ÏßĞÔ²åÖµ°ÑÔ­Í¼Ëõ·Åµ½¸Õ¼ÆËã³öµÄ³ß´ç¡£
     cv::resize(image, resized, cv::Size(resizedWidth, resizedHeight), 0.0, 0.0, cv::INTER_LINEAR);
-    // åˆ›å»ºæ¨¡å‹å¤§å°çš„ä¸‰é€šé“ç”»å¸ƒï¼Œå¹¶æŠŠæ¯ä¸ªåƒç´ åˆå§‹åŒ–ä¸º (114,114,114)ã€‚
+    // ´´½¨Ä£ĞÍ´óĞ¡µÄÈıÍ¨µÀ»­²¼£¬²¢°ÑÃ¿¸öÏñËØ³õÊ¼»¯Îª (114,114,114)¡£
     cv::Mat canvas(inputHeight, inputWidth, CV_8UC3, cv::Scalar(114, 114, 114));
-    // Rect é€‰ä¸­ç”»å¸ƒä¸­å¤®åŒºåŸŸï¼Œå†æŠŠ resized å¤åˆ¶è¿›å»ã€‚
+    // Rect Ñ¡ÖĞ»­²¼ÖĞÑëÇøÓò£¬ÔÙ°Ñ resized ¸´ÖÆ½øÈ¥¡£
     resized.copyTo(canvas(cv::Rect(left, top, resizedWidth, resizedHeight)));
 
-    // ç¬¬ 4 æ­¥ï¼šBGR è½¬ RGBï¼Œå†é™¤ä»¥ 255ï¼Œå¾—åˆ° 0~1 çš„ float32 æ•°æ®ã€‚
-    // rgb ç”¨æ¥ä¿å­˜é¢œè‰²é€šé“äº¤æ¢åçš„å›¾ç‰‡ã€‚
+    // µÚ 4 ²½£ºBGR ×ª RGB£¬ÔÙ³ıÒÔ 255£¬µÃµ½ 0~1 µÄ float32 Êı¾İ¡£
+    // rgb ÓÃÀ´±£´æÑÕÉ«Í¨µÀ½»»»ºóµÄÍ¼Æ¬¡£
     cv::Mat rgb;
-    // OpenCV é»˜è®¤é¡ºåºæ˜¯ BGRï¼ŒYOLO è®­ç»ƒæ—¶ä½¿ç”¨ RGBï¼Œå› æ­¤äº¤æ¢ç¬¬ 1ã€3 é€šé“ã€‚
+    // OpenCV Ä¬ÈÏË³ĞòÊÇ BGR£¬YOLO ÑµÁ·Ê±Ê¹ÓÃ RGB£¬Òò´Ë½»»»µÚ 1¡¢3 Í¨µÀ¡£
     cv::cvtColor(canvas, rgb, cv::COLOR_BGR2RGB);
-    // uint8 çš„ 0~255 è½¬æˆ float32 çš„ 0~1ï¼Œ1.0/255.0 æ˜¯ç¼©æ”¾ç³»æ•°ã€‚
+    // uint8 µÄ 0~255 ×ª³É float32 µÄ 0~1£¬1.0/255.0 ÊÇËõ·ÅÏµÊı¡£
     rgb.convertTo(rgb, CV_32FC3, 1.0 / 255.0);
 
-    // HWC è½¬ CHWï¼šcv::split ç›´æ¥æŠŠ Rã€Gã€B ä¸‰ä¸ªé€šé“ä¾æ¬¡å†™å…¥è¿ç»­å†…å­˜ã€‚
-    // plane æ˜¯ä¸€ä¸ªé¢œè‰²é€šé“åŒ…å«çš„å…ƒç´ æ•°ï¼Œä¾‹å¦‚ 640*640ã€‚
+    // HWC ×ª CHW£ºcv::split Ö±½Ó°Ñ R¡¢G¡¢B Èı¸öÍ¨µÀÒÀ´ÎĞ´ÈëÁ¬ĞøÄÚ´æ¡£
+    // plane ÊÇÒ»¸öÑÕÉ«Í¨µÀ°üº¬µÄÔªËØÊı£¬ÀıÈç 640*640¡£
     std::size_t const plane = static_cast<std::size_t>(inputHeight) * inputWidth;
-    // ä¸‰ä¸ª Mat ä¸è‡ªå·±ç”³è¯·å†…å­˜ï¼Œè€Œæ˜¯åˆ†åˆ«æŒ‡å‘ chw ä¸­ Rã€Gã€B çš„èµ·å§‹ä½ç½®ã€‚
+    // Èı¸ö Mat ²»×Ô¼ºÉêÇëÄÚ´æ£¬¶øÊÇ·Ö±ğÖ¸Ïò chw ÖĞ R¡¢G¡¢B µÄÆğÊ¼Î»ÖÃ¡£
     std::vector<cv::Mat> channels{
-        // ç¬¬ 0 ä¸ªå¹³é¢ä» chw å¼€å¤´å¼€å§‹ï¼Œä¿å­˜ Rã€‚
+        // µÚ 0 ¸öÆ½Ãæ´Ó chw ¿ªÍ·¿ªÊ¼£¬±£´æ R¡£
         cv::Mat(inputHeight, inputWidth, CV_32F, chw),
-        // ç¬¬ 1 ä¸ªå¹³é¢åç§» plane ä¸ª floatï¼Œä¿å­˜ Gã€‚
+        // µÚ 1 ¸öÆ½ÃæÆ«ÒÆ plane ¸ö float£¬±£´æ G¡£
         cv::Mat(inputHeight, inputWidth, CV_32F, chw + plane),
-        // ç¬¬ 2 ä¸ªå¹³é¢åç§» 2*plane ä¸ª floatï¼Œä¿å­˜ Bã€‚
+        // µÚ 2 ¸öÆ½ÃæÆ«ÒÆ 2*plane ¸ö float£¬±£´æ B¡£
         cv::Mat(inputHeight, inputWidth, CV_32F, chw + 2 * plane)};
-    // æŠŠäº¤é”™æ’åˆ—çš„ RGBRGB... æ‹†æˆè¿ç»­çš„ R...G...B...ã€‚
+    // °Ñ½»´íÅÅÁĞµÄ RGBRGB... ²ğ³ÉÁ¬ĞøµÄ R...G...B...¡£
     cv::split(rgb, channels);
 
-    // èšåˆè¿”å›æœ¬å¼ å›¾çš„ç¼©æ”¾ã€å¡«å……å’ŒåŸå§‹å°ºå¯¸ï¼Œç”¨äºç¬¬ 8 æ­¥è¿˜åŸåæ ‡ã€‚
+    // ¾ÛºÏ·µ»Ø±¾ÕÅÍ¼µÄËõ·Å¡¢Ìî³äºÍÔ­Ê¼³ß´ç£¬ÓÃÓÚµÚ 8 ²½»¹Ô­×ø±ê¡£
     return {scale, left, top, image.cols, image.rows};
 }
 
-// å»æ‰ letterbox å¡«å……å’Œç¼©æ”¾ï¼Œå¹¶æŠŠç»“æœè£å‰ªåœ¨åŸå›¾èŒƒå›´å†…ã€‚
+// È¥µô letterbox Ìî³äºÍËõ·Å£¬²¢°Ñ½á¹û²Ã¼ôÔÚÔ­Í¼·¶Î§ÄÚ¡£
 float restore(float coordinate, int padding, float scale, int limit)
 {
-    // å…ˆå‡å»å¡«å……ï¼Œå†é™¤ä»¥ç¼©æ”¾æ¯”ä¾‹ï¼›clamp ç¡®ä¿åæ ‡ä¸ä¼šè½åˆ°å›¾ç‰‡å¤–ã€‚
+    // ÏÈ¼õÈ¥Ìî³ä£¬ÔÙ³ıÒÔËõ·Å±ÈÀı£»clamp È·±£×ø±ê²»»áÂäµ½Í¼Æ¬Íâ¡£
     return std::clamp((coordinate - static_cast<float>(padding)) / scale, 0.0F, static_cast<float>(limit));
 }
 
-// ç¬¬ 8 æ­¥ï¼šè¿‡æ»¤ä½ç½®ä¿¡åº¦æ¡†ã€è¿˜åŸåŸå›¾åæ ‡å¹¶æ‰“å°ï¼Œä¸æ‰§è¡Œ NMSã€‚
-// output æ˜¯æœ¬æ‰¹è¾“å‡ºæ•°ç»„ï¼ŒoutputDims æ˜¯ shapeï¼ŒactiveImages æ˜¯çœŸå®å›¾ç‰‡æ•°é‡ã€‚
-// imageOffset æ˜¯æœ¬æ‰¹åœ¨å…¨éƒ¨è·¯å¾„ä¸­çš„èµ·ç‚¹ï¼ŒimagePaths/transforms ç”¨äºè¾“å‡ºå›¾ç‰‡åå’Œè¿˜åŸåæ ‡ã€‚
+// µÚ 8 ²½£º¹ıÂËµÍÖÃĞÅ¶È¿ò¡¢»¹Ô­Ô­Í¼×ø±ê²¢ÏÔÊ¾£¬²»Ö´ĞĞ NMS¡£
+// output ÊÇ±¾ÅúÊä³öÊı×é£¬outputDims ÊÇ shape£¬activeImages ÊÇÕæÊµÍ¼Æ¬ÊıÁ¿¡£
+// imageOffset ÊÇ±¾ÅúÔÚÈ«²¿Â·¾¶ÖĞµÄÆğµã£¬imagePaths/transforms ÓÃÓÚÊä³öÍ¼Æ¬ÃûºÍ»¹Ô­×ø±ê¡£
 void printDetections(
     std::vector<float> const& output,
     nvinfer1::Dims const& outputDims,
@@ -324,368 +327,403 @@ void printDetections(
     std::vector<std::string> const& imagePaths,
     std::vector<ImageTransform> const& transforms)
 {
-    // åˆæ³• YOLO26 detect è¾“å‡ºå¿…é¡»æ˜¯ä¸‰ç»´ [N,max_det,6]ï¼Œå¹¶è¦†ç›–æœ¬æ‰¹çœŸå®å›¾ç‰‡æ•°ã€‚
+    // ºÏ·¨ YOLO26 detect Êä³ö±ØĞëÊÇÈıÎ¬ [N,max_det,6]£¬²¢¸²¸Ç±¾ÅúÕæÊµÍ¼Æ¬Êı¡£
     if (outputDims.nbDims != 3 || outputDims.d[0] < static_cast<std::int64_t>(activeImages)
         || outputDims.d[2] != 6)
     {
-        // è¾“å‡ºä¸ç¬¦åˆçº¦å®šé€šå¸¸è¡¨ç¤ºå¯¼å‡ºäº†é end-to-end æ¨¡å‹æˆ–ä¸æ˜¯ detect æ¨¡å‹ã€‚
+        // Êä³ö²»·ûºÏÔ¼¶¨Í¨³£±íÊ¾µ¼³öÁË·Ç end-to-end Ä£ĞÍ»ò²»ÊÇ detect Ä£ĞÍ¡£
         throw std::runtime_error("Expected YOLO26 end-to-end output shaped [N, max_det, 6]");
     }
 
-    // ç¬¬äºŒç»´æ˜¯æ¯å¼ å›¾ç‰‡çš„æœ€å¤§æ£€æµ‹æ•°é‡ï¼ŒYOLO26 é»˜è®¤æ˜¯ 300ã€‚
+    // µÚ¶şÎ¬ÊÇÃ¿ÕÅÍ¼Æ¬µÄ×î´ó¼ì²âÊıÁ¿£¬YOLO26 Ä¬ÈÏÊÇ 300¡£
     auto const detectionsPerImage = static_cast<std::size_t>(outputDims.d[1]);
-    // å¤–å±‚å¾ªç¯é€å¼ å¤„ç†å½“å‰ batch ä¸­çœŸå®å­˜åœ¨çš„å›¾ç‰‡ã€‚
+    // Íâ²ãÑ­»·ÖğÕÅ´¦Àíµ±Ç° batch ÖĞÕæÊµ´æÔÚµÄÍ¼Æ¬¡£
     for (std::size_t batchIndex = 0; batchIndex < activeImages; ++batchIndex)
     {
-        // å…ˆæ‰“å°å½“å‰å›¾ç‰‡è·¯å¾„ï¼Œ\n è¡¨ç¤ºæ¢è¡Œã€‚
-        std::cout << "\n" << imagePaths[imageOffset + batchIndex] << '\n';
-        // found ç”¨æ¥åˆ¤æ–­è¿™å¼ å›¾æ˜¯å¦è‡³å°‘æœ‰ä¸€ä¸ªç»“æœè¶…è¿‡é˜ˆå€¼ã€‚
+        auto const& imagePath = imagePaths[imageOffset + batchIndex];
+        cv::Mat annotated = cv::imread(imagePath, cv::IMREAD_COLOR);
+        if (annotated.empty())
+        {
+            throw std::runtime_error("Cannot read image for annotation: " + imagePath);
+        }
+
+        // ÏÈ´òÓ¡µ±Ç°Í¼Æ¬Â·¾¶£¬\n ±íÊ¾»»ĞĞ¡£
+        std::cout << "\n" << imagePath << '\n';
+        // found ÓÃÀ´ÅĞ¶ÏÕâÕÅÍ¼ÊÇ·ñÖÁÉÙÓĞÒ»¸ö½á¹û³¬¹ıãĞÖµ¡£
         bool found = false;
-        // å†…å±‚å¾ªç¯éå†è¯¥å›¾ç‰‡æœ€å¤š max_det ä¸ªæ£€æµ‹ç»“æœã€‚
+        // ÄÚ²ãÑ­»·±éÀú¸ÃÍ¼Æ¬×î¶à max_det ¸ö¼ì²â½á¹û¡£
         for (std::size_t detectionIndex = 0; detectionIndex < detectionsPerImage; ++detectionIndex)
         {
-            // æ¯ä¸ªç»“æœå  6 ä¸ª floatï¼›æŒ‡é’ˆç§»åŠ¨åˆ°å½“å‰å›¾ç‰‡ã€å½“å‰æ£€æµ‹ç»“æœçš„ç¬¬ä¸€ä¸ªå€¼ã€‚
+            // Ã¿¸ö½á¹ûÕ¼ 6 ¸ö float£»Ö¸ÕëÒÆ¶¯µ½µ±Ç°Í¼Æ¬¡¢µ±Ç°¼ì²â½á¹ûµÄµÚÒ»¸öÖµ¡£
             float const* detection = output.data() + (batchIndex * detectionsPerImage + detectionIndex) * 6;
-            // detection[4] æ˜¯ç½®ä¿¡åº¦ï¼Œä½äºé˜ˆå€¼å°±è·³åˆ°ä¸‹ä¸€æ¡ç»“æœã€‚
+            // detection[4] ÊÇÖÃĞÅ¶È£¬µÍÓÚãĞÖµ¾ÍÌøµ½ÏÂÒ»Ìõ½á¹û¡£
             if (detection[4] < kConfidenceThreshold)
             {
                 continue;
             }
 
-            // æ¨¡å‹è¾“å‡ºåæ ‡åŸºäº letterbox ç”»å¸ƒï¼Œæ‰“å°å‰è¿˜åŸåˆ°åŸå›¾ã€‚
-            // const& åªå¼•ç”¨ç°æœ‰ transformï¼Œä¸äº§ç”Ÿä¸€æ¬¡ç»“æ„ä½“å¤åˆ¶ã€‚
+            // Ä£ĞÍÊä³ö×ø±ê»ùÓÚ letterbox »­²¼£¬´òÓ¡Ç°»¹Ô­µ½Ô­Í¼¡£
+            // const& Ö»ÒıÓÃÏÖÓĞ transform£¬²»²úÉúÒ»´Î½á¹¹Ìå¸´ÖÆ¡£
             auto const& transform = transforms[batchIndex];
-            // detection[0] æ˜¯å·¦ä¸Šè§’ x1ï¼Œå»æ‰å·¦ä¾§ padding åé™¤ä»¥ scaleã€‚
+            // detection[0] ÊÇ×óÉÏ½Ç x1£¬È¥µô×ó²à padding ºó³ıÒÔ scale¡£
             float const x1 = restore(detection[0], transform.left, transform.scale, transform.originalWidth);
-            // detection[1] æ˜¯å·¦ä¸Šè§’ y1ï¼Œä½¿ç”¨é¡¶éƒ¨ padding è¿˜åŸã€‚
+            // detection[1] ÊÇ×óÉÏ½Ç y1£¬Ê¹ÓÃ¶¥²¿ padding »¹Ô­¡£
             float const y1 = restore(detection[1], transform.top, transform.scale, transform.originalHeight);
-            // detection[2] æ˜¯å³ä¸‹è§’ x2ã€‚
+            // detection[2] ÊÇÓÒÏÂ½Ç x2¡£
             float const x2 = restore(detection[2], transform.left, transform.scale, transform.originalWidth);
-            // detection[3] æ˜¯å³ä¸‹è§’ y2ã€‚
+            // detection[3] ÊÇÓÒÏÂ½Ç y2¡£
             float const y2 = restore(detection[3], transform.top, transform.scale, transform.originalHeight);
 
-            // detection[5] æ˜¯ç±»åˆ« IDï¼›ç½®ä¿¡åº¦æ‰“å° 3 ä½å°æ•°ï¼Œåæ ‡æ‰“å° 1 ä½å°æ•°ã€‚
+            // detection[5] ÊÇÀà±ğ ID£»ÖÃĞÅ¶È´òÓ¡ 3 Î»Ğ¡Êı£¬×ø±ê´òÓ¡ 1 Î»Ğ¡Êı¡£
             std::cout << "  class=" << static_cast<int>(detection[5]) << " score=" << std::fixed
                       << std::setprecision(3) << detection[4] << " box=[" << std::setprecision(1) << x1 << ", "
                       << y1 << ", " << x2 << ", " << y2 << "]\n";
-            // è®°å½•æœ¬å¼ å›¾å·²ç»æ‰“å°è¿‡è‡³å°‘ä¸€ä¸ªæœ‰æ•ˆç»“æœã€‚
+
+            int const left = std::clamp(static_cast<int>(std::round(x1)), 0, annotated.cols - 1);
+            int const top = std::clamp(static_cast<int>(std::round(y1)), 0, annotated.rows - 1);
+            int const right = std::clamp(static_cast<int>(std::round(x2)), 0, annotated.cols - 1);
+            int const bottom = std::clamp(static_cast<int>(std::round(y2)), 0, annotated.rows - 1);
+            if (right > left && bottom > top)
+            {
+                cv::Scalar const color(0, 255, 0);
+                cv::rectangle(annotated, cv::Point(left, top), cv::Point(right, bottom), color, 2, cv::LINE_AA);
+
+                std::ostringstream labelStream;
+                labelStream << "class " << static_cast<int>(detection[5]) << ' ' << std::fixed
+                            << std::setprecision(2) << detection[4];
+                std::string const label = labelStream.str();
+                int baseline = 0;
+                cv::Size const textSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.55, 1, &baseline);
+                int const labelBottom = std::max(top, textSize.height + baseline + 6);
+                int const labelTop = labelBottom - textSize.height - baseline - 6;
+                int const labelRight = std::min(annotated.cols - 1, left + textSize.width + 8);
+                cv::rectangle(annotated, cv::Point(left, labelTop), cv::Point(labelRight, labelBottom), color, cv::FILLED);
+                cv::putText(annotated, label, cv::Point(left + 4, labelBottom - baseline - 3),
+                    cv::FONT_HERSHEY_SIMPLEX, 0.55, cv::Scalar(0, 0, 0), 1, cv::LINE_AA);
+            }
+            // ¼ÇÂ¼±¾ÕÅÍ¼ÒÑ¾­´òÓ¡¹ıÖÁÉÙÒ»¸öÓĞĞ§½á¹û¡£
             found = true;
         }
-        // éå†ç»“æŸä»æœªæ‰¾åˆ°ç»“æœæ—¶ï¼Œæ‰“å°æ˜ç¡®æç¤ºã€‚
+        // ±éÀú½áÊøÈÔÎ´ÕÒµ½½á¹ûÊ±£¬´òÓ¡Ã÷È·ÌáÊ¾¡£
         if (!found)
         {
-            // è¾“å‡ºå½“å‰ä½¿ç”¨çš„ç½®ä¿¡åº¦é˜ˆå€¼ï¼Œä¾¿äºåˆ¤æ–­æ˜¯å¦éœ€è¦è°ƒä½ã€‚
+            // Êä³öµ±Ç°Ê¹ÓÃµÄÖÃĞÅ¶ÈãĞÖµ£¬±ãÓÚÅĞ¶ÏÊÇ·ñĞèÒªµ÷µÍ¡£
             std::cout << "  no detection above " << kConfidenceThreshold << '\n';
         }
+
+        std::string const windowName = "Detection " + std::to_string(imageOffset + batchIndex + 1);
+        cv::imshow(windowName, annotated);
     }
 }
 
-} // åŒ¿åå‘½åç©ºé—´
+} // ÄäÃûÃüÃû¿Õ¼ä
 
-// C++ ç¨‹åºä» main å¼€å§‹æ‰§è¡Œï¼›è¿™é‡Œä¸æ¥æ”¶å‘½ä»¤è¡Œå‚æ•°ï¼Œæ¨¡å‹å’Œå›¾ç‰‡è·¯å¾„ç›´æ¥å†™åœ¨ä»£ç ä¸­ã€‚
+// C++ ³ÌĞò´Ó main ¿ªÊ¼Ö´ĞĞ£»ÕâÀï²»½ÓÊÕÃüÁîĞĞ²ÎÊı£¬Ä£ĞÍºÍÍ¼Æ¬Â·¾¶Ö±½ÓĞ´ÔÚ´úÂëÖĞ¡£
 int main()
 {
     /*
-     * ä» main å…¥å£å¼€å§‹çš„å®Œæ•´æ¨ç†é¡ºåºï¼š
-     * ç¬¬ 1 æ­¥ï¼šåœ¨ä»£ç ä¸­æŒ‡å®šæ¨¡å‹åœ°å€å’Œ N å¼ åŸå›¾åœ°å€ã€‚
-     * ç¬¬ 2 æ­¥ï¼šOpenCV è¯»å–å›¾ç‰‡ã€‚
-     * ç¬¬ 3 æ­¥ï¼šletterbox ç­‰æ¯”ä¾‹ç¼©æ”¾å¹¶å¡«å……ç°è¾¹ã€‚
-     * ç¬¬ 4 æ­¥ï¼šBGR è½¬ RGBã€é™¤ä»¥ 255ã€HWC è½¬ CHWã€‚
-     * ç¬¬ 5 æ­¥ï¼šæŠŠè¾“å…¥ä» CPU å¤åˆ¶åˆ° GPU æ˜¾å­˜ã€‚
-     * ç¬¬ 6 æ­¥ï¼šTensorRT æ‰§è¡Œ YOLO26ã€‚
-     * ç¬¬ 7 æ­¥ï¼šæŠŠè¾“å‡ºä» GPU å¤åˆ¶å› CPUã€‚
-     * ç¬¬ 8 æ­¥ï¼šè¿‡æ»¤ä½ç½®ä¿¡åº¦æ¡†ã€è¿˜åŸåŸå›¾åæ ‡å¹¶æ‰“å°ã€‚
+     * ´Ó main Èë¿Ú¿ªÊ¼µÄÍêÕûÍÆÀíË³Ğò£º
+     * µÚ 1 ²½£ºÔÚ´úÂëÖĞÖ¸¶¨Ä£ĞÍµØÖ·ºÍ N ÕÅÔ­Í¼µØÖ·¡£
+     * µÚ 2 ²½£ºOpenCV ¶ÁÈ¡Í¼Æ¬¡£
+     * µÚ 3 ²½£ºletterbox µÈ±ÈÀıËõ·Å²¢Ìî³ä»Ò±ß¡£
+     * µÚ 4 ²½£ºBGR ×ª RGB¡¢³ıÒÔ 255¡¢HWC ×ª CHW¡£
+     * µÚ 5 ²½£º°ÑÊäÈë´Ó CPU ¸´ÖÆµ½ GPU ÏÔ´æ¡£
+     * µÚ 6 ²½£ºTensorRT Ö´ĞĞ YOLO26¡£
+     * µÚ 7 ²½£º°ÑÊä³ö´Ó GPU ¸´ÖÆ»Ø CPU¡£
+     * µÚ 8 ²½£º¹ıÂËµÍÖÃĞÅ¶È¿ò¡¢»¹Ô­Ô­Í¼×ø±ê²¢´òÓ¡¡£
      */
 
-    // C++ çš„ try/catch ä¸ Java ç±»ä¼¼ï¼›å‘ç”Ÿå¼‚å¸¸æ—¶è¿˜ä¼šè‡ªåŠ¨ææ„å‰é¢åˆ›å»ºçš„ RAII å¯¹è±¡ã€‚
+    // C++ µÄ try/catch Óë Java ÀàËÆ£»·¢ÉúÒì³£Ê±»¹»á×Ô¶¯Îö¹¹Ç°Ãæ´´½¨µÄ RAII ¶ÔÏó¡£
     try
     {
-        // ==================== ç¬¬ 1 æ­¥ï¼šç›´æ¥åœ¨è¿™é‡Œä¿®æ”¹æ–‡ä»¶åœ°å€ ====================
+        // ==================== µÚ 1 ²½£ºÖ±½ÓÔÚÕâÀïĞŞ¸ÄÎÄ¼şµØÖ· ====================
 
-        // TensorRT engine åœ°å€ï¼›Windows C++ å­—ç¬¦ä¸²å»ºè®®ä½¿ç”¨æ­£æ–œæ ï¼Œé¿å…å†™æˆ \\ æ‰èƒ½è¡¨ç¤ºä¸€ä¸ªåæ–œæ ã€‚
-        std::string const enginePath = "D:/models/yolo26n.engine";
+        // TensorRT engine µØÖ·£»Windows C++ ×Ö·û´®½¨ÒéÊ¹ÓÃÕıĞ±¸Ü£¬±ÜÃâĞ´³É \\ ²ÅÄÜ±íÊ¾Ò»¸ö·´Ğ±¸Ü¡£
+        std::string const enginePath = "C:/Users/autumn/CLionProjects/tensorrt/best.engine";
 
-        // N å¼ åŸå›¾åœ°å€ï¼›vector ä¸­å†™å¤šå°‘ä¸ªè·¯å¾„ï¼Œç¨‹åºå°±å¤„ç†å¤šå°‘å¼ å›¾ç‰‡ã€‚
+        // N ÕÅÔ­Í¼µØÖ·£»vector ÖĞĞ´¶àÉÙ¸öÂ·¾¶£¬³ÌĞò¾Í´¦Àí¶àÉÙÕÅÍ¼Æ¬¡£
         std::vector<std::string> const imagePaths{
-            // ç¬¬ 1 å¼ å›¾ç‰‡ã€‚
-            "D:/images/1.jpg",
-            // ç¬¬ 2 å¼ å›¾ç‰‡ã€‚
-            "D:/images/2.jpg",
-            // ç¬¬ 3 å¼ å›¾ç‰‡ï¼›ä¸éœ€è¦æ—¶å¯ä»¥åˆ é™¤è¿™ä¸€è¡Œï¼Œä¹Ÿå¯ä»¥ç»§ç»­å¾€åæ·»åŠ ã€‚
-            "D:/images/3.jpg",
+            // µÚ 1 ÕÅÍ¼Æ¬¡£
+            "D:\\autumn\\Downloads\\CCPD2020\\ccpd_green\\test\\04-91_254-145&472_529&567-529&567_164&552_145&472_529&485-0_0_3_25_24_24_24_29-148-355.jpg",
+            // µÚ 2 ÕÅÍ¼Æ¬¡£
+            "D:\\autumn\\Downloads\\CCPD2020\\ccpd_green\\test\\05-90_257-137&507_572&612-567&611_158&612_137&507_572&512-0_0_3_28_32_25_24_32-144-135.jpg"
         };
 
-        // é˜²æ­¢è¯¯åˆ æ‰€æœ‰å›¾ç‰‡è·¯å¾„åç»§ç»­æ‰§è¡Œã€‚
+        // ·ÀÖ¹ÎóÉ¾ËùÓĞÍ¼Æ¬Â·¾¶ºó¼ÌĞøÖ´ĞĞ¡£
         if (imagePaths.empty())
         {
-            // æŠ›å‡ºå¼‚å¸¸ï¼Œåé¢çš„ catch ä¼šæ‰“å°é”™è¯¯å¹¶è¿”å› 1ã€‚
+            // Å×³öÒì³££¬ºóÃæµÄ catch »á´òÓ¡´íÎó²¢·µ»Ø 1¡£
             throw std::runtime_error("Please configure at least one image path");
         }
 
-        // ==================== æ¨ç†å‰å‡†å¤‡ï¼šåŠ è½½ engine ====================
+        // ==================== ÍÆÀíÇ°×¼±¸£º¼ÓÔØ engine ====================
 
-        // åˆ›å»ºæ—¥å¿—å™¨å¯¹è±¡ï¼Œåç»­ TensorRT é”™è¯¯ä¼šé€šè¿‡å®ƒè¾“å‡ºã€‚
+        // ´´½¨ÈÕÖ¾Æ÷¶ÔÏó£¬ºóĞø TensorRT ´íÎó»áÍ¨¹ıËüÊä³ö¡£
         Logger logger;
-        // readFile è¿”å› engine çš„å…¨éƒ¨å­—èŠ‚ï¼›auto è®©ç¼–è¯‘å™¨æ¨æ–­ç±»å‹ä¸º vector<char>ã€‚
+        // readFile ·µ»Ø engine µÄÈ«²¿×Ö½Ú£»auto ÈÃ±àÒëÆ÷ÍÆ¶ÏÀàĞÍÎª vector<char>¡£
         auto engineBytes = readFile(enginePath);
-        // æ£€æŸ¥å¹¶è·³è¿‡ Ultralytics å¯èƒ½é™„åŠ åœ¨ plan å‰é¢çš„ JSON å…ƒæ•°æ®ã€‚
+        // ¼ì²é²¢Ìø¹ı Ultralytics ¿ÉÄÜ¸½¼ÓÔÚ plan Ç°ÃæµÄ JSON ÔªÊı¾İ¡£
         auto const planOffset = tensorRtPlanOffset(engineBytes);
 
-        // IRuntime å¯ä»¥ç±»æ¯”â€œæ¨¡å‹ç±»åŠ è½½å™¨â€ï¼›unique_ptr è¡¨ç¤ºç‹¬å æ‹¥æœ‰å¹¶è‡ªåŠ¨é‡Šæ”¾å®ƒã€‚
+        // IRuntime ¿ÉÒÔÀà±È¡°Ä£ĞÍÀà¼ÓÔØÆ÷¡±£»unique_ptr ±íÊ¾¶ÀÕ¼ÓµÓĞ²¢×Ô¶¯ÊÍ·ÅËü¡£
         std::unique_ptr<nvinfer1::IRuntime> runtime{nvinfer1::createInferRuntime(logger)};
-        // TensorRT åˆ›å»ºå¯¹è±¡å¤±è´¥æ—¶è¿”å› nullptrï¼Œè€Œä¸æ˜¯æŠ› C++ å¼‚å¸¸ã€‚
+        // TensorRT ´´½¨¶ÔÏóÊ§°ÜÊ±·µ»Ø nullptr£¬¶ø²»ÊÇÅ× C++ Òì³£¡£
         if (!runtime)
         {
-            // è½¬æˆå¼‚å¸¸ï¼Œäº¤ç»™ main æœ«å°¾çš„ catch ç»Ÿä¸€å¤„ç†ã€‚
+            // ×ª³ÉÒì³££¬½»¸ø main Ä©Î²µÄ catch Í³Ò»´¦Àí¡£
             throw std::runtime_error("createInferRuntime failed");
         }
 
-        // ICudaEngine æ˜¯å·²ç»é’ˆå¯¹ GPU ä¼˜åŒ–ã€ç¼–è¯‘å®Œæˆçš„æ¨¡å‹å¯¹è±¡ã€‚
-        // â€œruntime->â€ä¸ Java çš„â€œruntime.â€ä½œç”¨ç›¸è¿‘ï¼Œåªæ˜¯ runtime æ˜¯æ™ºèƒ½æŒ‡é’ˆã€‚
+        // ICudaEngine ÊÇÒÑ¾­Õë¶Ô GPU ÓÅ»¯¡¢±àÒëÍê³ÉµÄÄ£ĞÍ¶ÔÏó¡£
+        // ¡°runtime->¡±Óë Java µÄ¡°runtime.¡±×÷ÓÃÏà½ü£¬Ö»ÊÇ runtime ÊÇÖÇÄÜÖ¸Õë¡£
         std::unique_ptr<nvinfer1::ICudaEngine> engine{runtime->deserializeCudaEngine(
-            // data()+planOffset æŒ‡å‘ plan èµ·ç‚¹ï¼Œsize()-planOffset æ˜¯ plan å­—èŠ‚æ•°ã€‚
+            // data()+planOffset Ö¸Ïò plan Æğµã£¬size()-planOffset ÊÇ plan ×Ö½ÚÊı¡£
             engineBytes.data() + planOffset, engineBytes.size() - planOffset)};
-        // ç‰ˆæœ¬ä¸åŒ¹é…ã€GPU ä¸å…¼å®¹æˆ– engine æŸåéƒ½ä¼šå¯¼è‡´ååºåˆ—åŒ–å¤±è´¥ã€‚
+        // °æ±¾²»Æ¥Åä¡¢GPU ²»¼æÈİ»ò engine Ëğ»µ¶¼»áµ¼ÖÂ·´ĞòÁĞ»¯Ê§°Ü¡£
         if (!engine)
         {
             throw std::runtime_error("deserializeCudaEngine failed");
         }
 
-        // é€šè¿‡ TensorRT 11 çš„ name-based I/O API è‡ªåŠ¨å¯»æ‰¾ä¸€ä¸ªè¾“å…¥å’Œä¸€ä¸ªè¾“å‡ºã€‚
-        // é»˜è®¤æ„é€ çš„ string æ˜¯ç©ºå­—ç¬¦ä¸²ï¼Œç¨åå†™å…¥çœŸå® tensor åç§°ã€‚
+        // Í¨¹ı TensorRT 11 µÄ name-based I/O API ×Ô¶¯Ñ°ÕÒÒ»¸öÊäÈëºÍÒ»¸öÊä³ö¡£
+        // Ä¬ÈÏ¹¹ÔìµÄ string ÊÇ¿Õ×Ö·û´®£¬ÉÔºóĞ´ÈëÕæÊµ tensor Ãû³Æ¡£
         std::string inputName;
-        // YOLO26 detect ç«¯åˆ°ç«¯æ¨¡å‹åº”å½“åªæœ‰ä¸€ä¸ªè¾“å‡ºã€‚
+        // YOLO26 detect ¶Ëµ½¶ËÄ£ĞÍÓ¦µ±Ö»ÓĞÒ»¸öÊä³ö¡£
         std::string outputName;
-        // getNbIOTensors è¿”å›è¾“å…¥å’Œè¾“å‡º tensor çš„æ€»æ•°ï¼Œå¾ªç¯é€ä¸ªæ£€æŸ¥ã€‚
+        // getNbIOTensors ·µ»ØÊäÈëºÍÊä³ö tensor µÄ×ÜÊı£¬Ñ­»·Öğ¸ö¼ì²é¡£
         for (int i = 0; i < engine->getNbIOTensors(); ++i)
         {
-            // getIOTensorName è¿”å›ç¬¬ i ä¸ª tensor çš„åªè¯» C å­—ç¬¦ä¸²åç§°ã€‚
+            // getIOTensorName ·µ»ØµÚ i ¸ö tensor µÄÖ»¶Á C ×Ö·û´®Ãû³Æ¡£
             char const* name = engine->getIOTensorName(i);
-            // åˆ¤æ–­å½“å‰ tensor æ˜¯æ¨¡å‹è¾“å…¥è¿˜æ˜¯è¾“å‡ºã€‚
+            // ÅĞ¶Ïµ±Ç° tensor ÊÇÄ£ĞÍÊäÈë»¹ÊÇÊä³ö¡£
             if (engine->getTensorIOMode(name) == nvinfer1::TensorIOMode::kINPUT)
             {
-                // å·²ç»æ‰¾åˆ°è¿‡è¾“å…¥åˆé‡åˆ°ç¬¬äºŒä¸ªè¾“å…¥ï¼Œè¯´æ˜ä¸æ˜¯æœ¬ç¤ºä¾‹æ”¯æŒçš„å•è¾“å…¥æ¨¡å‹ã€‚
+                // ÒÑ¾­ÕÒµ½¹ıÊäÈëÓÖÓöµ½µÚ¶ş¸öÊäÈë£¬ËµÃ÷²»ÊÇ±¾Ê¾ÀıÖ§³ÖµÄµ¥ÊäÈëÄ£ĞÍ¡£
                 if (!inputName.empty())
                 {
                     throw std::runtime_error("Expected one model input");
                 }
-                // std::string ä¼šå¤åˆ¶ TensorRT è¿”å›çš„åç§°æ–‡æœ¬ï¼Œåç»­ä½¿ç”¨æ›´å®‰å…¨ã€‚
+                // std::string »á¸´ÖÆ TensorRT ·µ»ØµÄÃû³ÆÎÄ±¾£¬ºóĞøÊ¹ÓÃ¸ü°²È«¡£
                 inputName = name;
             }
             else
             {
-                // åŒç†ï¼Œæœ¬ç¤ºä¾‹ä¸å¤„ç†å¤šä¸ªè¾“å‡º tensorã€‚
+                // Í¬Àí£¬±¾Ê¾Àı²»´¦Àí¶à¸öÊä³ö tensor¡£
                 if (!outputName.empty())
                 {
                     throw std::runtime_error("Expected one model output");
                 }
-                // ä¿å­˜å”¯ä¸€è¾“å‡ºçš„åå­—ï¼Œé€šå¸¸æ˜¯ output0ã€‚
+                // ±£´æÎ¨Ò»Êä³öµÄÃû×Ö£¬Í¨³£ÊÇ output0¡£
                 outputName = name;
             }
         }
-        // å¾ªç¯ç»“æŸåï¼Œè¾“å…¥åå’Œè¾“å‡ºåéƒ½å¿…é¡»å·²ç»æ‰¾åˆ°ã€‚
+        // Ñ­»·½áÊøºó£¬ÊäÈëÃûºÍÊä³öÃû¶¼±ØĞëÒÑ¾­ÕÒµ½¡£
         if (inputName.empty() || outputName.empty())
         {
             throw std::runtime_error("Cannot find model input/output");
         }
 
-        // Ultralytics TRT11 çš„ FP16/INT8 engine å†…éƒ¨æ˜¯ä½ç²¾åº¦ï¼Œæ¨¡å‹ I/O ä»ä¿æŒ FP32ã€‚
-        // c_str() æŠŠ C++ string ä¸´æ—¶è½¬æ¢ä¸º TensorRT C API éœ€è¦çš„ char const*ã€‚
+        // Ultralytics TRT11 µÄ FP16/INT8 engine ÄÚ²¿ÊÇµÍ¾«¶È£¬Ä£ĞÍ I/O ÈÔ±£³Ö FP32¡£
+        // c_str() °Ñ C++ string ÁÙÊ±×ª»»Îª TensorRT C API ĞèÒªµÄ char const*¡£
         if (engine->getTensorDataType(inputName.c_str()) != nvinfer1::DataType::kFLOAT
             || engine->getTensorDataType(outputName.c_str()) != nvinfer1::DataType::kFLOAT)
         {
-            // æœ¬ç¤ºä¾‹ host buffer ä½¿ç”¨ vector<float>ï¼Œå› æ­¤åªæ¥å— float32 I/Oã€‚
+            // ±¾Ê¾Àı host buffer Ê¹ÓÃ vector<float>£¬Òò´ËÖ»½ÓÊÜ float32 I/O¡£
             throw std::runtime_error("This minimal example expects FP32 model I/O");
         }
 
-        // kDEVICE è¡¨ç¤ºè¿™ä¸¤ä¸ª tensor å¿…é¡»ç»‘å®š GPU åœ°å€ï¼Œè€Œä¸æ˜¯æ™®é€š CPU åœ°å€ã€‚
+        // kDEVICE ±íÊ¾ÕâÁ½¸ö tensor ±ØĞë°ó¶¨ GPU µØÖ·£¬¶ø²»ÊÇÆÕÍ¨ CPU µØÖ·¡£
         if (engine->getTensorLocation(inputName.c_str()) != nvinfer1::TensorLocation::kDEVICE
             || engine->getTensorLocation(outputName.c_str()) != nvinfer1::TensorLocation::kDEVICE)
         {
             throw std::runtime_error("This minimal example expects device I/O tensors");
         }
 
-        // ç¤ºä¾‹åªæ”¯æŒ YOLO26 detect çš„ NCHW å›¾ç‰‡è¾“å…¥ã€‚
-        // Dims ä¸­ nbDims æ˜¯ç»´åº¦æ•°é‡ï¼Œd[0..3] åˆ†åˆ«æ˜¯ Nã€Cã€Hã€Wã€‚
+        // Ê¾ÀıÖ»Ö§³Ö YOLO26 detect µÄ NCHW Í¼Æ¬ÊäÈë¡£
+        // Dims ÖĞ nbDims ÊÇÎ¬¶ÈÊıÁ¿£¬d[0..3] ·Ö±ğÊÇ N¡¢C¡¢H¡¢W¡£
         nvinfer1::Dims const modelInputDims = engine->getTensorShape(inputName.c_str());
-        // NCHW å¿…é¡»æ­£å¥½æœ‰ 4 ä¸ªç»´åº¦ã€‚
+        // NCHW ±ØĞëÕıºÃÓĞ 4 ¸öÎ¬¶È¡£
         if (modelInputDims.nbDims != 4)
         {
             throw std::runtime_error("Expected NCHW input");
         }
 
-        // åŠ¨æ€ engine ä» profile 0 è¯»å– min/opt/maxï¼›å›¾ç‰‡å°ºå¯¸ä½¿ç”¨ optï¼Œbatch ä½¿ç”¨ max åˆ†æ‰¹ã€‚
-        // å…ˆå‡è®¾æ‰€æœ‰ç»´åº¦éƒ½æ˜¯å›ºå®šå€¼ã€‚
+        // ¶¯Ì¬ engine ´Ó profile 0 ¶ÁÈ¡ min/opt/max£»Í¼Æ¬³ß´çÊ¹ÓÃ opt£¬batch Ê¹ÓÃ max ·ÖÅú¡£
+        // ÏÈ¼ÙÉèËùÓĞÎ¬¶È¶¼ÊÇ¹Ì¶¨Öµ¡£
         bool dynamicInput = false;
-        // é€ç»´æŸ¥æ‰¾ -1ï¼›TensorRT ä½¿ç”¨ -1 è¡¨ç¤ºè¿è¡Œæ—¶æ‰èƒ½ç¡®å®šçš„åŠ¨æ€ç»´åº¦ã€‚
+        // ÖğÎ¬²éÕÒ -1£»TensorRT Ê¹ÓÃ -1 ±íÊ¾ÔËĞĞÊ±²ÅÄÜÈ·¶¨µÄ¶¯Ì¬Î¬¶È¡£
         for (int i = 0; i < modelInputDims.nbDims; ++i)
         {
-            // åªè¦ä»»æ„ä¸€ç»´å°äº 0ï¼ŒdynamicInput å°±ä¼šå˜æˆ trueã€‚
+            // Ö»ÒªÈÎÒâÒ»Î¬Ğ¡ÓÚ 0£¬dynamicInput ¾Í»á±ä³É true¡£
             dynamicInput = dynamicInput || modelInputDims.d[i] < 0;
         }
 
-        // ä¸‰å…ƒè¡¨è¾¾å¼â€œæ¡ä»¶ ? A : Bâ€ç›¸å½“äº Java çš„åŒåä¸‰å…ƒè¿ç®—ç¬¦ã€‚
-        // åŠ¨æ€æ¨¡å‹è¯»å– profile çš„æœ€å° shapeï¼›é™æ€æ¨¡å‹ç›´æ¥ä½¿ç”¨å›ºå®š shapeã€‚
+        // ÈıÔª±í´ïÊ½¡°Ìõ¼ş ? A : B¡±Ïàµ±ÓÚ Java µÄÍ¬ÃûÈıÔªÔËËã·û¡£
+        // ¶¯Ì¬Ä£ĞÍ¶ÁÈ¡ profile µÄ×îĞ¡ shape£»¾²Ì¬Ä£ĞÍÖ±½ÓÊ¹ÓÃ¹Ì¶¨ shape¡£
         nvinfer1::Dims const minInputDims = dynamicInput
             ? engine->getProfileShape(inputName.c_str(), 0, nvinfer1::OptProfileSelector::kMIN)
             : modelInputDims;
-        // opt shape æ˜¯æ„å»º engine æ—¶é‡ç‚¹ä¼˜åŒ–çš„å°ºå¯¸ï¼Œæœ¬ç¤ºä¾‹ç”¨å®ƒçš„ H å’Œ Wã€‚
+        // opt shape ÊÇ¹¹½¨ engine Ê±ÖØµãÓÅ»¯µÄ³ß´ç£¬±¾Ê¾ÀıÓÃËüµÄ H ºÍ W¡£
         nvinfer1::Dims const optInputDims = dynamicInput
             ? engine->getProfileShape(inputName.c_str(), 0, nvinfer1::OptProfileSelector::kOPT)
             : modelInputDims;
-        // max shape ç»™å‡ºè¯¥ engine å…è®¸çš„æœ€å¤§ batch å’Œæœ€å¤§å›¾ç‰‡å°ºå¯¸ã€‚
+        // max shape ¸ø³ö¸Ã engine ÔÊĞíµÄ×î´ó batch ºÍ×î´óÍ¼Æ¬³ß´ç¡£
         nvinfer1::Dims const maxInputDims = dynamicInput
             ? engine->getProfileShape(inputName.c_str(), 0, nvinfer1::OptProfileSelector::kMAX)
             : modelInputDims;
-        // NCHW çš„ d[1] æ˜¯é€šé“æ•°ï¼Œæ™®é€š RGB YOLO æ¨¡å‹å¿…é¡»æ˜¯ 3ã€‚
+        // NCHW µÄ d[1] ÊÇÍ¨µÀÊı£¬ÆÕÍ¨ RGB YOLO Ä£ĞÍ±ØĞëÊÇ 3¡£
         if (optInputDims.d[1] != 3)
         {
             throw std::runtime_error("Expected a 3-channel NCHW input");
         }
 
-        // é™æ€ batch çš„æœ€åä¸€æ‰¹ä¼šå¤åˆ¶æœ€åä¸€å¼ å›¾è¡¥é½ï¼›åªæ‰“å°çœŸå®å›¾ç‰‡çš„ç»“æœã€‚
-        // d[0] ä¸º -1 è¡¨ç¤º N å¯ä»¥åœ¨ profile èŒƒå›´å†…å˜åŒ–ã€‚
+        // ¾²Ì¬ batch µÄ×îºóÒ»Åú»á¸´ÖÆ×îºóÒ»ÕÅÍ¼²¹Æë£»Ö»´òÓ¡ÕæÊµÍ¼Æ¬µÄ½á¹û¡£
+        // d[0] Îª -1 ±íÊ¾ N ¿ÉÒÔÔÚ profile ·¶Î§ÄÚ±ä»¯¡£
         bool const dynamicBatch = modelInputDims.d[0] < 0;
-        // åŠ¨æ€æ¨¡å‹è¯»å–æœ€å° Nï¼›é™æ€æ¨¡å‹æœ€å° N å°±æ˜¯å›ºå®š Nã€‚
+        // ¶¯Ì¬Ä£ĞÍ¶ÁÈ¡×îĞ¡ N£»¾²Ì¬Ä£ĞÍ×îĞ¡ N ¾ÍÊÇ¹Ì¶¨ N¡£
         auto const minBatch = static_cast<std::size_t>(dynamicBatch ? minInputDims.d[0] : modelInputDims.d[0]);
-        // åŠ¨æ€æ¨¡å‹è¯»å–æœ€å¤§ Nï¼Œç¨åç”¨å®ƒåˆ‡åˆ†ä»»æ„æ•°é‡çš„å›¾ç‰‡ã€‚
+        // ¶¯Ì¬Ä£ĞÍ¶ÁÈ¡×î´ó N£¬ÉÔºóÓÃËüÇĞ·ÖÈÎÒâÊıÁ¿µÄÍ¼Æ¬¡£
         auto const maxBatch = static_cast<std::size_t>(dynamicBatch ? maxInputDims.d[0] : modelInputDims.d[0]);
-        // d[2] æ˜¯è¾“å…¥é«˜åº¦ï¼›static_cast<int> æ˜¯æ˜¾å¼ç±»å‹è½¬æ¢ã€‚
+        // d[2] ÊÇÊäÈë¸ß¶È£»static_cast<int> ÊÇÏÔÊ½ÀàĞÍ×ª»»¡£
         int const inputHeight = static_cast<int>(optInputDims.d[2]);
-        // d[3] æ˜¯è¾“å…¥å®½åº¦ã€‚
+        // d[3] ÊÇÊäÈë¿í¶È¡£
         int const inputWidth = static_cast<int>(optInputDims.d[3]);
-        // æ‹’ç» batch ä¸º 0ã€èŒƒå›´é¢ å€’æˆ–å›¾ç‰‡å°ºå¯¸æ— æ•ˆçš„ profileã€‚
+        // ¾Ü¾ø batch Îª 0¡¢·¶Î§µßµ¹»òÍ¼Æ¬³ß´çÎŞĞ§µÄ profile¡£
         if (minBatch == 0 || maxBatch < minBatch || inputHeight <= 0 || inputWidth <= 0)
         {
             throw std::runtime_error("Invalid optimization profile");
         }
 
-        // context æŒæœ‰æ‰§è¡ŒçŠ¶æ€ï¼›åŒä¸€æ¡ stream ä¸²è” profileã€æ‹·è´å’Œ enqueueV3ã€‚
-        // IExecutionContext å¯ä»¥ç±»æ¯” Java æ¨ç†æ¡†æ¶ä¸­çš„ Sessionï¼Œä¸€æ¬¡æ¬¡æ‰§è¡ŒåŒä¸€ä¸ª engineã€‚
+        // context ³ÖÓĞÖ´ĞĞ×´Ì¬£»Í¬Ò»Ìõ stream ´®Áª profile¡¢¿½±´ºÍ enqueueV3¡£
+        // IExecutionContext ¿ÉÒÔÀà±È Java ÍÆÀí¿ò¼ÜÖĞµÄ Session£¬Ò»´Î´ÎÖ´ĞĞÍ¬Ò»¸ö engine¡£
         std::unique_ptr<nvinfer1::IExecutionContext> context{engine->createExecutionContext()};
-        // context åˆ›å»ºå¤±è´¥ä¸€èˆ¬è¡¨ç¤ºæ˜¾å­˜ä¸è¶³æˆ– engine ä¸å½“å‰è®¾å¤‡ä¸å…¼å®¹ã€‚
+        // context ´´½¨Ê§°ÜÒ»°ã±íÊ¾ÏÔ´æ²»×ã»ò engine Óëµ±Ç°Éè±¸²»¼æÈİ¡£
         if (!context)
         {
             throw std::runtime_error("createExecutionContext failed");
         }
 
-        // æ„é€  CudaStreamï¼ŒåŒæ—¶åœ¨æ„é€ å‡½æ•°ä¸­åˆ›å»ºåº•å±‚ CUDA streamã€‚
+        // ¹¹Ôì CudaStream£¬Í¬Ê±ÔÚ¹¹Ôìº¯ÊıÖĞ´´½¨µ×²ã CUDA stream¡£
         CudaStream stream;
-        // é€‰æ‹©ç¬¬ 0 ä¸ª optimization profileï¼Œå¹¶è®©åç»­ shape è®¾ç½®ä½¿ç”¨è¿™ä¸ª profileã€‚
+        // Ñ¡ÔñµÚ 0 ¸ö optimization profile£¬²¢ÈÃºóĞø shape ÉèÖÃÊ¹ÓÃÕâ¸ö profile¡£
         if (!context->setOptimizationProfileAsync(0, stream))
         {
             throw std::runtime_error("setOptimizationProfileAsync failed");
         }
 
-        // æ‰“å°ç¨‹åºä» engine ä¸­è¯»å–åˆ°çš„è¾“å…¥åã€æœ€ä¼˜å°ºå¯¸ã€æœ€å¤§ batch å’Œè¾“å‡ºåã€‚
+        // ´òÓ¡³ÌĞò´Ó engine ÖĞ¶ÁÈ¡µ½µÄÊäÈëÃû¡¢×îÓÅ³ß´ç¡¢×î´ó batch ºÍÊä³öÃû¡£
         std::cout << "input=" << inputName << " shape=[N,3," << inputHeight << ',' << inputWidth
                   << "] max_batch=" << maxBatch << " output=" << outputName << '\n';
 
-        // è¾“å…¥å›¾ç‰‡å¤šäº engine æœ€å¤§ batch æ—¶ï¼Œå¾ªç¯æ‹†æˆå¤šä¸ª batchã€‚
-        // ä¸€å¼ å›¾ç‰‡åŒ…å« 3*H*W ä¸ª floatï¼›3ULL è®©ä¹˜æ³•ä½¿ç”¨è¶³å¤Ÿå¤§çš„æ— ç¬¦å·æ•´æ•°ç±»å‹ã€‚
+        // ÊäÈëÍ¼Æ¬¶àÓÚ engine ×î´ó batch Ê±£¬Ñ­»·²ğ³É¶à¸ö batch¡£
+        // Ò»ÕÅÍ¼Æ¬°üº¬ 3*H*W ¸ö float£»3ULL ÈÃ³Ë·¨Ê¹ÓÃ×ã¹»´óµÄÎŞ·ûºÅÕûÊıÀàĞÍ¡£
         std::size_t const imageElements = 3ULL * inputHeight * inputWidth;
-        // imageOffset æ˜¯å½“å‰ batch ç¬¬ä¸€å¼ å›¾åœ¨ imagePaths ä¸­çš„ä½ç½®ã€‚
+        // imageOffset ÊÇµ±Ç° batch µÚÒ»ÕÅÍ¼ÔÚ imagePaths ÖĞµÄÎ»ÖÃ¡£
         for (std::size_t imageOffset = 0; imageOffset < imagePaths.size();)
         {
-            // activeImages æ˜¯æœ¬æ‰¹çœŸå®å›¾ç‰‡æ•°ï¼Œä¸èƒ½è¶…è¿‡ engine çš„ maxBatchã€‚
+            // activeImages ÊÇ±¾ÅúÕæÊµÍ¼Æ¬Êı£¬²»ÄÜ³¬¹ı engine µÄ maxBatch¡£
             std::size_t const activeImages = std::min(maxBatch, imagePaths.size() - imageOffset);
-            // executionBatch æ˜¯å®é™…é€å…¥æ¨¡å‹çš„ Nï¼›å¿…è¦æ—¶ä¼šå¤§äº activeImagesï¼Œç”¨å¤åˆ¶å›¾ç‰‡è¡¥é½ã€‚
+            // executionBatch ÊÇÊµ¼ÊËÍÈëÄ£ĞÍµÄ N£»±ØÒªÊ±»á´óÓÚ activeImages£¬ÓÃ¸´ÖÆÍ¼Æ¬²¹Æë¡£
             std::size_t const executionBatch = dynamicBatch ? std::max(activeImages, minBatch) : maxBatch;
 
-            // æ¯æ‰¹å…ˆè®¾ç½®å®é™… Nï¼ŒH/W ä½¿ç”¨å¯¼å‡ºæ—¶çš„æœ€ä¼˜å°ºå¯¸ã€‚
-            // å¤åˆ¶ opt shapeï¼Œé¿å…ç›´æ¥ä¿®æ”¹åªè¯»çš„ optInputDimsã€‚
+            // Ã¿ÅúÏÈÉèÖÃÊµ¼Ê N£¬H/W Ê¹ÓÃµ¼³öÊ±µÄ×îÓÅ³ß´ç¡£
+            // ¸´ÖÆ opt shape£¬±ÜÃâÖ±½ÓĞŞ¸ÄÖ»¶ÁµÄ optInputDims¡£
             nvinfer1::Dims inputDims = optInputDims;
-            // æŠŠ N æ”¹æˆæœ¬æ‰¹çœŸæ­£æ‰§è¡Œçš„ batch sizeã€‚
+            // °Ñ N ¸Ä³É±¾ÅúÕæÕıÖ´ĞĞµÄ batch size¡£
             inputDims.d[0] = static_cast<std::int64_t>(executionBatch);
-            // æŠŠæœ¬æ‰¹å®é™…è¾“å…¥ shape å†™å…¥ TensorRT contextã€‚
+            // °Ñ±¾ÅúÊµ¼ÊÊäÈë shape Ğ´Èë TensorRT context¡£
             if (!context->setInputShape(inputName.c_str(), inputDims))
             {
                 throw std::runtime_error("setInputShape failed");
             }
 
-            // ç¬¬ 2~4 æ­¥ï¼šé€å¼ è°ƒç”¨ OpenCV å®Œæˆè¯»å–ã€letterbox å’Œæ•°æ®æ ¼å¼è½¬æ¢ã€‚
-            // input æ˜¯ CPU ä¸Šçš„è¿ç»­ float æ•°ç»„ï¼Œå¸ƒå±€ä¸º [N][C][H][W]ã€‚
+            // µÚ 2~4 ²½£ºÖğÕÅµ÷ÓÃ OpenCV Íê³É¶ÁÈ¡¡¢letterbox ºÍÊı¾İ¸ñÊ½×ª»»¡£
+            // input ÊÇ CPU ÉÏµÄÁ¬Ğø float Êı×é£¬²¼¾ÖÎª [N][C][H][W]¡£
             std::vector<float> input(executionBatch * imageElements);
-            // transforms ä¸å›¾ç‰‡ä¸€ä¸€å¯¹åº”ï¼Œä¿å­˜å„è‡ªçš„ letterbox å‚æ•°ã€‚
+            // transforms ÓëÍ¼Æ¬Ò»Ò»¶ÔÓ¦£¬±£´æ¸÷×ÔµÄ letterbox ²ÎÊı¡£
             std::vector<ImageTransform> transforms;
-            // reserve åªé¢„ç•™å®¹é‡ï¼Œä¸å¢åŠ å…ƒç´ æ•°é‡ï¼Œå‡å°‘ push_back æ—¶çš„é‡æ–°åˆ†é…ã€‚
+            // reserve Ö»Ô¤ÁôÈİÁ¿£¬²»Ôö¼ÓÔªËØÊıÁ¿£¬¼õÉÙ push_back Ê±µÄÖØĞÂ·ÖÅä¡£
             transforms.reserve(executionBatch);
-            // åªå¯¹æœ¬æ‰¹çœŸå®å›¾ç‰‡æ‰§è¡Œç£ç›˜è¯»å–å’Œ OpenCV é¢„å¤„ç†ã€‚
+            // Ö»¶Ô±¾ÅúÕæÊµÍ¼Æ¬Ö´ĞĞ´ÅÅÌ¶ÁÈ¡ºÍ OpenCV Ô¤´¦Àí¡£
             for (std::size_t i = 0; i < activeImages; ++i)
             {
-                // input.data()+i*imageElements å®šä½ç¬¬ i å¼ å›¾ç‰‡åœ¨å¤§æ•°ç»„ä¸­çš„èµ·ç‚¹ã€‚
-                // preprocess è¿”å›æœ¬å¼ å›¾çš„åæ ‡è¿˜åŸå‚æ•°ï¼Œpush_back æŠŠå®ƒåŠ å…¥ vectorã€‚
+                // input.data()+i*imageElements ¶¨Î»µÚ i ÕÅÍ¼Æ¬ÔÚ´óÊı×éÖĞµÄÆğµã¡£
+                // preprocess ·µ»Ø±¾ÕÅÍ¼µÄ×ø±ê»¹Ô­²ÎÊı£¬push_back °ÑËü¼ÓÈë vector¡£
                 transforms.push_back(preprocess(
                     imagePaths[imageOffset + i], inputHeight, inputWidth, input.data() + i * imageElements));
             }
 
-            // é™æ€ batch æˆ– profile æœ€å° batch å¤§äºå®é™…å›¾ç‰‡æ•°æ—¶ï¼Œç”¨æœ€åä¸€å¼ å›¾è¡¥é½ã€‚
-            // è¡¥é½çš„å›¾ç‰‡åªç”¨äºæ»¡è¶³æ¨¡å‹ shapeï¼Œä¸ä¼šåœ¨ç¬¬ 8 æ­¥æ‰“å°ç»“æœã€‚
+            // ¾²Ì¬ batch »ò profile ×îĞ¡ batch ´óÓÚÊµ¼ÊÍ¼Æ¬ÊıÊ±£¬ÓÃ×îºóÒ»ÕÅÍ¼²¹Æë¡£
+            // ²¹ÆëµÄÍ¼Æ¬Ö»ÓÃÓÚÂú×ãÄ£ĞÍ shape£¬²»»áÔÚµÚ 8 ²½´òÓ¡½á¹û¡£
             for (std::size_t i = activeImages; i < executionBatch; ++i)
             {
-                // copy_n æŠŠæœ€åä¸€å¼ çœŸå®å›¾ç‰‡çš„ CHW float æ•°æ®å¤åˆ¶åˆ°ç¬¬ i ä¸ªä½ç½®ã€‚
+                // copy_n °Ñ×îºóÒ»ÕÅÕæÊµÍ¼Æ¬µÄ CHW float Êı¾İ¸´ÖÆµ½µÚ i ¸öÎ»ÖÃ¡£
                 std::copy_n(
                     input.data() + (activeImages - 1) * imageElements, imageElements, input.data() + i * imageElements);
-                // è¡¥é½å›¾ç‰‡å¤ç”¨æœ€åä¸€å¼ çœŸå®å›¾ç‰‡çš„ transformã€‚
+                // ²¹ÆëÍ¼Æ¬¸´ÓÃ×îºóÒ»ÕÅÕæÊµÍ¼Æ¬µÄ transform¡£
                 transforms.push_back(transforms.back());
             }
 
-            // è¾“å…¥ shape ç¡®å®šåï¼ŒTensorRT æ‰èƒ½ç»™å‡ºæœ¬æ‰¹æ¬¡çš„å®é™…è¾“å‡º shapeã€‚
-            // YOLO26 é»˜è®¤å¾—åˆ° [executionBatch,300,6]ã€‚
+            // ÊäÈë shape È·¶¨ºó£¬TensorRT ²ÅÄÜ¸ø³ö±¾Åú´ÎµÄÊµ¼ÊÊä³ö shape¡£
+            // YOLO26 Ä¬ÈÏµÃµ½ [executionBatch,300,6]¡£
             nvinfer1::Dims const outputDims = context->getTensorShape(outputName.c_str());
-            // åœ¨ CPU ä¸Šåˆ›å»ºè¶³å¤Ÿå¤§çš„ float è¾“å‡ºæ•°ç»„ï¼Œåˆå§‹å€¼ä¸º 0ã€‚
+            // ÔÚ CPU ÉÏ´´½¨×ã¹»´óµÄ float Êä³öÊı×é£¬³õÊ¼ÖµÎª 0¡£
             std::vector<float> output(volume(outputDims));
-            // å…ƒç´ æ•°ä¹˜ sizeof(float) è½¬æˆå­—èŠ‚æ•°ï¼Œå†ç”³è¯·è¾“å…¥ GPU æ˜¾å­˜ã€‚
+            // ÔªËØÊı³Ë sizeof(float) ×ª³É×Ö½ÚÊı£¬ÔÙÉêÇëÊäÈë GPU ÏÔ´æ¡£
             DeviceBuffer inputDevice(input.size() * sizeof(float));
-            // ä¸ºè¾“å‡ºç”³è¯·å¦ä¸€å— GPU æ˜¾å­˜ï¼›ä¸¤å—æ˜¾å­˜åœ¨æœ¬è½®å¾ªç¯ç»“æŸæ—¶è‡ªåŠ¨é‡Šæ”¾ã€‚
+            // ÎªÊä³öÉêÇëÁíÒ»¿é GPU ÏÔ´æ£»Á½¿éÏÔ´æÔÚ±¾ÂÖÑ­»·½áÊøÊ±×Ô¶¯ÊÍ·Å¡£
             DeviceBuffer outputDevice(output.size() * sizeof(float));
-            // æŠŠ TensorRT è¾“å…¥åç»‘å®šåˆ°è¾“å…¥æ˜¾å­˜åœ°å€ï¼Œè¾“å‡ºåç»‘å®šåˆ°è¾“å‡ºæ˜¾å­˜åœ°å€ã€‚
-            // setTensorAddress åªç™»è®°åœ°å€ï¼Œæœ¬èº«ä¸å¤åˆ¶ä»»ä½•æ•°æ®ã€‚
+            // °Ñ TensorRT ÊäÈëÃû°ó¶¨µ½ÊäÈëÏÔ´æµØÖ·£¬Êä³öÃû°ó¶¨µ½Êä³öÏÔ´æµØÖ·¡£
+            // setTensorAddress Ö»µÇ¼ÇµØÖ·£¬±¾Éí²»¸´ÖÆÈÎºÎÊı¾İ¡£
             if (!context->setTensorAddress(inputName.c_str(), inputDevice.get())
                 || !context->setTensorAddress(outputName.c_str(), outputDevice.get()))
             {
                 throw std::runtime_error("setTensorAddress failed");
             }
 
-            // ç¬¬ 5 æ­¥ï¼šæŠŠé¢„å¤„ç†åçš„è¾“å…¥ä» CPU å†…å­˜å¤åˆ¶åˆ° GPU æ˜¾å­˜ï¼ˆH2Dï¼‰ã€‚
-            // cudaMemcpyAsync åªæ˜¯æŠŠå¤åˆ¶ä»»åŠ¡åŠ å…¥ streamï¼Œä¸ä¼šåœ¨è¿™ä¸€è¡Œç­‰å¾…å¤åˆ¶å®Œæˆã€‚
+            // µÚ 5 ²½£º°ÑÔ¤´¦ÀíºóµÄÊäÈë´Ó CPU ÄÚ´æ¸´ÖÆµ½ GPU ÏÔ´æ£¨H2D£©¡£
+            // cudaMemcpyAsync Ö»ÊÇ°Ñ¸´ÖÆÈÎÎñ¼ÓÈë stream£¬²»»áÔÚÕâÒ»ĞĞµÈ´ı¸´ÖÆÍê³É¡£
             checkCuda(cudaMemcpyAsync(inputDevice.get(), input.data(), input.size() * sizeof(float),
-                          // æ˜ç¡®å¤åˆ¶æ–¹å‘æ˜¯ Host(CPU) -> Device(GPU)ï¼Œå¹¶æŒ‡å®šåŒä¸€æ¡ streamã€‚
+                          // Ã÷È·¸´ÖÆ·½ÏòÊÇ Host(CPU) -> Device(GPU)£¬²¢Ö¸¶¨Í¬Ò»Ìõ stream¡£
                           cudaMemcpyHostToDevice, stream),
-                // å‘ç”Ÿ CUDA é”™è¯¯æ—¶ï¼Œè¯¥æ–‡æœ¬ä¼šå‡ºç°åœ¨å¼‚å¸¸æ¶ˆæ¯ä¸­ã€‚
+                // ·¢Éú CUDA ´íÎóÊ±£¬¸ÃÎÄ±¾»á³öÏÖÔÚÒì³£ÏûÏ¢ÖĞ¡£
                 "copy input to GPU");
 
-            // ç¬¬ 6 æ­¥ï¼šTensorRT åœ¨ GPU ä¸Šæ‰§è¡Œ YOLO26 ç½‘ç»œã€‚
-            // enqueueV3 åŒæ ·åªæ˜¯æŠŠæ¨ç†ä»»åŠ¡æ’åˆ° streamï¼›åŒä¸€ stream ä¿è¯å®ƒæ’åœ¨ H2D åé¢ã€‚
+            // µÚ 6 ²½£ºTensorRT ÔÚ GPU ÉÏÖ´ĞĞ YOLO26 ÍøÂç¡£
+            // enqueueV3 Í¬ÑùÖ»ÊÇ°ÑÍÆÀíÈÎÎñÅÅµ½ stream£»Í¬Ò» stream ±£Ö¤ËüÅÅÔÚ H2D ºóÃæ¡£
             if (!context->enqueueV3(stream))
             {
                 throw std::runtime_error("enqueueV3 failed");
             }
 
-            // ç¬¬ 7 æ­¥ï¼šæŠŠ TensorRT è¾“å‡ºä» GPU æ˜¾å­˜å¤åˆ¶å› CPU å†…å­˜ï¼ˆD2Hï¼‰ã€‚
-            // è¯¥å¤åˆ¶ä»»åŠ¡æ’åœ¨æ¨ç†åé¢ï¼Œå› æ­¤ä¼šç­‰ GPU æ¨ç†å®Œæˆåå†è¯»å–è¾“å‡ºæ˜¾å­˜ã€‚
+            // µÚ 7 ²½£º°Ñ TensorRT Êä³ö´Ó GPU ÏÔ´æ¸´ÖÆ»Ø CPU ÄÚ´æ£¨D2H£©¡£
+            // ¸Ã¸´ÖÆÈÎÎñÅÅÔÚÍÆÀíºóÃæ£¬Òò´Ë»áµÈ GPU ÍÆÀíÍê³ÉºóÔÙ¶ÁÈ¡Êä³öÏÔ´æ¡£
             checkCuda(cudaMemcpyAsync(output.data(), outputDevice.get(), output.size() * sizeof(float),
-                          // å¤åˆ¶æ–¹å‘æ˜¯ Device(GPU) -> Host(CPU)ã€‚
+                          // ¸´ÖÆ·½ÏòÊÇ Device(GPU) -> Host(CPU)¡£
                           cudaMemcpyDeviceToHost, stream),
                 "copy output to CPU");
-            // CPU åœ¨è¿™é‡Œé˜»å¡ï¼Œç›´åˆ° stream ä¸­çš„ H2Dã€æ¨ç†å’Œ D2H ä¸‰ä¸ªä»»åŠ¡å…¨éƒ¨å®Œæˆã€‚
+            // CPU ÔÚÕâÀï×èÈû£¬Ö±µ½ stream ÖĞµÄ H2D¡¢ÍÆÀíºÍ D2H Èı¸öÈÎÎñÈ«²¿Íê³É¡£
             checkCuda(cudaStreamSynchronize(stream), "cudaStreamSynchronize");
 
-            // ç¬¬ 8 æ­¥ï¼šè¿‡æ»¤ã€åæ ‡è¿˜åŸå’Œæ‰“å°ï¼›YOLO26 ç«¯åˆ°ç«¯è¾“å‡ºä¸éœ€è¦ NMSã€‚
-            // åªä¼  activeImagesï¼Œå› æ­¤è¡¥é½å›¾ç‰‡çš„è¾“å‡ºä¸ä¼šè¢«æ‰“å°ã€‚
+            // µÚ 8 ²½£º¹ıÂË¡¢×ø±ê»¹Ô­ºÍ´òÓ¡£»YOLO26 ¶Ëµ½¶ËÊä³ö²»ĞèÒª NMS¡£
+            // Ö»´« activeImages£¬Òò´Ë²¹ÆëÍ¼Æ¬µÄÊä³ö²»»á±»´òÓ¡¡£
             printDetections(output, outputDims, activeImages, imageOffset, imagePaths, transforms);
-            // ç§»åŠ¨åˆ°ä¸‹ä¸€æ‰¹çœŸå®å›¾ç‰‡ï¼›ä¾‹å¦‚æœ¬æ‰¹å¤„ç† 8 å¼ ï¼Œå°±æŠŠ offset å¢åŠ  8ã€‚
+            // ÒÆ¶¯µ½ÏÂÒ»ÅúÕæÊµÍ¼Æ¬£»ÀıÈç±¾Åú´¦Àí 8 ÕÅ£¬¾Í°Ñ offset Ôö¼Ó 8¡£
             imageOffset += activeImages;
         }
+
+        std::cout << "\nPress any key in an image window to exit.\n";
+        cv::waitKey(0);
+        cv::destroyAllWindows();
     }
-    // const& é¿å…å¤åˆ¶å¼‚å¸¸å¯¹è±¡ï¼›std::exception æ˜¯å¤§å¤šæ•°æ ‡å‡†å¼‚å¸¸çš„çˆ¶ç±»ã€‚
+    // const& ±ÜÃâ¸´ÖÆÒì³£¶ÔÏó£»std::exception ÊÇ´ó¶àÊı±ê×¼Òì³£µÄ¸¸Àà¡£
     catch (std::exception const& error)
     {
-        // what() è¿”å›å¼‚å¸¸æ¶ˆæ¯ï¼Œå†™åˆ°æ ‡å‡†é”™è¯¯è¾“å‡ºã€‚
+        // what() ·µ»ØÒì³£ÏûÏ¢£¬Ğ´µ½±ê×¼´íÎóÊä³ö¡£
         std::cerr << "Error: " << error.what() << '\n';
-        // è¿”å›é 0 è¡¨ç¤ºç¨‹åºæ‰§è¡Œå¤±è´¥ã€‚
+        // ·µ»Ø·Ç 0 ±íÊ¾³ÌĞòÖ´ĞĞÊ§°Ü¡£
         return 1;
     }
-    // æ‰€æœ‰ batch éƒ½æˆåŠŸå¤„ç†åè¿”å› 0ï¼Œè¡¨ç¤ºç¨‹åºæ­£å¸¸ç»“æŸã€‚
+    // ËùÓĞ batch ¶¼³É¹¦´¦Àíºó·µ»Ø 0£¬±íÊ¾³ÌĞòÕı³£½áÊø¡£
     return 0;
 }
