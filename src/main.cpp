@@ -402,17 +402,17 @@ int main()
     {
         // ==================== 第 1 步：直接在这里修改文件地址 ====================
 
-        // TensorRT engine 地址；相对路径以运行程序时所在的目录为基准。
-        std::string const enginePath = "models/yolo26n.engine";
+        // TensorRT engine 地址；Windows C++ 字符串建议使用正斜杠，避免写成 \\ 才能表示一个反斜杠。
+        std::string const enginePath = "D:/models/yolo26n.engine";
 
         // N 张原图地址；vector 中写多少个路径，程序就处理多少张图片。
         std::vector<std::string> const imagePaths{
             // 第 1 张图片。
-            "images/1.jpg",
+            "D:/images/1.jpg",
             // 第 2 张图片。
-            "images/2.jpg",
+            "D:/images/2.jpg",
             // 第 3 张图片；不需要时可以删除这一行，也可以继续往后添加。
-            "images/3.jpg",
+            "D:/images/3.jpg",
         };
 
         // 防止误删所有图片路径后继续执行。
