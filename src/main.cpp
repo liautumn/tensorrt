@@ -11,6 +11,7 @@
 
 // 提供 min、max、clamp 和 copy_n 等通用算法。
 #include <algorithm>
+#include <chrono>
 // 提供 round 等数学函数。
 #include <cmath>
 // 提供 int32_t、int64_t 等长度固定的整数类型。
@@ -637,6 +638,7 @@ int main()
                 throw std::runtime_error("setInputShape failed");
             }
 
+            auto const preprocessStart = std::chrono::steady_clock::now();
             // 第 2~4 步：逐张调用 OpenCV 完成读取、letterbox 和数据格式转换。
             // input 是 CPU 上的连续 float 数组，布局为 [N][C][H][W]。
             std::vector<float> input(executionBatch * imageElements);
@@ -663,6 +665,9 @@ int main()
                 // 补齐图片复用最后一张真实图片的 transform。
                 transforms.push_back(transforms.back());
             }
+            auto const preprocessEnd = std::chrono::steady_clock::now();
+            double const preprocessMilliseconds
+                = std::chrono::duration<double, std::milli>(preprocessEnd - preprocessStart).count();
 
             // 输入 shape 确定后，TensorRT 才能给出本批次的实际输出 shape。
             // YOLO26 默认得到 [executionBatch,300,6]。
@@ -688,6 +693,8 @@ int main()
                           cudaMemcpyHostToDevice, stream),
                 // 发生 CUDA 错误时，该文本会出现在异常消息中。
                 "copy input to GPU");
+            checkCuda(cudaStreamSynchronize(stream), "synchronize input copy");
+            auto const inferenceStart = std::chrono::steady_clock::now();
 
             // 第 6 步：TensorRT 在 GPU 上执行 YOLO26 网络。
             // enqueueV3 同样只是把推理任务排到 stream；同一 stream 保证它排在 H2D 后面。
@@ -697,6 +704,8 @@ int main()
             }
 
             // 第 7 步：把 TensorRT 输出从 GPU 显存复制回 CPU 内存（D2H）。
+            checkCuda(cudaStreamSynchronize(stream), "synchronize inference");
+            auto const inferenceEnd = std::chrono::steady_clock::now();
             // 该复制任务排在推理后面，因此会等 GPU 推理完成后再读取输出显存。
             checkCuda(cudaMemcpyAsync(output.data(), outputDevice.get(), output.size() * sizeof(float),
                           // 复制方向是 Device(GPU) -> Host(CPU)。
@@ -704,6 +713,11 @@ int main()
                 "copy output to CPU");
             // CPU 在这里阻塞，直到 stream 中的 H2D、推理和 D2H 三个任务全部完成。
             checkCuda(cudaStreamSynchronize(stream), "cudaStreamSynchronize");
+            double const inferenceMilliseconds
+                = std::chrono::duration<double, std::milli>(inferenceEnd - inferenceStart).count();
+            std::cout << std::fixed << std::setprecision(3) << "timing: preprocess=" << preprocessMilliseconds
+                      << " ms (batch=" << activeImages << "), inference_batch=" << inferenceMilliseconds
+                      << " ms (batch=" << executionBatch << ", enqueueV3 calls=1)\n";
 
             // 第 8 步：过滤、坐标还原和打印；YOLO26 端到端输出不需要 NMS。
             // 只传 activeImages，因此补齐图片的输出不会被打印。
