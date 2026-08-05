@@ -18,10 +18,10 @@ if(WIN32)
     set(CUDAToolkit_ROOT "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
         CACHE PATH "CUDA Toolkit installation directory")
     # 必须指向包含 OpenCVConfig.cmake 的目录；官方 Windows 包通常是 C:/opencv/build。
-    set(OpenCV_DIR "C:/opencv/build"
+    set(OpenCV_DIR "D:/dev/opencv/build/x64/vc16/lib"
         CACHE PATH "Directory containing OpenCVConfig.cmake")
     # TensorRT zip 解压目录；其中应当包含 include/NvInfer.h 和 lib/nvinfer_11.lib。
-    set(TENSORRT_ROOT "C:/TensorRT-11.2.1"
+    set(TENSORRT_ROOT "D:/dev/TensorRT-11.2.1.2"
         CACHE PATH "TensorRT installation directory")
 else()
     # 非 Windows 环境仍允许通过 -D 参数指定路径，不强制写死系统目录。
@@ -37,7 +37,7 @@ message(STATUS "TENSORRT_ROOT     = ${TENSORRT_ROOT}")
 # 查找 CUDA Toolkit；REQUIRED 表示找不到就停止配置。
 find_package(CUDAToolkit REQUIRED)
 # 只要求 OpenCV 的 core、图片读取和图片处理三个模块。
-find_package(OpenCV REQUIRED COMPONENTS core imgcodecs imgproc)
+find_package(OpenCV REQUIRED)
 
 # TensorRT 官方 tar 包和系统包都不保证提供通用的 CMake package，直接查找头文件和库。
 # 查找包含 NvInfer.h 的目录，结果保存到 TENSORRT_INCLUDE_DIR。
