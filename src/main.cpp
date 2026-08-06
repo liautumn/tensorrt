@@ -28,7 +28,7 @@
 int main()
 {
     // enginePath：传给 readEngine() 的 TensorRT engine 文件路径。
-    std::string const enginePath = "/home/autumn/CLionProjects/tensorrt/model/yolo26n.engine";
+    std::string const enginePath = "/home/autumn/CLionProjects/tensorrt/model/linux.engine";
     // imagePaths：传给 loadImages() 的图片路径集合；元素数量就是待推理图片数量。
     std::vector<std::string> const imagePaths{
         // 第 0 张待推理图片的路径。
