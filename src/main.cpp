@@ -34,7 +34,7 @@ int main() {
         "C:\\Users\\autumn\\CLionProjects\\tensorrt\\model\\1.jpg"
     };
     // confidenceThreshold：传给 printBatchResults() 的最低置信度；低于 0.25 的框会被过滤。
-    float const confidenceThreshold = 0.25F;
+    float const confidenceThreshold = 0.7F;
 
     // 读取 enginePath 指向的二进制文件；返回值 engineData 是完整的 engine 字节数组。
     EngineData engineData = readEngine(enginePath);
