@@ -110,7 +110,8 @@ int main()
         std::cout << "timing: batch=" << batch.size
                   << " preprocess=" << preprocessMilliseconds << " ms"
                   << " inference=" << inferenceMilliseconds << " ms"
-                  << " postprocess=" << postprocessMilliseconds << " ms\n";
+                  << " postprocess=" << postprocessMilliseconds << " ms"
+                  << " total=" << preprocessMilliseconds+inferenceMilliseconds+postprocessMilliseconds << " ms\n";
     }
 
     // results[i] 对应第 i 张图片的有效检测结果集合。
