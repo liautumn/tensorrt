@@ -1,6 +1,4 @@
-# YOLO26 + TensorRT 11 极简多图推理
-
-在 `main()` 中配置 `N` 张图片，程序同步生成每张图片的检测结果。程序从 engine profile 读取最大 batch，并自动拆批。例如最大 batch 是 4，输入 10 张图时会拆成：`4 + 4 + 2`。全部批次处理完成后，程序从汇总后的 `results` 读取检测数据，在原图副本上画框并通过 OpenCV 弹窗显示。
+# YOLO26 + TensorRT 11
 
 模型要求：
 
@@ -13,34 +11,16 @@
 
 ## 生成 Engine
 
-下面示例把最大 batch 设置为 4：
-
 ```powershell
-trtexec.exe `
+./trtexec.exe `
   --onnx=best.onnx `
   --saveEngine=best.engine `
   --minShapes=images:1x3x640x640 `
-  --optShapes=images:4x3x640x640 `
-  --maxShapes=images:4x3x640x640
+  --optShapes=images:1x3x640x640 `
+  --maxShapes=images:1x3x640x640
 ```
 
 代码直接读取 `trtexec` 生成的纯 TensorRT plan。
-
-## 配置
-
-在 [CMakeLists.txt](CMakeLists.txt) 中设置 CUDA、OpenCV 和 TensorRT 路径，或在配置时传入：
-
-```powershell
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
-  -DCUDAToolkit_ROOT="C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3" `
-  -DOpenCV_DIR="C:/opencv/build" `
-  -DTENSORRT_ROOT="C:/TensorRT-11.2.1"
-cmake --build build --config Release
-```
-
-使用 Visual Studio generator 时必须安装对应 CUDA 版本的 Visual Studio Integration。
-机器上存在多个 CUDA Toolkit 时，可在首次配置时增加 `-T "cuda=13.3"`；使用 CLion/Ninja 时则通过
-`CUDAToolkit_ROOT` 或 `CMAKE_CUDA_COMPILER` 选择对应的 `nvcc.exe`。
 
 ## 运行
 
@@ -58,7 +38,7 @@ BGR 到 RGB 和 `1/255` 归一化，并直接写入 FP32 NCHW 输入显存。后
 `results[i]`，绘制发生在原图副本上，不会修改原始图片或检测数据。在任意结果窗口按键后，
 程序会关闭全部窗口并退出。绘制、窗口刷新和按键等待均位于耗时统计之外。
 
-`main()` 只负责按顺序拼装学习步骤：
+`main()` 只负责按顺序拼装：
 
 - `readEngine` / `initModel`：`src/model.cpp`
 - `loadImages`：`src/image.cpp`
