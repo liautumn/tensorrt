@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.21)
 # 定义项目名称为 yolo26_trt，并声明这里只编译 C++。
 project(yolo26_trt LANGUAGES CXX)
 
-# 使用 C++17，便于使用 RAII、智能指针等标准库功能。
+# 使用 C++17，保证当前代码使用的标准库和语言特性可用。
 # 指定 C++ 标准版本为 17。
 set(CMAKE_CXX_STANDARD 17)
 # 如果编译器不支持 C++17，直接配置失败，不允许自动降低版本。
@@ -33,10 +33,10 @@ message(STATUS "CUDAToolkit_ROOT = ${CUDAToolkit_ROOT}")
 message(STATUS "OpenCV_DIR        = ${OpenCV_DIR}")
 message(STATUS "TENSORRT_ROOT     = ${TENSORRT_ROOT}")
 
-# CUDA 负责显存和异步推理，OpenCV 负责图片读取与 letterbox 预处理。
+# CUDA 负责显存、数据复制和推理 stream，OpenCV 负责图片读取与 blob 预处理。
 # 查找 CUDA Toolkit；REQUIRED 表示找不到就停止配置。
 find_package(CUDAToolkit REQUIRED)
-# 只要求 OpenCV 的 core、图片读取和图片处理三个模块。
+# 查找 OpenCV；代码使用 core、imgcodecs 和 dnn 中的 blobFromImages。
 find_package(OpenCV REQUIRED)
 
 # TensorRT 官方 tar 包和系统包都不保证提供通用的 CMake package，直接查找头文件和库。
@@ -70,14 +70,21 @@ message(STATUS "CUDA version       = ${CUDAToolkit_VERSION}")
 
 # 每个源文件对应 main() 中的一个学习模块。
 add_executable(yolo26_trt
+    # 程序入口：按执行顺序拼装下面的学习模块。
     src/main.cpp
+    # 模型模块：读取 Engine、创建 context、申请和释放显存。
     src/model.cpp
+    # 分批模块：根据最大 batch 生成 4、4、2 之类的批次信息。
     src/batch.cpp
+    # 图片模块：读取图片并生成 [N,C,H,W] FP32 输入。
     src/image.cpp
+    # 推理模块：设置 batch、复制输入、enqueueV3、复制输出。
     src/inference.cpp
+    # 结果模块：按 batch 下标解析、过滤、打印并返回检测结果。
     src/result.cpp)
 # 给 yolo26_trt 添加 TensorRT 和 OpenCV 头文件搜索目录。
 target_include_directories(yolo26_trt PRIVATE
+    # 当前项目自己的 model.h、image.h 等头文件所在目录。
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     # TensorRT 的 NvInfer.h 所在目录。
     ${TENSORRT_INCLUDE_DIR}
@@ -87,32 +94,45 @@ target_include_directories(yolo26_trt PRIVATE
 target_link_libraries(yolo26_trt PRIVATE
     # TensorRT 核心推理库 libnvinfer。
     ${TENSORRT_LIBRARY}
-    # CUDA Runtime 库，提供 cudaMalloc、cudaMemcpyAsync 等函数。
+    # CUDA Runtime 库，提供 cudaMalloc、cudaMemcpy、CUDA stream 等函数。
     CUDA::cudart
     # OpenCV core、imgcodecs 和 imgproc 库。
     ${OpenCV_LIBS})
 
-# Keep the runtime DLLs beside the executable so IDE launches do not depend on
-# machine-specific PATH entries.
+# Windows 构建后把运行时 DLL 放到 exe 旁边，使 CLion/IDE 启动时不依赖机器 PATH。
 if(WIN32)
+    # 在 TensorRT 根目录的 bin 或 lib 中查找 TensorRT 11 运行时 DLL。
     find_file(TENSORRT_RUNTIME_DLL
+        # 兼容带主版本后缀和不带后缀的 DLL 名称。
         NAMES nvinfer_11.dll nvinfer.dll
+        # 优先使用 CMake 变量或同名环境变量指定的 TensorRT 根目录。
         HINTS ${TENSORRT_ROOT} $ENV{TENSORRT_ROOT}
+        # 在根目录下面的 bin、lib 子目录查找。
         PATH_SUFFIXES bin lib)
+    # 如果只有导入库而没有运行时 DLL，程序仍然无法在 Windows 启动。
     if(NOT TENSORRT_RUNTIME_DLL)
         message(FATAL_ERROR "TensorRT runtime DLL not found under TENSORRT_ROOT")
     endif()
 
+    # yolo26_trt 构建完成后执行一次文件复制命令。
     add_custom_command(TARGET yolo26_trt POST_BUILD
+        # copy_if_different 只在文件内容不同时复制，避免不必要的重复写入。
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            # 第一个参数是找到的 TensorRT DLL 源路径。
             "${TENSORRT_RUNTIME_DLL}"
+            # 第二个参数是生成的 yolo26_trt.exe 所在目录。
             "$<TARGET_FILE_DIR:yolo26_trt>"
+        # VERBATIM 让 CMake 正确处理路径中的空格和转义字符。
         VERBATIM)
 
+    # 官方 OpenCV Windows 包通常提供 opencv_world 这个合并后的动态库目标。
     if(TARGET opencv_world)
+        # 构建完成后把 OpenCV 运行时 DLL 同样复制到 exe 目录。
         add_custom_command(TARGET yolo26_trt POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                # $<TARGET_FILE:opencv_world> 会解析为实际 OpenCV DLL 路径。
                 "$<TARGET_FILE:opencv_world>"
+                # 复制目标仍然是 yolo26_trt.exe 所在目录。
                 "$<TARGET_FILE_DIR:yolo26_trt>"
             VERBATIM)
     endif()
