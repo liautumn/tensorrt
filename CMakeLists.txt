@@ -25,19 +25,17 @@ if(WIN32)
         CACHE PATH "TensorRT installation directory")
 else()
     # 非 Windows 环境仍允许通过 -D 参数指定路径，不强制写死系统目录。
-    set(TENSORRT_ROOT "" CACHE PATH "TensorRT installation directory")
-endif()
+    set(CUDAToolkit_ROOT
+            "/usr/local/cuda"
+            CACHE PATH "CUDA Toolkit installation directory")
 
-# 手动选择 nvcc 时必须在 enable_language(CUDA) 前设置；命令行或缓存已有值时优先使用它。
-if(WIN32 AND NOT CMAKE_CUDA_COMPILER)
-    # 根据上面的 CUDA Toolkit 根目录拼出本机默认 nvcc.exe 候选路径。
-    set(_CUDA_COMPILER "${CUDAToolkit_ROOT}/bin/nvcc.exe")
-    # 仅在文件真实存在时写入 compiler，避免一个无效默认路径阻止 CMake 自行搜索 CUDA。
-    if(EXISTS "${_CUDA_COMPILER}")
-        # CACHE 让首次配置选定的 nvcc 在后续 CLion/CMake 重新加载时保持一致。
-        set(CMAKE_CUDA_COMPILER "${_CUDA_COMPILER}"
-            CACHE FILEPATH "CUDA compiler used to build .cu sources")
-    endif()
+    set(OpenCV_DIR
+            "/usr/lib/x86_64-linux-gnu/cmake/opencv4"
+            CACHE PATH "Directory containing OpenCVConfig.cmake")
+
+    set(TENSORRT_ROOT
+            "/opt/TensorRT"
+            CACHE PATH "TensorRT installation directory")
 endif()
 
 # 启用 CUDA language，使 add_executable 中的 src/preprocess.cu 交给 nvcc 编译。
@@ -124,42 +122,3 @@ target_link_libraries(yolo26_trt PRIVATE
     CUDA::cudart
     # OpenCV 配置导出的库集合，为 cv::Mat、imread、rectangle、putText 和 imshow 提供实现。
     ${OpenCV_LIBS})
-
-# Windows 构建后把运行时 DLL 放到 exe 旁边，使 CLion/IDE 启动时不依赖机器 PATH。
-if(WIN32)
-    # 在 TensorRT 根目录的 bin 或 lib 中查找 TensorRT 11 运行时 DLL。
-    find_file(TENSORRT_RUNTIME_DLL
-        # 兼容带主版本后缀和不带后缀的 DLL 名称。
-        NAMES nvinfer_11.dll nvinfer.dll
-        # 优先使用 CMake 变量或同名环境变量指定的 TensorRT 根目录。
-        HINTS ${TENSORRT_ROOT} $ENV{TENSORRT_ROOT}
-        # 在根目录下面的 bin、lib 子目录查找。
-        PATH_SUFFIXES bin lib)
-    # 如果只有导入库而没有运行时 DLL，程序仍然无法在 Windows 启动。
-    if(NOT TENSORRT_RUNTIME_DLL)
-        message(FATAL_ERROR "TensorRT runtime DLL not found under TENSORRT_ROOT")
-    endif()
-
-    # yolo26_trt 构建完成后执行一次文件复制命令。
-    add_custom_command(TARGET yolo26_trt POST_BUILD
-        # copy_if_different 只在文件内容不同时复制，避免不必要的重复写入。
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            # 第一个参数是找到的 TensorRT DLL 源路径。
-            "${TENSORRT_RUNTIME_DLL}"
-            # 第二个参数是生成的 yolo26_trt.exe 所在目录。
-            "$<TARGET_FILE_DIR:yolo26_trt>"
-        # VERBATIM 让 CMake 正确处理路径中的空格和转义字符。
-        VERBATIM)
-
-    # 官方 OpenCV Windows 包通常提供 opencv_world 这个合并后的动态库目标。
-    if(TARGET opencv_world)
-        # 构建完成后把 OpenCV 运行时 DLL 同样复制到 exe 目录。
-        add_custom_command(TARGET yolo26_trt POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                # $<TARGET_FILE:opencv_world> 会解析为实际 OpenCV DLL 路径。
-                "$<TARGET_FILE:opencv_world>"
-                # 复制目标仍然是 yolo26_trt.exe 所在目录。
-                "$<TARGET_FILE_DIR:yolo26_trt>"
-            VERBATIM)
-    endif()
-endif()
