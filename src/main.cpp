@@ -9,8 +9,11 @@
 
 int main()
 {
-    std::string const enginePath = "best.engine";
-    std::vector<std::string> const imagePaths{"1.jpg", "2.jpg"};
+    std::string const enginePath = "C:\\Users\\autumn\\CLionProjects\\tensorrt\\model\\best.engine";
+    std::vector<std::string> const imagePaths{
+        "C:\\Users\\autumn\\CLionProjects\\tensorrt\\model\\1.jpg",
+        "C:\\Users\\autumn\\CLionProjects\\tensorrt\\model\\2.jpg"
+    };
     float const confidenceThreshold = 0.25F;
 
     EngineData engineData = readEngine(enginePath);
@@ -22,23 +25,26 @@ int main()
 
     for (Batch const& batch : batches)
     {
-        cv::Mat input = preprocessBatch(
+        while (true)
+        {
+            cv::Mat input = preprocessBatch(
             images,
             batch,
             model.inputHeight,
             model.inputWidth);
 
-        setBatchSize(model, batch.size);
-        copyToGpu(model, input);
-        infer(model);
-        std::vector<float> output = copyToCpu(model, batch.size);
-        Results batchResults = printBatchResults(
-            model,
-            images,
-            batch,
-            output,
-            confidenceThreshold);
-        results.insert(results.end(), batchResults.begin(), batchResults.end());
+            setBatchSize(model, batch.size);
+            copyToGpu(model, input);
+            infer(model);
+            std::vector<float> output = copyToCpu(model, batch.size);
+            Results batchResults = printBatchResults(
+                model,
+                images,
+                batch,
+                output,
+                confidenceThreshold);
+            results.insert(results.end(), batchResults.begin(), batchResults.end());
+        }
     }
 
     // results[i] 对应第 i 张图片的有效检测结果集合。
