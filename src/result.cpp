@@ -36,7 +36,7 @@ Results printBatchResults(
         float const scaleY = static_cast<float>(image.rows) / model.inputHeight;
 
         // 打印当前图片在全部输入图片中的下标，前面的换行用于分隔不同图片。
-        std::cout << "\nimage " << batch.offset + b << '\n';
+        // std::cout << "\nimage " << batch.offset + b << '\n';
         // 逐个检查模型为当前图片预留的所有候选检测框。
         for (int i = 0; i < model.maxDetections; ++i)
         {
@@ -65,12 +65,12 @@ Results printBatchResults(
                 // results[b] 对应当前批次第 b 张图片，把有效检测框加入它的结果集合。
                 results[b].push_back(detection);
                 // 将类别、置信度和原图坐标打印到控制台，便于直接观察推理结果。
-                std::cout << "class=" << detection.classId
-                          << " score=" << detection.confidence
-                          << " box=[" << detection.x1
-                          << ',' << detection.y1
-                          << ',' << detection.x2
-                          << ',' << detection.y2 << "]\n";
+                // std::cout << "class=" << detection.classId
+                //           << " score=" << detection.confidence
+                //           << " box=[" << detection.x1
+                //           << ',' << detection.y1
+                //           << ',' << detection.x2
+                //           << ',' << detection.y2 << "]\n";
             }
         }
     }

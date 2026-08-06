@@ -22,13 +22,11 @@
 int main()
 {
     // enginePath：传给 readEngine() 的 TensorRT engine 文件路径。
-    std::string const enginePath = "C:\\Users\\autumn\\CLionProjects\\tensorrt\\model\\best.engine";
+    std::string const enginePath = "D:\\dev\\TensorRT-11.2.1.2\\bin\\best.engine";
     // imagePaths：传给 loadImages() 的图片路径集合；元素数量就是待推理图片数量。
     std::vector<std::string> const imagePaths{
         // 第 0 张待推理图片的路径。
-        "C:\\Users\\autumn\\CLionProjects\\tensorrt\\model\\1.jpg",
-        // 第 1 张待推理图片的路径。
-        "C:\\Users\\autumn\\CLionProjects\\tensorrt\\model\\2.jpg"
+        "C:\\Users\\autumn\\CLionProjects\\tensorrt\\model\\1.jpg"
     };
     // confidenceThreshold：传给 printBatchResults() 的最低置信度；低于 0.25 的框会被过滤。
     float const confidenceThreshold = 0.25F;
@@ -49,7 +47,9 @@ int main()
     // 依次处理拆分后的每个批次；例如 10 张图、maxBatch=4 时依次得到 4、4、2。
     for (Batch const& batch : batches)
     {
-        // 记录当前批次预处理开始时间；steady_clock 不受系统时间调整影响。
+        while (true)
+        {
+                    // 记录当前批次预处理开始时间；steady_clock 不受系统时间调整影响。
         auto const preprocessStart = std::chrono::steady_clock::now();
         // 预处理当前批次并生成模型输入 cv::Mat；内部数据排列为 [N,3,H,W] FP32。
         cv::Mat input = preprocessBatch(
@@ -65,17 +65,21 @@ int main()
         auto const preprocessEnd = std::chrono::steady_clock::now();
 
         // 记录 GPU 阶段开始时间；该阶段包含形状设置、数据传输和网络执行。
-        auto const inferenceStart = std::chrono::steady_clock::now();
+        // auto const inferenceStart = std::chrono::steady_clock::now();
         // 把当前实际图片数量 batch.size 写入 TensorRT context 的动态输入 shape。
         setBatchSize(model, batch.size);
         // 把预处理后的 CPU input 数据复制到 model.inputDevice 指向的 GPU 显存。
         copyToGpu(model, input);
+
+        auto const inferenceStart = std::chrono::steady_clock::now();
         // 使用 model 中的 context 和 CUDA stream 调用 enqueueV3，并同步等待推理完成。
         infer(model);
+        auto const inferenceEnd = std::chrono::steady_clock::now();
+
         // 从 GPU 输出显存复制本批次结果到 CPU；返回数组 shape 为 [batch,max_det,6]。
         std::vector<float> output = copyToCpu(model, batch.size);
         // 记录 GPU 阶段结束时间；infer() 内部已同步等待 enqueueV3 完成。
-        auto const inferenceEnd = std::chrono::steady_clock::now();
+        // auto const inferenceEnd = std::chrono::steady_clock::now();
 
         // 记录后处理开始时间；后处理包含过滤、坐标还原、结果集合构建和控制台输出。
         auto const postprocessStart = std::chrono::steady_clock::now();
@@ -112,6 +116,7 @@ int main()
                   << " inference=" << inferenceMilliseconds << " ms"
                   << " postprocess=" << postprocessMilliseconds << " ms"
                   << " total=" << preprocessMilliseconds+inferenceMilliseconds+postprocessMilliseconds << " ms\n";
+        }
     }
 
     // results[i] 对应第 i 张图片的有效检测结果集合。
