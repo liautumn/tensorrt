@@ -54,11 +54,12 @@ message(STATUS "CUDAToolkit_ROOT = ${CUDAToolkit_ROOT}")
 message(STATUS "OpenCV_DIR        = ${OpenCV_DIR}")
 message(STATUS "TENSORRT_ROOT     = ${TENSORRT_ROOT}")
 
-# CUDA 负责预处理 kernel、显存、数据复制和推理 stream，OpenCV 负责图片读取。
+# CUDA 负责预处理 kernel、显存、数据复制和推理 stream，OpenCV 负责图片读取、画框和弹窗。
 # 查找 CUDA Toolkit；REQUIRED 表示找不到就停止配置。
 find_package(CUDAToolkit REQUIRED)
-# 查找 OpenCV；代码使用 core 和 imgcodecs 读取图片及访问 cv::Mat。
-find_package(OpenCV REQUIRED)
+# 显式要求代码实际使用的模块：cv::Mat、图片读取、框/文字绘制以及 HighGUI 窗口。
+# 若 OpenCV 缺少 highgui 等组件，配置阶段会直接给出错误，而不是等到链接时才失败。
+find_package(OpenCV REQUIRED COMPONENTS core imgcodecs imgproc highgui)
 
 # TensorRT 官方 tar 包和系统包都不保证提供通用的 CMake package，直接查找头文件和库。
 # 查找包含 NvInfer.h 的目录，结果保存到 TENSORRT_INCLUDE_DIR。
@@ -121,7 +122,7 @@ target_link_libraries(yolo26_trt PRIVATE
     ${TENSORRT_LIBRARY}
     # CUDA Runtime 库，提供 cudaMalloc、cudaMemcpy、CUDA stream 等函数。
     CUDA::cudart
-    # OpenCV 配置导出的库集合，为 cv::Mat 和 imread 提供实现。
+    # OpenCV 配置导出的库集合，为 cv::Mat、imread、rectangle、putText 和 imshow 提供实现。
     ${OpenCV_LIBS})
 
 # Windows 构建后把运行时 DLL 放到 exe 旁边，使 CLion/IDE 启动时不依赖机器 PATH。

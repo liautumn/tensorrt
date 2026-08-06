@@ -8,7 +8,7 @@
 #include "model.h"
 // 引入 CUDA letterbox 预处理模块和仿射矩阵类型。
 #include "preprocess.h"
-// 引入结果模块：提供 Detection、Results 和 printBatchResults()。
+// 引入结果模块：提供 Detection、Results、printBatchResults() 和 showResults()。
 #include "result.h"
 // 引入 CUDA Event 计时器：用于测量 TensorRT 推理的 GPU stream 耗时。
 #include "timer.h"
@@ -117,9 +117,12 @@ int main() {
         std::cout.precision(previousPrecision);
     }
 
-    // results[i] 对应第 i 张图片的有效检测结果集合。
     // 释放 initModel() 创建的显存、CUDA stream、context、engine 和 runtime。
+    // 弹窗等待只依赖 CPU 端的 images 和 results，所以先释放 GPU 资源，避免查看结果时持续占用显存。
     releaseModel(model);
+    // results[i] 对应 images[i]；从汇总结果中读取框，在原图副本上绘制后通过 OpenCV 弹窗显示。
+    // 此调用位于全部批次的计时打印之后，绘制、窗口刷新和按键等待不会进入现有耗时统计。
+    showResults(images, results);
     // 返回 0 表示程序正常结束。
     return 0;
 }

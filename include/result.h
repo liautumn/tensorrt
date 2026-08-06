@@ -3,6 +3,8 @@
 
 // 引入 Batch，结果解析时需要知道当前批次在全部图片中的起点和数量。
 #include "batch.h"
+// 引入 Images；结果显示时需要把 results[i] 绘制到对应的原始图片 images[i] 上。
+#include "image.h"
 // 引入 Model，结果解析时需要每张图片允许的最大检测框数量。
 #include "model.h"
 // 引入 CUDA letterbox 生成的逆仿射矩阵类型。
@@ -46,3 +48,9 @@ Results printBatchResults(
     AffineMatrices const& affineMatrices,
     std::vector<float> const& output,
     float confidenceThreshold);
+
+// 使用已经汇总完成的 results 绘制并显示全部推理结果。
+// images[i] 与 results[i] 必须一一对应；函数会在原图副本上画框，不会修改原始图片或检测数据。
+// 每张图片使用一个包含全局下标的独立 OpenCV 窗口，并显示类别编号和置信度。
+// 所有窗口创建完成后，函数等待用户在任意结果窗口中按键，然后统一关闭窗口。
+void showResults(Images const& images, Results const& results);
