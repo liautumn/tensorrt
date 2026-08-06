@@ -68,11 +68,17 @@ message(STATUS "TensorRT library   = ${TENSORRT_LIBRARY}")
 message(STATUS "OpenCV version     = ${OpenCV_VERSION}")
 message(STATUS "CUDA version       = ${CUDAToolkit_VERSION}")
 
-# 整个示例只有一个可执行文件，不额外拆分库。
-# 把 src/main.cpp 编译成名为 yolo26_trt 的可执行程序。
-add_executable(yolo26_trt src/main.cpp)
+# 每个源文件对应 main() 中的一个学习模块。
+add_executable(yolo26_trt
+    src/main.cpp
+    src/model.cpp
+    src/batch.cpp
+    src/image.cpp
+    src/inference.cpp
+    src/result.cpp)
 # 给 yolo26_trt 添加 TensorRT 和 OpenCV 头文件搜索目录。
 target_include_directories(yolo26_trt PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     # TensorRT 的 NvInfer.h 所在目录。
     ${TENSORRT_INCLUDE_DIR}
     # OpenCV 的 opencv2 头文件所在目录。
