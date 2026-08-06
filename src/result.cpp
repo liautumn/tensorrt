@@ -2,12 +2,15 @@
 
 #include <iostream>
 
-void printBatchResults(
+Results printBatchResults(
     Model const& model,
     Images const& images,
     Batch const& batch,
-    std::vector<float> const& output)
+    std::vector<float> const& output,
+    float confidenceThreshold)
 {
+    Results results(batch.size);
+
     for (int b = 0; b < batch.size; ++b)
     {
         cv::Mat const& image = images[batch.offset + b];
@@ -19,15 +22,25 @@ void printBatchResults(
         {
             float const* item
                 = output.data() + (b * model.maxDetections + i) * 6;
-            if (item[4] >= 0.25F)
+            if (item[4] >= confidenceThreshold)
             {
-                std::cout << "class=" << static_cast<int>(item[5])
-                          << " score=" << item[4]
-                          << " box=[" << item[0] * scaleX
-                          << ',' << item[1] * scaleY
-                          << ',' << item[2] * scaleX
-                          << ',' << item[3] * scaleY << "]\n";
+                Detection detection{
+                    item[0] * scaleX,
+                    item[1] * scaleY,
+                    item[2] * scaleX,
+                    item[3] * scaleY,
+                    item[4],
+                    static_cast<int>(item[5])};
+
+                results[b].push_back(detection);
+                std::cout << "class=" << detection.classId
+                          << " score=" << detection.confidence
+                          << " box=[" << detection.x1
+                          << ',' << detection.y1
+                          << ',' << detection.x2
+                          << ',' << detection.y2 << "]\n";
             }
         }
     }
+    return results;
 }
