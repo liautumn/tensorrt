@@ -80,6 +80,8 @@ add_executable(yolo26_trt
     src/image.cpp
     # 推理模块：设置 batch、复制输入、enqueueV3、复制输出。
     src/inference.cpp
+    # CUDA Event 计时模块：测量指定 CUDA stream 上两个事件之间的耗时。
+    src/timer.cpp
     # 结果模块：按 batch 下标解析、过滤、打印并返回检测结果。
     src/result.cpp)
 # 给 yolo26_trt 添加 TensorRT 和 OpenCV 头文件搜索目录。
