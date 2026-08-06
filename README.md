@@ -12,11 +12,19 @@
 ## 生成 Engine
 
 ```powershell
-./trtexec.exe `
+trtexec.exe `
   --onnx=best.onnx `
   --saveEngine=best.engine `
   --minShapes=images:1x3x640x640 `
   --optShapes=images:1x3x640x640 `
+  --maxShapes=images:1x3x640x640
+  
+  
+trtexec \
+  --onnx=best.onnx \
+  --saveEngine=best.engine \
+  --minShapes=images:1x3x640x640 \
+  --optShapes=images:1x3x640x640 \
   --maxShapes=images:1x3x640x640
 ```
 

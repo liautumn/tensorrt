@@ -26,22 +26,25 @@ if(WIN32)
 else()
     # 非 Windows 环境仍允许通过 -D 参数指定路径，不强制写死系统目录。
     set(CUDAToolkit_ROOT
-            "/usr/local/cuda"
+            "/usr/local/cuda-13.3"
             CACHE PATH "CUDA Toolkit installation directory")
 
-    set(OpenCV_DIR
-            "/usr/lib/x86_64-linux-gnu/cmake/opencv4"
-            CACHE PATH "Directory containing OpenCVConfig.cmake")
+#    set(OpenCV_DIR
+#            "/usr/lib/x86_64-linux-gnu/cmake/opencv4"
+#            CACHE PATH "Directory containing OpenCVConfig.cmake")
 
     set(TENSORRT_ROOT
-            "/opt/TensorRT"
+            "/home/autumn/dev/TensorRT-11.2.1.2"
             CACHE PATH "TensorRT installation directory")
+
+    set(CMAKE_CUDA_COMPILER "/usr/local/cuda-13.3/bin/nvcc")
 endif()
 
 # 启用 CUDA language，使 add_executable 中的 src/preprocess.cu 交给 nvcc 编译。
 enable_language(CUDA)
 # 指定 CUDA host/device 代码使用 C++17。
 set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_ARCHITECTURES 89)
 # 编译器不支持 CUDA C++17 时直接配置失败，不允许自动降低标准版本。
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 # 关闭 CUDA 编译器的非标准语言扩展，与普通 C++ 源文件设置保持一致。
