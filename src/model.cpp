@@ -129,6 +129,23 @@ Model initModel(EngineData const& engineData)
 // 返回值：无。
 void releaseModel(Model& model)
 {
+    // 只有执行过 CUDA 预处理时 workspace 才会被懒分配；空指针表示没有资源需要释放。
+    if (model.preprocessDevice != nullptr)
+    {
+        // 释放为最近批次原图和 d2i 矩阵复用的 GPU workspace。
+        cudaFree(model.preprocessDevice);
+    }
+    if (model.preprocessHost != nullptr)
+    {
+        // 释放与 GPU workspace 同布局、供 cudaMemcpyAsync 使用的 pinned CPU workspace。
+        cudaFreeHost(model.preprocessHost);
+    }
+    // 清空已释放的设备地址，避免 Model 中保留悬空指针。
+    model.preprocessDevice = nullptr;
+    // 清空已释放的 pinned host 地址。
+    model.preprocessHost = nullptr;
+    // 两块 workspace 都已释放，对应的可复用容量恢复为 0。
+    model.preprocessCapacity = 0;
     // 释放保存模型输入数据的 GPU 显存。
     cudaFree(model.inputDevice);
     // 释放保存模型输出数据的 GPU 显存。

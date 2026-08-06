@@ -8,6 +8,8 @@
 
 // 提供 std::string，用来保存 Engine 文件路径和模型输入/输出张量名称。
 #include <string>
+// 提供 std::size_t，用来记录 CUDA 预处理 workspace 的字节容量。
+#include <cstddef>
 // 提供 std::vector，用来保存从磁盘读取的 Engine 二进制数据。
 #include <vector>
 
@@ -29,6 +31,14 @@ struct Model
     void* inputDevice{};
     // 输出显存地址：保存模型在 GPU 上生成的检测结果。
     void* outputDevice{};
+    // CUDA 预处理懒分配的 pinned CPU workspace；布局为 d2i 表、对齐区、各图紧密 BGR。
+    // 它由 cudaMallocHost 创建，不会被换出，可作为 cudaMemcpyAsync 的异步 H2D 源地址。
+    void* preprocessHost{};
+    // 与 preprocessHost 字节布局相同的 GPU workspace，接收紧密排列的 uint8 BGR 原图和 d2i。
+    // kernel 从这里读取原图，转换后的 FP32 NCHW 数据则直接写入 inputDevice。
+    void* preprocessDevice{};
+    // 每一块 workspace 当前各自拥有的字节容量；容量不足时扩展，足够时跨轮复用。
+    std::size_t preprocessCapacity{};
 
     // 模型输入张量名称；默认名称是 images，必须与导出 Engine 时的名称一致。
     std::string inputName{"images"};

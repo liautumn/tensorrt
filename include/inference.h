@@ -4,9 +4,6 @@
 // 引入 Model 结构体，下面的函数通过它访问 TensorRT context、CUDA stream 和显存。
 #include "model.h"
 
-// 引入 cv::Mat；预处理后的输入图片使用 cv::Mat 保存连续的 float 数据。
-#include <opencv2/core/mat.hpp>
-
 // 引入 std::vector；copyToCpu 使用它返回 CPU 端的模型输出。
 #include <vector>
 
@@ -15,12 +12,6 @@
 // batchSize：本轮图片数量，必须在模型配置允许的 batch 范围内。
 // 返回值：无；设置结果直接保存在 model.inputShape 和 model.context 中。
 void setBatchSize(Model& model, int batchSize);
-
-// 把本轮预处理后的图片数据从 CPU 内存复制到模型输入显存。
-// model：已经初始化的模型对象，model.inputDevice 是目标 GPU 地址。
-// input：预处理后的连续 float 矩阵，数据布局应当与模型输入要求一致。
-// 返回值：无；复制后的数据位于 model.inputDevice 指向的 GPU 显存中。
-void copyToGpu(Model& model, cv::Mat const& input);
 
 // 使用当前 context、输入形状和输入显存执行一次同步推理。
 // model：已经设置好 batch、输入地址、输出地址和 CUDA stream 的模型对象。

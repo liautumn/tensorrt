@@ -1,25 +1,33 @@
 // 引入 Detection、Results 和 printBatchResults 的声明，以及相关数据类型。
 #include "result.h"
 
-// 引入 std::cout，用于把每张图片的有效检测结果打印到控制台。
+// 取消下方调试输出的注释时，std::cout 用于打印每张图片的有效检测结果。
 #include <iostream>
+// std::invalid_argument 用于报告仿射矩阵数量与 batch 不匹配。
+#include <stdexcept>
 
-// 解析当前批次的一维模型输出，打印有效框，并返回结构化结果集合。
-// model 提供模型输入尺寸和 maxDetections；images 提供原图尺寸。
-// batch 指明当前批次对应全部图片中的哪一段；output 是当前批次的 CPU 输出。
+// 解析当前批次的一维模型输出，并返回结构化结果集合。
+// model 提供 maxDetections；batch 指明当前批次对应全部图片中的哪一段。
+// affineMatrices 提供每张图的 d2i；output 是当前批次的 CPU 输出。
 // confidenceThreshold 决定哪些候选框属于有效结果。
 Results printBatchResults(
     // 只读取模型元数据，不修改模型，因此使用常量引用。
     Model const& model,
-    // 全部原始图片，使用 batch.offset 定位到本轮图片，不复制图像数据。
-    Images const& images,
     // 当前批次的起始下标 offset 和实际图片数量 size。
     Batch const& batch,
+    // CUDA letterbox 为当前批次每张图片生成的网络坐标到原图坐标逆矩阵。
+    AffineMatrices const& affineMatrices,
     // copyToCpu 返回的一维 float 输出，使用常量引用避免复制整份结果。
     std::vector<float> const& output,
     // 检测框的最低置信度，只保留 confidence 大于或等于该值的框。
     float confidenceThreshold)
 {
+    // 每张图片必须恰好对应一组 d2i；否则检测框可能使用另一张图的逆变换。
+    if (affineMatrices.size() != static_cast<std::size_t>(batch.size))
+    {
+        throw std::invalid_argument("affine matrix count does not match batch size");
+    }
+
     // 为当前批次的每张图片创建一个结果集合。
     // 外层长度固定为 batch.size，没有检测框的图片会对应一个空 vector。
     Results results(batch.size);
@@ -27,15 +35,10 @@ Results printBatchResults(
     // b 是图片在“当前批次”中的下标，范围从 0 到 batch.size - 1。
     for (int b = 0; b < batch.size; ++b)
     {
-        // batch.offset 是当前批次在全部图片中的起点，加 b 得到图片的全局下标。
-        // 使用常量引用，避免复制 cv::Mat 对象。
-        cv::Mat const& image = images[batch.offset + b];
-        // 计算模型输入宽度到原图宽度的缩放比例，用于还原 x 坐标。
-        float const scaleX = static_cast<float>(image.cols) / model.inputWidth;
-        // 计算模型输入高度到原图高度的缩放比例，用于还原 y 坐标。
-        float const scaleY = static_cast<float>(image.rows) / model.inputHeight;
+        // affineMatrices 按批次内下标排列；d2i 将网络坐标映射回这一张原图。
+        std::array<float, 6> const& d2i = affineMatrices[b].d2i;
 
-        // 打印当前图片在全部输入图片中的下标，前面的换行用于分隔不同图片。
+        // 可选调试输出：打印当前图片在全部输入图片中的下标。
         // std::cout << "\nimage " << batch.offset + b << '\n';
         // 逐个检查模型为当前图片预留的所有候选检测框。
         for (int i = 0; i < model.maxDetections; ++i)
@@ -48,15 +51,24 @@ Results printBatchResults(
             if (item[4] >= confidenceThreshold)
             {
                 // 把模型的 6 个 float 字段转换为更容易使用的 Detection 结构体。
+                // 对左上角 (x1,y1) 应用 d2i 第一行，得到原图 x1。
+                float const projectedX1 = d2i[0] * item[0] + d2i[1] * item[1] + d2i[2];
+                // 对同一个左上角应用 d2i 第二行，得到原图 y1。
+                float const projectedY1 = d2i[3] * item[0] + d2i[4] * item[1] + d2i[5];
+                // 右下角 (x2,y2) 必须独立应用第一行，不能再使用旧的 scaleX。
+                float const projectedX2 = d2i[0] * item[2] + d2i[1] * item[3] + d2i[2];
+                // 对右下角应用第二行，得到原图 y2。
+                float const projectedY2 = d2i[3] * item[2] + d2i[4] * item[3] + d2i[5];
+
                 Detection detection{
-                    // item[0] 是模型输入坐标系中的 x1，乘宽度比例还原到原图。
-                    item[0] * scaleX,
-                    // item[1] 是模型输入坐标系中的 y1，乘高度比例还原到原图。
-                    item[1] * scaleY,
-                    // item[2] 是模型输入坐标系中的 x2，乘宽度比例还原到原图。
-                    item[2] * scaleX,
-                    // item[3] 是模型输入坐标系中的 y2，乘高度比例还原到原图。
-                    item[3] * scaleY,
+                    // 与目标分支一致，保留映射后的 x1，不在这里额外裁剪图片边界。
+                    projectedX1,
+                    // 映射后的原图 y1。
+                    projectedY1,
+                    // 映射后的原图 x2。
+                    projectedX2,
+                    // 映射后的原图 y2。
+                    projectedY2,
                     // item[4] 直接保存模型给出的置信度。
                     item[4],
                     // item[5] 在输出中是 float，这里转换为 Detection 使用的整数类别编号。
@@ -64,7 +76,7 @@ Results printBatchResults(
 
                 // results[b] 对应当前批次第 b 张图片，把有效检测框加入它的结果集合。
                 results[b].push_back(detection);
-                // 将类别、置信度和原图坐标打印到控制台，便于直接观察推理结果。
+                // 可选调试输出：打印类别、置信度和还原后的原图坐标。
                 // std::cout << "class=" << detection.classId
                 //           << " score=" << detection.confidence
                 //           << " box=[" << detection.x1

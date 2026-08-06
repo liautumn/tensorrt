@@ -1,6 +1,6 @@
 # 要求 CMake 至少为 3.21，该版本开始支持 Visual Studio 2022 generator。
 cmake_minimum_required(VERSION 3.21)
-# 定义项目名称为 yolo26_trt，并声明这里只编译 C++。
+# 定义项目名称为 yolo26_trt；CUDA language 会在工具链路径配置完成后启用。
 project(yolo26_trt LANGUAGES CXX)
 
 # 使用 C++17，保证当前代码使用的标准库和语言特性可用。
@@ -28,15 +28,36 @@ else()
     set(TENSORRT_ROOT "" CACHE PATH "TensorRT installation directory")
 endif()
 
+# 手动选择 nvcc 时必须在 enable_language(CUDA) 前设置；命令行或缓存已有值时优先使用它。
+if(WIN32 AND NOT CMAKE_CUDA_COMPILER)
+    # 根据上面的 CUDA Toolkit 根目录拼出本机默认 nvcc.exe 候选路径。
+    set(_CUDA_COMPILER "${CUDAToolkit_ROOT}/bin/nvcc.exe")
+    # 仅在文件真实存在时写入 compiler，避免一个无效默认路径阻止 CMake 自行搜索 CUDA。
+    if(EXISTS "${_CUDA_COMPILER}")
+        # CACHE 让首次配置选定的 nvcc 在后续 CLion/CMake 重新加载时保持一致。
+        set(CMAKE_CUDA_COMPILER "${_CUDA_COMPILER}"
+            CACHE FILEPATH "CUDA compiler used to build .cu sources")
+    endif()
+endif()
+
+# 启用 CUDA language，使 add_executable 中的 src/preprocess.cu 交给 nvcc 编译。
+enable_language(CUDA)
+# 指定 CUDA host/device 代码使用 C++17。
+set(CMAKE_CUDA_STANDARD 17)
+# 编译器不支持 CUDA C++17 时直接配置失败，不允许自动降低标准版本。
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+# 关闭 CUDA 编译器的非标准语言扩展，与普通 C++ 源文件设置保持一致。
+set(CMAKE_CUDA_EXTENSIONS OFF)
+
 # 配置时打印用户指定的三个根目录，路径写错时可以直接从 CMake 输出中发现。
 message(STATUS "CUDAToolkit_ROOT = ${CUDAToolkit_ROOT}")
 message(STATUS "OpenCV_DIR        = ${OpenCV_DIR}")
 message(STATUS "TENSORRT_ROOT     = ${TENSORRT_ROOT}")
 
-# CUDA 负责显存、数据复制和推理 stream，OpenCV 负责图片读取与 blob 预处理。
+# CUDA 负责预处理 kernel、显存、数据复制和推理 stream，OpenCV 负责图片读取。
 # 查找 CUDA Toolkit；REQUIRED 表示找不到就停止配置。
 find_package(CUDAToolkit REQUIRED)
-# 查找 OpenCV；代码使用 core、imgcodecs 和 dnn 中的 blobFromImages。
+# 查找 OpenCV；代码使用 core 和 imgcodecs 读取图片及访问 cv::Mat。
 find_package(OpenCV REQUIRED)
 
 # TensorRT 官方 tar 包和系统包都不保证提供通用的 CMake package，直接查找头文件和库。
@@ -76,13 +97,15 @@ add_executable(yolo26_trt
     src/model.cpp
     # 分批模块：根据最大 batch 生成 4、4、2 之类的批次信息。
     src/batch.cpp
-    # 图片模块：读取图片并生成 [N,C,H,W] FP32 输入。
+    # 图片模块：从磁盘读取原始 BGR 图片。
     src/image.cpp
-    # 推理模块：设置 batch、复制输入、enqueueV3、复制输出。
+    # CUDA 预处理模块：letterbox、双线性插值、归一化并写入模型输入显存。
+    src/preprocess.cu
+    # 推理模块：设置 batch、enqueueV3 并复制输出。
     src/inference.cpp
     # CUDA Event 计时模块：测量指定 CUDA stream 上两个事件之间的耗时。
     src/timer.cpp
-    # 结果模块：按 batch 下标解析、过滤、打印并返回检测结果。
+    # 结果模块：按 batch 下标解析、过滤并返回检测结果。
     src/result.cpp)
 # 给 yolo26_trt 添加 TensorRT 和 OpenCV 头文件搜索目录。
 target_include_directories(yolo26_trt PRIVATE
@@ -98,7 +121,7 @@ target_link_libraries(yolo26_trt PRIVATE
     ${TENSORRT_LIBRARY}
     # CUDA Runtime 库，提供 cudaMalloc、cudaMemcpy、CUDA stream 等函数。
     CUDA::cudart
-    # OpenCV core、imgcodecs 和 imgproc 库。
+    # OpenCV 配置导出的库集合，为 cv::Mat 和 imread 提供实现。
     ${OpenCV_LIBS})
 
 # Windows 构建后把运行时 DLL 放到 exe 旁边，使 CLion/IDE 启动时不依赖机器 PATH。

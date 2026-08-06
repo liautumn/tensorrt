@@ -16,22 +16,6 @@ void setBatchSize(Model& model, int batchSize)
     model.context->setInputShape(model.inputName.c_str(), model.inputShape);
 }
 
-// 把预处理后的当前批次输入从 CPU 内存复制到 GPU 输入显存。
-// model 提供目标显存地址；input 提供源数据地址和需要复制的数据量。
-void copyToGpu(Model& model, cv::Mat const& input)
-{
-    // cudaMemcpy 执行一次内存复制；这里使用同步版本，函数返回时本次复制已经完成。
-    cudaMemcpy(
-        // 目标地址：初始化模型时为输入张量申请的 GPU 显存。
-        model.inputDevice,
-        // 源地址：cv::Mat 中第一个 float 元素的 CPU 内存地址。
-        input.ptr<float>(),
-        // 复制字节数：float 元素总数乘以每个 float 占用的字节数。
-        input.total() * sizeof(float),
-        // 复制方向：Host 表示 CPU，Device 表示 GPU，即 CPU -> GPU。
-        cudaMemcpyHostToDevice);
-}
-
 // 在当前 CUDA stream 上执行一次 TensorRT 推理，并等待这次推理完成。
 // model 中的 context 必须已经设置本轮 batch，输入显存中也必须已有预处理数据。
 void infer(Model& model)
