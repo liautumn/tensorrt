@@ -11,6 +11,8 @@
 
 // std::chrono::steady_clock 用于测量预处理、推理和后处理耗时。
 #include <chrono>
+// std::fixed 和 std::setprecision() 用于将耗时固定显示为 3 位小数。
+#include <iomanip>
 // std::cout 用于打印每个批次的三段耗时。
 #include <iostream>
 // std::string 用于保存 engine 路径和图片路径。
@@ -111,11 +113,16 @@ int main()
             = std::chrono::duration<double, std::milli>(postprocessEnd - postprocessStart).count();
 
         // 打印当前批次大小以及三段耗时，便于比较 4、4、2 等不同批次的执行时间。
-        std::cout << "timing: batch=" << batch.size
+        auto const previousFlags = std::cout.flags();
+        auto const previousPrecision = std::cout.precision();
+        std::cout << std::fixed << std::setprecision(3)
+                  << "timing: batch=" << batch.size
                   << " preprocess=" << preprocessMilliseconds << " ms"
                   << " inference=" << inferenceMilliseconds << " ms"
                   << " postprocess=" << postprocessMilliseconds << " ms"
                   << " total=" << preprocessMilliseconds+inferenceMilliseconds+postprocessMilliseconds << " ms\n";
+        std::cout.flags(previousFlags);
+        std::cout.precision(previousPrecision);
         }
     }
 
