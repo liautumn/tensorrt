@@ -24,12 +24,6 @@
 namespace
 {
 
-// 把宏捕获的源码文件和行号拼成 file:line，统一用于错误信息。
-std::string location(char const* file, int line)
-{
-    return std::string(file) + ':' + std::to_string(line);
-}
-
 // 返回当前可执行文件所在目录；日志位置不依赖进程的工作目录。
 std::filesystem::path executableDirectory()
 {
@@ -137,12 +131,10 @@ void checkInputShape(nvinfer1::Dims const& shape, char const* selector)
 
 } // namespace
 
-// CUDA 失败统一记录 API、错误名称、说明、数值错误码及调用位置，然后抛出异常。
+// CUDA 失败统一记录 API、错误名称、说明和数值错误码，然后抛出异常。
 void Validator::checkCuda(
     cudaError_t status,
-    char const* call,
-    char const* file,
-    int line)
+    char const* call)
 {
     if (status == cudaSuccess)
     {
@@ -150,7 +142,7 @@ void Validator::checkCuda(
     }
 
     std::string const message
-        = "CUDA Runtime error at " + location(file, line) + ": " + call
+        = std::string("CUDA Runtime error: ") + call
         + " -> " + cudaGetErrorName(status)
         + " (" + std::to_string(static_cast<int>(status)) + "): "
         + cudaGetErrorString(status);
@@ -158,17 +150,14 @@ void Validator::checkCuda(
     throw std::runtime_error(message);
 }
 
-// 普通断言失败时记录原始条件表达式和调用位置。
+// 普通断言失败时记录原始条件表达式，不暴露本机源码路径。
 void Validator::assertion(
     bool condition,
-    char const* expression,
-    char const* file,
-    int line)
+    char const* expression)
 {
     if (!condition)
     {
-        std::string const message
-            = "Assert failed at " + location(file, line) + ": " + expression;
+        std::string const message = std::string("Assert failed: ") + expression;
         log(message);
         throw std::runtime_error(message);
     }
@@ -177,9 +166,6 @@ void Validator::assertion(
 // 带格式的断言只在失败路径生成补充上下文，正常路径由宏直接跳过。
 void Validator::assertionf(
     bool condition,
-    char const* expression,
-    char const* file,
-    int line,
     char const* format,
     ...)
 {
@@ -194,8 +180,7 @@ void Validator::assertionf(
     std::vsnprintf(message, sizeof(message), format, arguments);
     va_end(arguments);
 
-    std::string const error
-        = "Assert failed at " + location(file, line) + ": " + expression + " - " + message;
+    std::string const error = std::string("Assert failed: ") + message;
     log(error);
     throw std::runtime_error(error);
 }

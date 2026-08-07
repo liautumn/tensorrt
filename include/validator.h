@@ -21,23 +21,16 @@ public:
     // 校验类不保存状态，只通过下面的静态方法提供统一检查。
     Validator() = delete;
 
-    // 检查 CUDA Runtime 返回码，失败时记录错误名称、说明、错误码和源码位置。
+    // 检查 CUDA Runtime 返回码，失败时记录调用、错误名称、说明和错误码。
     static void checkCuda(
         cudaError_t status,
-        char const* call,
-        char const* file,
-        int line);
+        char const* call);
     // 检查普通布尔条件；assertionf 额外支持 printf 风格的上下文信息。
     static void assertion(
         bool condition,
-        char const* expression,
-        char const* file,
-        int line);
+        char const* expression);
     static void assertionf(
         bool condition,
-        char const* expression,
-        char const* file,
-        int line,
         char const* format,
         ...);
     // 错误日志输出到 stderr，信息日志输出到 stdout；两者同时写入每日文件。
@@ -61,7 +54,7 @@ public:
 #define checkRuntime(call) \
     do \
     { \
-        Validator::checkCuda((call), #call, __FILE__, __LINE__); \
+        Validator::checkCuda((call), #call); \
     } while (false)
 
 // 提交 CUDA kernel 后立即检查 launch configuration 等启动错误。
@@ -78,7 +71,7 @@ public:
     { \
         if (!static_cast<bool>(operation)) \
         { \
-            Validator::assertion(false, #operation, __FILE__, __LINE__); \
+            Validator::assertion(false, #operation); \
         } \
     } while (false)
 
@@ -88,6 +81,6 @@ public:
     { \
         if (!static_cast<bool>(operation)) \
         { \
-            Validator::assertionf(false, #operation, __FILE__, __LINE__, __VA_ARGS__); \
+            Validator::assertionf(false, __VA_ARGS__); \
         } \
     } while (false)
