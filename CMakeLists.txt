@@ -118,10 +118,11 @@ endif()
 target_include_directories(yolo26_trt PRIVATE
     # 当前项目自己的 model.h、image.h 等头文件所在目录。
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    # TensorRT 的 NvInfer.h 所在目录。
-    ${TENSORRT_INCLUDE_DIR}
     # OpenCV 的 opencv2 头文件所在目录。
     ${OpenCV_INCLUDE_DIRS})
+# TensorRT 头文件包含官方保留的旧 API 兼容层；作为系统头处理，避免其内部弃用告警污染项目构建输出。
+target_include_directories(yolo26_trt SYSTEM PRIVATE
+    ${TENSORRT_INCLUDE_DIR})
 # 指定最终链接时需要的动态库。
 target_link_libraries(yolo26_trt PRIVATE
     # TensorRT 核心推理库 libnvinfer。
