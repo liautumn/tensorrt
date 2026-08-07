@@ -116,7 +116,7 @@ void printShape(std::ostream& output, nvinfer1::Dims const& shape)
 }
 
 // 枚举 Engine 中的全部 I/O 张量，并打印方向、名称、数据类型和形状。
-void printModelIo(nvinfer1::ICudaEngine const& engine, nvinfer1::IExecutionContext const& context)
+void printModelIo(nvinfer1::ICudaEngine const& engine)
 {
     int const tensorCount = engine.getNbIOTensors();
     std::cout << "model io tensors: " << tensorCount << '\n';
@@ -132,8 +132,6 @@ void printModelIo(nvinfer1::ICudaEngine const& engine, nvinfer1::IExecutionConte
                   << " dtype=" << dataTypeName(engine.getTensorDataType(tensorName))
                   << " engine_shape=";
         printShape(std::cout, engine.getTensorShape(tensorName));
-        std::cout << " resolved_shape=";
-        printShape(std::cout, context.getTensorShape(tensorName));
 
         // 动态输入额外打印第 0 个优化配置的完整形状范围。
         if (ioMode == nvinfer1::TensorIOMode::kINPUT)
@@ -227,8 +225,8 @@ Model initModel(EngineData const& engineData)
         // outputName 指定要查询的输出张量；预期输出布局为 [batch, maxDetections, 6]。
         = static_cast<int>(model.context->getTensorShape(model.outputName.c_str()).d[1]);
 
-    // 初始化阶段枚举并打印模型的全部输入输出；此时 resolved_shape 已按最大 batch 解析完成。
-    printModelIo(*model.engine, *model.context);
+    // 初始化阶段枚举并打印模型的全部输入输出，以及输入优化配置的形状范围。
+    printModelIo(*model.engine);
 
     // 为最大 batch 的输入分配 GPU 显存；每张图有 3 个通道、H*W 个 float 元素。
     cudaMalloc(&model.inputDevice,
