@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
+// SPDX-License-Identifier: GPL-3.0-only
+
 // 引入 CUDA letterbox 预处理接口和相关项目类型。
 #include "preprocess.h"
 

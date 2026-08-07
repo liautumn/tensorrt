@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
+// SPDX-License-Identifier: GPL-3.0-only
+
 // 引入 Batch、Batches 和 splitByMaxBatch 的声明。
 #include "batch.h"
 

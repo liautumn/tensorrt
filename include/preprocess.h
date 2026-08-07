@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
+// SPDX-License-Identifier: GPL-3.0-only
+
 // 防止 CUDA 预处理接口在同一编译单元中被重复包含。
 #pragma once
 

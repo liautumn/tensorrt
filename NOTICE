@@ -1,0 +1,14 @@
+YOLO26 + TensorRT 11
+Copyright (C) 2026 liqiuzhuang (GitHub: liautumn) and contributors
+
+本项目中由 liqiuzhuang 创作的原创源代码和文档，其著作权归
+liqiuzhuang 所有，并依据 GNU General Public License version 3 授权使用。
+该授权不构成著作权或其他所有权的转让。完整许可条款见 LICENSE。
+
+除非另有书面约定，其他贡献者保留其各自贡献的著作权，并以本项目的
+同一许可证提供这些贡献。
+
+本声明不主张对第三方材料的所有权，包括 model/ 目录中的模型、
+TensorRT engine 和样例图片，以及 NVIDIA TensorRT、CUDA、OpenCV、YOLO
+等第三方软件、名称或商标。上述材料的权利归各自权利人所有，并受各自
+许可条款约束。

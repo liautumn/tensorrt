@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
+// SPDX-License-Identifier: GPL-3.0-only
+
 // 引入批次模块：提供 Batch、Batches 和 splitByMaxBatch()。
 #include "batch.h"
 // 引入图片模块：提供 Images 和 loadImages()。

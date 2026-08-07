@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
+// SPDX-License-Identifier: GPL-3.0-only
+
 // 防止同一个头文件在一次编译过程中被重复包含。
 #pragma once
 

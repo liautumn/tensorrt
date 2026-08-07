@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
+// SPDX-License-Identifier: GPL-3.0-only
+
 // 引入 Detection、Results 和 printBatchResults 的声明，以及相关数据类型。
 #include "result.h"
 

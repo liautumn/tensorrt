@@ -9,6 +9,15 @@
 - profile 的最小 batch 必须是 1
 - YOLO end-to-end 输出 `[N, max_det, 6]`
 
+## 所有权与许可
+
+Copyright (C) 2026 liqiuzhuang (GitHub: liautumn) and contributors
+
+本项目中由 liqiuzhuang 创作的原创源代码和文档，其著作权归 liqiuzhuang
+所有，并依据 GNU General Public License version 3 授权使用；该授权不构成
+所有权转让。第三方材料仍归各自权利人所有。具体范围见 [NOTICE](NOTICE)，
+完整许可条款见 [LICENSE](LICENSE)。
+
 ## 生成 Engine
 
 ```powershell

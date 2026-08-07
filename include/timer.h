@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
+// SPDX-License-Identifier: GPL-3.0-only
+
 #pragma once
 
 // CUDA Runtime 接口：提供 cudaEvent_t、cudaStream_t 和事件计时函数。

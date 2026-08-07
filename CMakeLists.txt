@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
+# SPDX-License-Identifier: GPL-3.0-only
+
 # 要求 CMake 至少为 3.21，该版本开始支持 Visual Studio 2022 generator。
 cmake_minimum_required(VERSION 3.21)
 # 定义项目名称为 yolo26_trt；CUDA language 会在工具链路径配置完成后启用。

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
+// SPDX-License-Identifier: GPL-3.0-only
+
 // 引入本文件中四个推理步骤的函数声明，以及它们使用的 Model 类型。
 #include "inference.h"
 // 集中使用 TensorRT 条件校验和 CUDA Runtime 返回码检查。

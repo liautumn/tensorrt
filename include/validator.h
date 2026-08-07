@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
+// SPDX-License-Identifier: GPL-3.0-only
+
 #pragma once
 
 // Windows 头文件中的 min/max 宏会干扰标准库接口，包含 TensorRT 前先关闭它们。
