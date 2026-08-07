@@ -58,8 +58,8 @@ int main()
         // 把当前实际图片数量 batch.size 写入 TensorRT context 的动态输入 shape。
         setBatchSize(model, batch.size);
 
-        while (true)
-        {
+        // while (true)
+        // {
             // 记录当前批次预处理开始时间；steady_clock 不受系统时间调整影响。
             auto const preprocessStart = std::chrono::steady_clock::now();
             // 上传当前批次原图并执行 CUDA letterbox，直接生成 [N,3,H,W] FP32 模型输入。
@@ -120,7 +120,7 @@ int main()
                 << " total=" << preprocessMilliseconds + inferenceMilliseconds + postprocessMilliseconds << " ms\n";
             std::cout.flags(previousFlags);
             std::cout.precision(previousPrecision);
-        }
+        // }
     }
 
     // 释放 initModel() 创建的显存、CUDA stream、context、engine 和 runtime。
@@ -128,7 +128,7 @@ int main()
     releaseModel(model);
     // results[i] 对应 images[i]；从汇总结果中读取框，在原图副本上绘制后通过 OpenCV 弹窗显示。
     // 此调用位于全部批次的计时打印之后，绘制、窗口刷新和按键等待不会进入现有耗时统计。
-    // showResults(images, results);
+    showResults(images, results);
     // 返回 0 表示程序正常结束。
     return 0;
 }
