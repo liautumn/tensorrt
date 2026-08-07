@@ -40,10 +40,10 @@ struct Model
     // 每一块 workspace 当前各自拥有的字节容量；容量不足时扩展，足够时跨轮复用。
     std::size_t preprocessCapacity{};
 
-    // 模型输入张量名称；默认名称是 images，必须与导出 Engine 时的名称一致。
-    std::string inputName{"images"};
-    // 模型输出张量名称；默认名称是 output0，必须与导出 Engine 时的名称一致。
-    std::string outputName{"output0"};
+    // 模型输入张量名称；initModel() 会从 Engine 的 I/O 张量信息中自动读取。
+    std::string inputName{};
+    // 模型输出张量名称；initModel() 会从 Engine 的 I/O 张量信息中自动读取。
+    std::string outputName{};
     // 当前使用的输入张量形状，通常按 [batch, channel, height, width] 排列。
     nvinfer1::Dims inputShape{};
     // 模型要求的输入图片高度，对应 inputShape.d[2]。

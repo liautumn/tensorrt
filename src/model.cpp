@@ -5,6 +5,8 @@
 #include <cstdio>
 // 提供 std::ifstream，用于以二进制方式读取 Engine 文件。
 #include <fstream>
+// 提供 std::cout，用于在模型初始化完成后打印输入输出张量信息。
+#include <iostream>
 // 提供 std::runtime_error，用于在 Engine 文件无法打开时报告错误。
 #include <stdexcept>
 
@@ -33,6 +35,122 @@ struct Logger : nvinfer1::ILogger
 
 // 创建一个当前源文件共用的日志对象，传给 TensorRT Runtime。
 Logger logger;
+
+// 从 Engine 自动读取单个输入和单个输出的张量名称。
+void readModelIoNames(nvinfer1::ICudaEngine const& engine, Model& model)
+{
+    int inputCount = 0;
+    int outputCount = 0;
+
+    for (int tensorIndex = 0; tensorIndex < engine.getNbIOTensors(); ++tensorIndex)
+    {
+        char const* tensorName = engine.getIOTensorName(tensorIndex);
+        nvinfer1::TensorIOMode const ioMode = engine.getTensorIOMode(tensorName);
+
+        if (ioMode == nvinfer1::TensorIOMode::kINPUT)
+        {
+            ++inputCount;
+            model.inputName = tensorName;
+        }
+        else if (ioMode == nvinfer1::TensorIOMode::kOUTPUT)
+        {
+            ++outputCount;
+            model.outputName = tensorName;
+        }
+    }
+
+    // 当前预处理、显存分配和后处理布局只支持单输入、单输出模型。
+    if (inputCount != 1 || outputCount != 1)
+    {
+        throw std::runtime_error("Expected exactly one input and one output tensor, but found "
+            + std::to_string(inputCount) + " input(s) and " + std::to_string(outputCount) + " output(s)");
+    }
+}
+
+// 将 TensorRT 数据类型转换为便于阅读的名称。
+char const* dataTypeName(nvinfer1::DataType dataType)
+{
+    switch (dataType)
+    {
+    case nvinfer1::DataType::kFLOAT:
+        return "FP32";
+    case nvinfer1::DataType::kHALF:
+        return "FP16";
+    case nvinfer1::DataType::kINT8:
+        return "INT8";
+    case nvinfer1::DataType::kINT32:
+        return "INT32";
+    case nvinfer1::DataType::kBOOL:
+        return "BOOL";
+    case nvinfer1::DataType::kUINT8:
+        return "UINT8";
+    case nvinfer1::DataType::kFP8:
+        return "FP8";
+    case nvinfer1::DataType::kBF16:
+        return "BF16";
+    case nvinfer1::DataType::kINT64:
+        return "INT64";
+    case nvinfer1::DataType::kINT4:
+        return "INT4";
+    case nvinfer1::DataType::kFP4:
+        return "FP4";
+    case nvinfer1::DataType::kE8M0:
+        return "E8M0";
+    }
+    return "UNKNOWN";
+}
+
+// 按 [N,C,H,W] 这种形式把任意维数的 TensorRT shape 写入输出流。
+void printShape(std::ostream& output, nvinfer1::Dims const& shape)
+{
+    output << '[';
+    for (int dimensionIndex = 0; dimensionIndex < shape.nbDims; ++dimensionIndex)
+    {
+        if (dimensionIndex != 0)
+        {
+            output << ',';
+        }
+        output << shape.d[dimensionIndex];
+    }
+    output << ']';
+}
+
+// 枚举 Engine 中的全部 I/O 张量，并打印方向、名称、数据类型和形状。
+void printModelIo(nvinfer1::ICudaEngine const& engine, nvinfer1::IExecutionContext const& context)
+{
+    int const tensorCount = engine.getNbIOTensors();
+    std::cout << "model io tensors: " << tensorCount << '\n';
+
+    for (int tensorIndex = 0; tensorIndex < tensorCount; ++tensorIndex)
+    {
+        char const* tensorName = engine.getIOTensorName(tensorIndex);
+        nvinfer1::TensorIOMode const ioMode = engine.getTensorIOMode(tensorName);
+
+        std::cout << "  "
+                  << (ioMode == nvinfer1::TensorIOMode::kINPUT ? "input" : "output")
+                  << ": name=" << tensorName
+                  << " dtype=" << dataTypeName(engine.getTensorDataType(tensorName))
+                  << " engine_shape=";
+        printShape(std::cout, engine.getTensorShape(tensorName));
+        std::cout << " resolved_shape=";
+        printShape(std::cout, context.getTensorShape(tensorName));
+
+        // 动态输入额外打印第 0 个优化配置的完整形状范围。
+        if (ioMode == nvinfer1::TensorIOMode::kINPUT)
+        {
+            std::cout << " profile_min=";
+            printShape(std::cout,
+                engine.getProfileShape(tensorName, 0, nvinfer1::OptProfileSelector::kMIN));
+            std::cout << " profile_opt=";
+            printShape(std::cout,
+                engine.getProfileShape(tensorName, 0, nvinfer1::OptProfileSelector::kOPT));
+            std::cout << " profile_max=";
+            printShape(std::cout,
+                engine.getProfileShape(tensorName, 0, nvinfer1::OptProfileSelector::kMAX));
+        }
+        std::cout << '\n';
+    }
+}
 
 // 结束匿名命名空间。
 } // namespace
@@ -72,6 +190,8 @@ Model initModel(EngineData const& engineData)
     model.runtime = nvinfer1::createInferRuntime(logger);
     // 将 engineData.data() 指向的 engineData.size() 个字节反序列化为 CUDA Engine。
     model.engine = model.runtime->deserializeCudaEngine(engineData.data(), engineData.size());
+    // 枚举 Engine 自带的 I/O 信息，自动保存真实输入和输出张量名称。
+    readModelIoNames(*model.engine, model);
     // 从 Engine 创建执行上下文；后续输入形状设置和 enqueueV3 推理都通过它完成。
     model.context = model.engine->createExecutionContext();
 
@@ -106,6 +226,9 @@ Model initModel(EngineData const& engineData)
     model.maxDetections
         // outputName 指定要查询的输出张量；预期输出布局为 [batch, maxDetections, 6]。
         = static_cast<int>(model.context->getTensorShape(model.outputName.c_str()).d[1]);
+
+    // 初始化阶段枚举并打印模型的全部输入输出；此时 resolved_shape 已按最大 batch 解析完成。
+    printModelIo(*model.engine, *model.context);
 
     // 为最大 batch 的输入分配 GPU 显存；每张图有 3 个通道、H*W 个 float 元素。
     cudaMalloc(&model.inputDevice,

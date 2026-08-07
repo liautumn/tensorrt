@@ -13,16 +13,16 @@
 
 ```powershell
 trtexec.exe `
-  --onnx=best.onnx `
-  --saveEngine=best.engine `
+  --onnx=model/yolo26n.onnx `
+  --saveEngine=model/win.engine `
   --minShapes=images:1x3x640x640 `
   --optShapes=images:1x3x640x640 `
   --maxShapes=images:1x3x640x640
   
   
 trtexec \
-  --onnx=best.onnx \
-  --saveEngine=best.engine \
+  --onnx=model/yolo26n.onnx \
+  --saveEngine=model/linux.engine \
   --minShapes=images:1x3x640x640 \
   --optShapes=images:1x3x640x640 \
   --maxShapes=images:1x3x640x640
@@ -33,10 +33,6 @@ trtexec \
 ## 运行
 
 在 [src/main.cpp](src/main.cpp) 开头修改 engine 和图片路径，然后运行：
-
-```powershell
-.\build\Release\yolo26_trt.exe
-```
 
 预处理按当前推理 batch 执行：原始 BGR 图片先复制到 pinned memory，再通过
 `cudaMemcpyAsync` 上传，CUDA kernel 完成保持宽高比的 letterbox、114 填充、双线性插值、
