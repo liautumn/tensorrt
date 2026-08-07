@@ -94,26 +94,17 @@ message(STATUS "TensorRT library   = ${TENSORRT_LIBRARY}")
 message(STATUS "OpenCV version     = ${OpenCV_VERSION}")
 message(STATUS "CUDA version       = ${CUDAToolkit_VERSION}")
 
-# 每个源文件对应 main() 中的一个学习模块。
 add_executable(yolo26_trt
-    # 程序入口：按执行顺序拼装下面的学习模块。
     src/main.cpp
-    # 模型模块：读取 Engine、创建 context、申请和释放显存。
     src/model.cpp
-    # 校验模块：集中提供 CUDA、kernel、断言和模型契约校验。
     src/validator.cpp
-    # 分批模块：根据最大 batch 生成 4、4、2 之类的批次信息。
     src/batch.cpp
-    # 图片模块：从磁盘读取原始 BGR 图片。
     src/image.cpp
-    # CUDA 预处理模块：letterbox、双线性插值、归一化并写入模型输入显存。
     src/preprocess.cu
-    # 推理模块：设置 batch、enqueueV3 并复制输出。
     src/inference.cpp
-    # CUDA Event 计时模块：测量指定 CUDA stream 上两个事件之间的耗时。
     src/timer.cpp
-    # 结果模块：按 batch 下标解析、过滤并返回检测结果。
     src/result.cpp)
+
 # 给 yolo26_trt 添加 TensorRT 和 OpenCV 头文件搜索目录。
 target_include_directories(yolo26_trt PRIVATE
     # 当前项目自己的 model.h、image.h 等头文件所在目录。
