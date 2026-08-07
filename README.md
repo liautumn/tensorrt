@@ -62,14 +62,130 @@ BGR 到 RGB 和 `1/255` 归一化，并直接写入 FP32 NCHW 输入显存。后
 
 # Linux 环境配置
 
-## 1. 安装 Nvidia驱动 和 CUDA
+## 1. 安装 C/C++ 开发工具链
+
+### 更新软件源
+
+```bash
+sudo apt update
+```
+
+### 安装 C/C++ 编译环境
+
+`build-essential` 包含：
+
+- gcc
+- g++
+- make
+- libc 开发文件
+- 常用编译工具
+
+```bash
+sudo apt install build-essential
+```
+
+验证：
+
+```bash
+gcc --version
+g++ --version
+make --version
+```
+
+---
+
+### 安装调试工具
+
+#### Valgrind
+
+用于：
+
+- 内存泄漏检测
+- 内存错误分析
+- 性能分析
+
+```bash
+sudo apt install valgrind
+```
+
+#### GDB
+
+GNU 调试器，用于：
+
+- C/C++ 程序断点调试
+- 崩溃分析
+- 查看堆栈信息
+
+```bash
+sudo apt install gdb
+```
+
+验证：
+
+```bash
+gdb --version
+```
+
+---
+
+### 安装 CMake
+
+用于 C/C++ 项目构建：
+
+```bash
+sudo apt install cmake
+```
+
+验证：
+
+```bash
+cmake --version
+```
+
+---
+
+### 安装 Git
+
+用于代码管理：
+
+```bash
+sudo apt install git
+```
+
+验证：
+
+```bash
+git --version
+```
+
+---
+
+## 2. 安装 OpenCV 开发库
+
+安装 OpenCV C++ 开发环境：
+
+```bash
+sudo apt install libopencv-dev
+```
+
+验证：
+
+```bash
+pkg-config --modversion opencv4
+```
+
+---
+
+# 3. 安装 Nvidia 驱动 和 CUDA
 
 官方安装地址：
 
-- Nvidia 驱动
+- Nvidia 驱动  
   https://www.nvidia.cn/geforce/drivers
-- CUDA Toolkit
+
+- CUDA Toolkit  
   https://developer.nvidia.com/cuda-downloads
+
 
 安装完成后确认：
 
@@ -80,12 +196,13 @@ nvcc --version
 
 ---
 
-## 2. 安装 TensorRT
+# 4. 安装 TensorRT
 
 官方安装地址：
 
 - TensorRT 11.x  
   https://developer.nvidia.com/tensorrt/download/11x
+
 
 解压示例：
 
@@ -101,7 +218,7 @@ tar -xf TensorRT-11.2.1.2.tar.gz
 
 ---
 
-## 3. 配置环境变量
+# 5. 配置环境变量
 
 编辑用户环境：
 
@@ -109,15 +226,17 @@ tar -xf TensorRT-11.2.1.2.tar.gz
 nano ~/.bashrc
 ```
 
-添加以下内容：
+添加：
 
 ```bash
 # ==========================
 # CUDA
 # ==========================
 export CUDA_HOME=/usr/local/cuda-13.3
+
 export PATH=$CUDA_HOME/bin:$PATH
 export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+
 export CUDACXX=$CUDA_HOME/bin/nvcc
 
 
@@ -125,6 +244,7 @@ export CUDACXX=$CUDA_HOME/bin/nvcc
 # TensorRT
 # ==========================
 export TENSORRT_PATH=/home/autumn/dev/TensorRT-11.2.1.2
+
 export PATH=$TENSORRT_PATH/bin:$PATH
 export LD_LIBRARY_PATH=$TENSORRT_PATH/lib:$LD_LIBRARY_PATH
 ```
@@ -139,7 +259,7 @@ Ctrl + X
 
 ---
 
-## 4. 重新加载环境变量
+# 6. 重新加载环境变量
 
 ```bash
 source ~/.bashrc
@@ -147,9 +267,9 @@ source ~/.bashrc
 
 ---
 
-## 5. 验证安装
+# 7. 验证安装
 
-### CUDA
+## CUDA
 
 ```bash
 nvcc --version
@@ -163,7 +283,7 @@ Cuda compilation tools, release 13.3
 
 ---
 
-### TensorRT
+## TensorRT
 
 查看版本：
 
@@ -179,7 +299,15 @@ TensorRT 11.2.1
 
 ---
 
-### 检查动态库
+## OpenCV
+
+```bash
+pkg-config --modversion opencv4
+```
+
+---
+
+## 检查动态库
 
 ```bash
 echo $LD_LIBRARY_PATH
