@@ -106,6 +106,14 @@ add_executable(yolo26_trt
     src/result.cpp
 )
 
+# MSVC 默认按系统代码页读取源文件；项目和 CUDA 头文件使用 UTF-8。
+# 对 CUDA 编译，-Xcompiler 将该选项传递给 nvcc 调用的 MSVC 主机编译器。
+if(MSVC)
+    target_compile_options(yolo26_trt PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/utf-8>)
+endif()
+
 # 给 yolo26_trt 添加 TensorRT 和 OpenCV 头文件搜索目录。
 target_include_directories(yolo26_trt PRIVATE
     # 当前项目自己的 model.h、image.h 等头文件所在目录。
