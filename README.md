@@ -3,7 +3,7 @@
 模型要求：
 
 - TensorRT 11
-- 支持编译 CUDA `.cu` 文件的 CUDA Toolkit
+- 支持编译 CUDA `.cu` 文件的 CUDA Toolkit, CUDA 13
 - 包含 `core`、`imgcodecs`、`imgproc` 和 `highgui` 模块的 OpenCV
 - 动态 batch 输入 `[-1, 3, H, W]`
 - profile 的最小 batch 必须是 1
@@ -12,14 +12,17 @@
 ## 生成 Engine
 
 ```powershell
+# Windows
 trtexec.exe `
   --onnx=model/yolo26n.onnx `
   --saveEngine=model/win.engine `
   --minShapes=images:1x3x640x640 `
   --optShapes=images:1x3x640x640 `
   --maxShapes=images:1x3x640x640
-  
-  
+```
+
+```bash
+# Linux
 trtexec \
   --onnx=model/yolo26n.onnx \
   --saveEngine=model/linux.engine \
@@ -56,3 +59,135 @@ BGR 到 RGB 和 `1/255` 归一化，并直接写入 FP32 NCHW 输入显存。后
 
 当前 `main()` 会按顺序执行全部批次，并将每个批次的结果追加到全局 `results`；因此
 `results[i]` 始终与 `images[i]` 一一对应，显示阶段不需要再次读取或解析 TensorRT 输出。
+
+# Linux 环境配置
+
+## 1. 安装 Nvidia驱动 和 CUDA
+
+官方安装地址：
+
+- Nvidia 驱动
+  https://www.nvidia.cn/geforce/drivers
+- CUDA Toolkit
+  https://developer.nvidia.com/cuda-downloads
+
+安装完成后确认：
+
+```bash
+nvidia-smi
+nvcc --version
+```
+
+---
+
+## 2. 安装 TensorRT
+
+官方安装地址：
+
+- TensorRT 11.x  
+  https://developer.nvidia.com/tensorrt/download/11x
+
+解压示例：
+
+```bash
+tar -xf TensorRT-11.2.1.2.tar.gz
+```
+
+假设安装目录：
+
+```text
+/home/autumn/dev/TensorRT-11.2.1.2
+```
+
+---
+
+## 3. 配置环境变量
+
+编辑用户环境：
+
+```bash
+nano ~/.bashrc
+```
+
+添加以下内容：
+
+```bash
+# ==========================
+# CUDA
+# ==========================
+export CUDA_HOME=/usr/local/cuda-13.3
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+export CUDACXX=$CUDA_HOME/bin/nvcc
+
+
+# ==========================
+# TensorRT
+# ==========================
+export TENSORRT_PATH=/home/autumn/dev/TensorRT-11.2.1.2
+export PATH=$TENSORRT_PATH/bin:$PATH
+export LD_LIBRARY_PATH=$TENSORRT_PATH/lib:$LD_LIBRARY_PATH
+```
+
+保存退出：
+
+```
+Ctrl + O
+Enter
+Ctrl + X
+```
+
+---
+
+## 4. 重新加载环境变量
+
+```bash
+source ~/.bashrc
+```
+
+---
+
+## 5. 验证安装
+
+### CUDA
+
+```bash
+nvcc --version
+```
+
+示例：
+
+```text
+Cuda compilation tools, release 13.3
+```
+
+---
+
+### TensorRT
+
+查看版本：
+
+```bash
+trtexec --version
+```
+
+示例：
+
+```text
+TensorRT 11.2.1
+```
+
+---
+
+### 检查动态库
+
+```bash
+echo $LD_LIBRARY_PATH
+```
+
+应该包含：
+
+```text
+/usr/local/cuda-13.3/lib64
+/home/autumn/dev/TensorRT-11.2.1.2/lib
+```
