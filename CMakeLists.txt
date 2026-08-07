@@ -103,7 +103,8 @@ add_executable(yolo26_trt
     src/preprocess.cu
     src/inference.cpp
     src/timer.cpp
-    src/result.cpp)
+    src/result.cpp
+)
 
 # 给 yolo26_trt 添加 TensorRT 和 OpenCV 头文件搜索目录。
 target_include_directories(yolo26_trt PRIVATE
