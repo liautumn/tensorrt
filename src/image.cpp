@@ -4,8 +4,8 @@
 // 提供 cv::imread，用来从磁盘读取图片。
 #include <opencv2/imgcodecs.hpp>
 
-// 提供 std::runtime_error，图片读取失败时用它报告错误。
-#include <stdexcept>
+// 使用统一断言记录图片读取失败及其源码位置。
+#include "validator.h"
 
 // 读取 imagePaths 中列出的全部图片，并保持原有顺序。
 Images loadImages(std::vector<std::string> const& imagePaths)
@@ -20,11 +20,7 @@ Images loadImages(std::vector<std::string> const& imagePaths)
         cv::Mat image = cv::imread(path);
 
         // empty() 为 true 表示文件不存在、格式不支持或图片数据无法读取。
-        if (image.empty())
-        {
-            // 立即停止并在异常信息中带上失败的路径，避免把无效图片送入模型。
-            throw std::runtime_error("Cannot open image: " + path);
-        }
+        Assertf(!image.empty(), "Cannot open image: %s", path.c_str());
 
         // 把有效图片追加到集合末尾，因此结果顺序与传入路径顺序一致。
         images.push_back(image);

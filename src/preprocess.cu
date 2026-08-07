@@ -12,12 +12,11 @@
 #include <cmath>
 // std::memcpy 用于把普通 cv::Mat 数据复制到 pinned memory。
 #include <cstring>
-// std::runtime_error 和 std::invalid_argument 用于报告输入或 CUDA 错误。
-#include <stdexcept>
-// std::string 用于拼接 CUDA 错误信息。
-#include <string>
 // std::vector 用于保存批次内每张图片在 workspace 中的偏移。
 #include <vector>
+
+// 集中使用 Assertf、checkRuntime 和 kernel 启动检查。
+#include "validator.h"
 
 namespace
 {
@@ -26,18 +25,6 @@ namespace
 constexpr unsigned char kLetterboxValue = 114;
 // 把矩阵表后的首张图起点对齐到 256 字节，矩阵区和图片区使用清晰、稳定的边界。
 constexpr std::size_t kWorkspaceAlignment = 256;
-
-// 统一检查 CUDA Runtime 返回值，避免内存申请、复制或同步失败后继续使用无效数据。
-// status：刚执行的 CUDA API 返回码；operation：加入异常文本的操作名称。
-void checkCuda(cudaError_t status, char const* operation)
-{
-    // cudaSuccess 表示操作已成功提交或完成，其余状态都转换成 C++ 异常。
-    if (status != cudaSuccess)
-    {
-        // CUDA 自身的错误文本会附在操作名称后，便于在 Windows 端定位具体失败原因。
-        throw std::runtime_error(std::string(operation) + " failed: " + cudaGetErrorString(status));
-    }
-}
 
 // 把 value 向上取整到 alignment 的整数倍；调用方保证 alignment 大于 0。
 // 返回值仍以字节为单位，用作 workspace 中下一段数据的起点。
@@ -110,31 +97,31 @@ void ensureWorkspaceCapacity(Model& model, std::size_t requiredBytes)
     // 先释放 device workspace；公开函数在上一轮返回前已经同步同一 stream。
     if (model.preprocessDevice != nullptr)
     {
-        checkCuda(cudaFree(model.preprocessDevice), "cudaFree(preprocessDevice)");
+        checkRuntime(cudaFree(model.preprocessDevice));
         // 释放成功后立即清空地址，使后续异常恢复时可以判断哪些资源仍然存在。
         model.preprocessDevice = nullptr;
     }
     // device 释放成功后再释放配对的 pinned host workspace。
     if (model.preprocessHost != nullptr)
     {
-        checkCuda(cudaFreeHost(model.preprocessHost), "cudaFreeHost(preprocessHost)");
+        checkRuntime(cudaFreeHost(model.preprocessHost));
         // 清空旧 host 地址，避免 Model 保留悬空指针。
         model.preprocessHost = nullptr;
     }
 
     // cudaMallocHost 创建 page-locked 内存，使下面的 H2D 真正支持 cudaMemcpyAsync。
     void* newHost = nullptr;
-    checkCuda(cudaMallocHost(&newHost, requiredBytes), "cudaMallocHost(preprocessHost)");
+    checkRuntime(cudaMallocHost(&newHost, requiredBytes));
 
     // 为同一批打包数据申请 device 端镜像 workspace。
     void* newDevice = nullptr;
     try
     {
-        checkCuda(cudaMalloc(&newDevice, requiredBytes), "cudaMalloc(preprocessDevice)");
+        checkRuntime(cudaMalloc(&newDevice, requiredBytes));
     }
     catch (...)
     {
-        // device 分配失败时回收刚申请的 pinned 内存，避免异常路径泄漏资源。
+        // 回滚不使用会抛异常的 checkRuntime，避免销毁错误覆盖真正的 device 分配错误。
         cudaFreeHost(newHost);
         throw;
     }
@@ -279,16 +266,12 @@ __global__ void letterboxKernel(
 AffineMatrices preprocessBatchToGpu(Model& model, Images const& images, Batch const& batch)
 {
     // batch 至少包含一张图片，并且不能超出 Engine profile 允许的最大 batch。
-    if (batch.size <= 0 || batch.size > model.maxBatch)
-    {
-        throw std::invalid_argument("batch.size is outside the model profile");
-    }
+    Assertf(batch.size > 0 && batch.size <= model.maxBatch,
+        "Batch size %d is outside [1,%d]", batch.size, model.maxBatch);
     // 先分别比较 offset 和剩余数量，避免直接计算 offset+size 时发生 size_t 回绕。
     std::size_t const batchSize = static_cast<std::size_t>(batch.size);
-    if (batch.offset > images.size() || batchSize > images.size() - batch.offset)
-    {
-        throw std::out_of_range("batch exceeds the image collection");
-    }
+    Assertf(batch.offset <= images.size() && batchSize <= images.size() - batch.offset,
+        "Batch offset %zu and size %zu exceed %zu images", batch.offset, batchSize, images.size());
 
     // matrices 保留 CPU 端双向矩阵；返回后由后处理复用同一份 d2i 还原检测框。
     AffineMatrices matrices;
@@ -307,10 +290,9 @@ AffineMatrices preprocessBatchToGpu(Model& model, Images const& images, Batch co
         // batch.offset 把批次内下标转换为 images 中的全局下标。
         cv::Mat const& image = images[batch.offset + index];
         // kernel 固定按三通道 uint8 BGR 读取，因此拒绝空图或其他 OpenCV 类型。
-        if (image.empty() || image.type() != CV_8UC3)
-        {
-            throw std::invalid_argument("CUDA preprocessing requires a non-empty CV_8UC3 image");
-        }
+        Assertf(!image.empty() && image.dims == 2
+                && image.rows > 0 && image.cols > 0 && image.type() == CV_8UC3,
+            "CUDA preprocessing requires a non-empty 2D CV_8UC3 image");
 
         // 先保存本图起点，再让下一起点越过当前图的 width*height*3 字节。
         imageOffsets[index] = nextImageOffset;
@@ -350,8 +332,8 @@ AffineMatrices preprocessBatchToGpu(Model& model, Images const& images, Batch co
     }
 
     // 整批矩阵和原图只发起一次异步 H2D；后续 kernel 在同一 stream 中自然等待复制完成。
-    checkCuda(cudaMemcpyAsync(deviceWorkspace, hostWorkspace, nextImageOffset,
-        cudaMemcpyHostToDevice, model.stream), "cudaMemcpyAsync(preprocess workspace)");
+    checkRuntime(cudaMemcpyAsync(deviceWorkspace, hostWorkspace, nextImageOffset,
+        cudaMemcpyHostToDevice, model.stream));
 
     // 使用目标分支相同的 32x32 thread block，每个 block 最多处理 1024 个目标像素。
     dim3 const block(32, 32);
@@ -378,7 +360,7 @@ AffineMatrices preprocessBatchToGpu(Model& model, Images const& images, Batch co
             + static_cast<std::size_t>(index) * inputElements;
 
         // sourceStride 使用 packed 后的 width*3，而不是原 cv::Mat 可能更大的 step。
-        letterboxKernel<<<grid, block, 0, model.stream>>>(
+        checkKernel(letterboxKernel<<<grid, block, 0, model.stream>>>(
             source,
             image.cols * 3,
             image.cols,
@@ -386,14 +368,13 @@ AffineMatrices preprocessBatchToGpu(Model& model, Images const& images, Batch co
             destination,
             model.inputWidth,
             model.inputHeight,
-            destinationToImage);
-        // cudaGetLastError 检查启动参数等立即错误；执行期错误会在下面同步时报告。
-        checkCuda(cudaGetLastError(), "letterboxKernel launch");
+            destinationToImage));
+        // checkKernel 检查启动参数等立即错误；执行期错误会在下面同步时报告。
     }
 
     // 当前项目按阶段同步执行：这里等待 H2D 和本批全部预处理 kernel 完成。
     // 因此 CPU chrono 的 preprocess 数值包含 GPU 工作，pinned workspace 也可在下一轮安全复用。
-    checkCuda(cudaStreamSynchronize(model.stream), "cudaStreamSynchronize(preprocess)");
+    checkRuntime(cudaStreamSynchronize(model.stream));
     // 返回 CPU 端矩阵；其 d2i 与 kernel 使用的矩阵来自同一份数据，不会出现公式偏差。
     return matrices;
 }

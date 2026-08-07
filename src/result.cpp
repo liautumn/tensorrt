@@ -12,14 +12,17 @@
 #include <cmath>
 // std::fixed 和 std::setprecision() 用于把标签置信度固定显示为两位小数。
 #include <iomanip>
-// std::cout 用于打印每张图片的有效检测结果和窗口等待提示。
+// std::cout 用于窗口等待提示；检测结果改由 Validator 同时输出到控制台和日志。
 #include <iostream>
+// std::numeric_limits 用于确认模型给出的浮点类别编号可以安全转换为 int。
+#include <limits>
 // std::ostringstream 用于拼接类别编号和置信度标签。
 #include <sstream>
-// std::invalid_argument 用于报告仿射矩阵数量与 batch 不匹配。
-#include <stdexcept>
 // std::string 和 std::to_string() 用于生成标签及每张图片的唯一窗口名称。
 #include <string>
+
+// 使用统一断言检查集合尺寸契约，并把图片及检测结果写入每日信息日志。
+#include "validator.h"
 
 namespace
 {
@@ -144,10 +147,11 @@ Results printBatchResults(
     float confidenceThreshold)
 {
     // 每张图片必须恰好对应一组 d2i；否则检测框可能使用另一张图的逆变换。
-    if (affineMatrices.size() != static_cast<std::size_t>(batch.size))
-    {
-        throw std::invalid_argument("affine matrix count does not match batch size");
-    }
+    Assertf(affineMatrices.size() == static_cast<std::size_t>(batch.size),
+        "Affine matrix count does not match batch size");
+    // 防止后续按 [batch,max_det,6] 取指针时越过 output 的有效范围。
+    Assertf(output.size() == static_cast<std::size_t>(batch.size) * model.maxDetections * 6,
+        "Output element count %zu does not match batch shape", output.size());
 
     // 为当前批次的每张图片创建一个结果集合。
     // 外层长度固定为 batch.size，没有检测框的图片会对应一个空 vector。
@@ -159,18 +163,24 @@ Results printBatchResults(
         // affineMatrices 按批次内下标排列；d2i 将网络坐标映射回这一张原图。
         std::array<float, 6> const& d2i = affineMatrices[b].d2i;
 
-        // 可选调试输出：打印当前图片在全部输入图片中的下标。
-        // std::cout << "\nimage " << batch.offset + b << '\n';
+        // 记录当前图片在全部输入图片中的下标，同时输出到控制台和每日文件。
+        Validator::info("image " + std::to_string(batch.offset + b));
         // 逐个检查模型为当前图片预留的所有候选检测框。
         for (int i = 0; i < model.maxDetections; ++i)
         {
             // item 指向第 b 张图片的第 i 个候选框在一维 output 中的起始位置。
-            // b * maxDetections 跳过前面图片的框，加 i 定位当前框，再乘 6 定位其字段。
+            // 使用 size_t 计算偏移，避免较大 batch 和 maxDetections 的 int 乘法溢出。
             float const* item
-                = output.data() + (b * model.maxDetections + i) * 6;
+                = output.data()
+                + (static_cast<std::size_t>(b) * model.maxDetections + i) * 6;
             // item[4] 是置信度；仅处理达到调用方传入阈值的候选框。
             if (item[4] >= confidenceThreshold)
             {
+                // 非有限或超出 int 范围的类别编号不能执行浮点到整数转换。
+                Assertf(std::isfinite(item[5])
+                        && static_cast<double>(item[5]) >= std::numeric_limits<int>::min()
+                        && static_cast<double>(item[5]) <= std::numeric_limits<int>::max(),
+                    "Invalid class id %g at batch item %d, detection %d", item[5], b, i);
                 // 把模型的 6 个 float 字段转换为更容易使用的 Detection 结构体。
                 // 对左上角 (x1,y1) 应用 d2i 第一行，得到原图 x1。
                 float const projectedX1 = d2i[0] * item[0] + d2i[1] * item[1] + d2i[2];
@@ -197,13 +207,15 @@ Results printBatchResults(
 
                 // results[b] 对应当前批次第 b 张图片，把有效检测框加入它的结果集合。
                 results[b].push_back(detection);
-                // 可选调试输出：打印类别、置信度和还原后的原图坐标。
-                // std::cout << "class=" << detection.classId
-                //           << " score=" << detection.confidence
-                //           << " box=[" << detection.x1
-                //           << ',' << detection.y1
-                //           << ',' << detection.x2
-                //           << ',' << detection.y2 << "]\n";
+                // 保持原有字段顺序，把类别、置信度和还原坐标同时写到控制台及日志。
+                std::ostringstream detectionMessage;
+                detectionMessage << "class=" << detection.classId
+                                 << " score=" << detection.confidence
+                                 << " box=[" << detection.x1
+                                 << ',' << detection.y1
+                                 << ',' << detection.x2
+                                 << ',' << detection.y2 << ']';
+                Validator::info(detectionMessage.str());
             }
         }
     }
@@ -216,10 +228,7 @@ void showResults(Images const& images, Results const& results)
 {
     // main() 按批次顺序把 batchResults 追加到 results，因此两者正常情况下长度相同。
     // 若长度不一致，继续按下标访问会导致图片与结果错配，必须立即报告错误。
-    if (images.size() != results.size())
-    {
-        throw std::invalid_argument("image count does not match result count");
-    }
+    Assertf(images.size() == results.size(), "Image count does not match result count");
 
     // 没有输入图片时不创建窗口，也不能调用无限等待的 waitKey(0)。
     if (images.empty())
@@ -231,10 +240,7 @@ void showResults(Images const& images, Results const& results)
     for (std::size_t imageIndex = 0; imageIndex < images.size(); ++imageIndex)
     {
         // loadImages() 已保证图片有效；这里再次防守，避免对空 Mat 计算 cols - 1。
-        if (images[imageIndex].empty())
-        {
-            throw std::invalid_argument("cannot display an empty image");
-        }
+        Assertf(!images[imageIndex].empty(), "Cannot display an empty image");
 
         // clone() 创建独立像素缓冲区，画框不会污染 images 中保存的原始 BGR 图片。
         cv::Mat displayImage = images[imageIndex].clone();

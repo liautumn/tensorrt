@@ -4,9 +4,14 @@
 // 提供 std::min，用来决定当前批次实际取多少张图片。
 #include <algorithm>
 
+// 使用 Assertf 拒绝会让分批循环无法推进的最大 batch。
+#include "validator.h"
+
 // 将 imageCount 张图片按 maxBatch 从前到后切分，图片顺序不会改变。
 Batches splitByMaxBatch(std::size_t imageCount, int maxBatch)
 {
+    // maxBatch 为 0 或负数时 offset 无法可靠向后推进。
+    Assertf(maxBatch > 0, "Maximum batch size must be positive, got %d", maxBatch);
     // 创建空集合，用来依次保存每一轮推理的批次信息。
     Batches batches;
 

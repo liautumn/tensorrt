@@ -97,6 +97,8 @@ add_executable(yolo26_trt
     src/main.cpp
     # 模型模块：读取 Engine、创建 context、申请和释放显存。
     src/model.cpp
+    # 校验模块：集中提供 CUDA、kernel、断言和模型契约校验。
+    src/validator.cpp
     # 分批模块：根据最大 batch 生成 4、4、2 之类的批次信息。
     src/batch.cpp
     # 图片模块：从磁盘读取原始 BGR 图片。

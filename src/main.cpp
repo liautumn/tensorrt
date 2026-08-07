@@ -17,7 +17,7 @@
 #include <chrono>
 // std::fixed 和 std::setprecision() 用于将耗时固定显示为 3 位小数。
 #include <iomanip>
-// std::cout 用于打印每个批次的三段耗时。
+// std::cout 只在控制台打印每个批次的三段耗时，不写入日志文件。
 #include <iostream>
 // std::string 用于保存 engine 路径和图片路径。
 #include <string>
@@ -34,7 +34,7 @@ int main()
         // 第 0 张待推理图片的路径。
         "C:/Users/autumn/CLionProjects/tensorrt/model/2.jpg"
     };
-    // confidenceThreshold：传给 printBatchResults() 的最低置信度；低于 0.25 的框会被过滤。
+    // confidenceThreshold：传给 printBatchResults() 的最低置信度；低于 0.7 的框会被过滤。
     float const confidenceThreshold = 0.7F;
 
     // 读取 enginePath 指向的二进制文件；返回值 engineData 是完整的 engine 字节数组。
@@ -105,11 +105,11 @@ int main()
             // 计算预处理耗时；duration<double, milli> 把时间差转换为毫秒浮点数。
             double const preprocessMilliseconds
                 = std::chrono::duration<double, std::milli>(preprocessEnd - preprocessStart).count();
-            // 计算后处理耗时；当前检测框打印代码已关闭，因此这里只包含解析和集合构建。
+            // 计算后处理耗时；其中包含检测结果的控制台输出和日志写入。
             double const postprocessMilliseconds
                 = std::chrono::duration<double, std::milli>(postprocessEnd - postprocessStart).count();
 
-            // 打印当前批次大小以及三段耗时，便于比较 4、4、2 等不同批次的执行时间。
+            // timing 仅打印到控制台，不调用 Validator::info，因此不会进入每日日志。
             auto const previousFlags = std::cout.flags();
             auto const previousPrecision = std::cout.precision();
             std::cout << std::fixed << std::setprecision(3)
