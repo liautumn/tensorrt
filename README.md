@@ -2,8 +2,8 @@
 
 模型要求：
 
-- TensorRT 11
-- 支持编译 CUDA `.cu` 文件的 CUDA Toolkit, CUDA 13
+- TensorRT11 CUDA13 C++20 
+- 支持编译 CUDA `.cu` 文件的 CUDA Toolkit
 - 包含 `core`、`imgcodecs`、`imgproc` 和 `highgui` 模块的 OpenCV
 - 动态 batch 输入 `[-1, 3, H, W]`
 - profile 的最小 batch 必须是 1
