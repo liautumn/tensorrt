@@ -97,6 +97,7 @@ find_package(OpenCV REQUIRED COMPONENTS
         imgcodecs
         imgproc
         highgui
+        videoio
 )
 
 # ============================================================

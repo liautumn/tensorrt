@@ -52,6 +52,12 @@ Results printBatchResults(
     std::vector<float> const& output,
     float confidenceThreshold);
 
+// 在原图副本上绘制一张图片的全部检测框和标签。
+// image：待绘制的原始 BGR 图片，函数不会修改它。
+// results：与 image 对应的检测结果。
+// 返回值：已经画好检测框和标签的独立图片，可直接交给 cv::imshow()。
+cv::Mat drawImageResults(cv::Mat const& image, ImageResults const& results);
+
 // 使用已经汇总完成的 results 绘制并显示全部推理结果。
 // images[i] 与 results[i] 必须一一对应；函数会在原图副本上画框，不会修改原始图片或检测数据。
 // 每张图片使用一个包含全局下标的独立 OpenCV 窗口，并显示类别编号和置信度。

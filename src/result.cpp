@@ -226,6 +226,19 @@ Results printBatchResults(
     return results;
 }
 
+// 在原图副本上绘制一张图片的检测结果，供静态图片和视频显示共同复用。
+cv::Mat drawImageResults(cv::Mat const& image, ImageResults const& results)
+{
+    Assertf(!image.empty(), "Cannot draw results on an empty image");
+
+    cv::Mat displayImage = image.clone();
+    for (Detection const& detection : results)
+    {
+        drawDetection(displayImage, detection);
+    }
+    return displayImage;
+}
+
 // 从汇总后的 results 获取检测数据，在原图副本上绘制并通过 OpenCV 窗口显示。
 void showResults(Images const& images, Results const& results)
 {
@@ -242,16 +255,8 @@ void showResults(Images const& images, Results const& results)
     // results[i] 对应 images[i]；这里使用全局下标，而不是任意一个批次内的局部下标。
     for (std::size_t imageIndex = 0; imageIndex < images.size(); ++imageIndex)
     {
-        // loadImages() 已保证图片有效；这里再次防守，避免对空 Mat 计算 cols - 1。
-        Assertf(!images[imageIndex].empty(), "Cannot display an empty image");
-
-        // clone() 创建独立像素缓冲区，画框不会污染 images 中保存的原始 BGR 图片。
-        cv::Mat displayImage = images[imageIndex].clone();
-        // 当前图片的所有框都直接来自 results[imageIndex]。
-        for (Detection const& detection : results[imageIndex])
-        {
-            drawDetection(displayImage, detection);
-        }
+        // 绘制接口返回独立像素缓冲区，不会污染 images 中保存的原始 BGR 图片。
+        cv::Mat displayImage = drawImageResults(images[imageIndex], results[imageIndex]);
 
         // 全局图片下标保证多批次、多图片情况下每个窗口名称都唯一。
         std::string const windowName = "result " + std::to_string(imageIndex);
