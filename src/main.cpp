@@ -227,9 +227,9 @@ void detectVideo(
 
 int main()
 {
-    std::string const enginePath = "/home/autumn/CLionProjects/tensorrt/model/linux.engine";
-    std::string const videoPath = "/home/autumn/CLionProjects/tensorrt/model/test.mp4";
-    std::string const imageDirectory = "/home/autumn/CLionProjects/tensorrt/model";
+    std::string const enginePath = R"(/home/autumn/CLionProjects/tensorrt/model/linux.engine)";
+    std::string const videoPath = R"(/home/autumn/CLionProjects/tensorrt/model/test.mp4)";
+    std::string const imageDirectory = R"(/home/autumn/CLionProjects/tensorrt/model)";
     float const confidenceThreshold = 0.25F;
 
     EngineData engineData = readEngine(enginePath);
