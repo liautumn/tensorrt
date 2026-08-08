@@ -167,7 +167,7 @@ Results printBatchResults(
         std::array<float, 6> const& d2i = affineMatrices[b].d2i;
 
         // 记录当前图片在全部输入图片中的下标，同时输出到控制台和每日文件。
-        Validator::info("image " + std::to_string(batch.offset + b));
+        // Validator::info("image " + std::to_string(batch.offset + b));
         // 逐个检查模型为当前图片预留的所有候选检测框。
         for (int i = 0; i < model.maxDetections; ++i)
         {
@@ -211,14 +211,14 @@ Results printBatchResults(
                 // results[b] 对应当前批次第 b 张图片，把有效检测框加入它的结果集合。
                 results[b].push_back(detection);
                 // 保持原有字段顺序，把类别、置信度和还原坐标同时写到控制台及日志。
-                std::ostringstream detectionMessage;
-                detectionMessage << "class=" << detection.classId
-                                 << " score=" << detection.confidence
-                                 << " box=[" << detection.x1
-                                 << ',' << detection.y1
-                                 << ',' << detection.x2
-                                 << ',' << detection.y2 << ']';
-                Validator::info(detectionMessage.str());
+                // std::ostringstream detectionMessage;
+                // detectionMessage << "class=" << detection.classId
+                //                  << " score=" << detection.confidence
+                //                  << " box=[" << detection.x1
+                //                  << ',' << detection.y1
+                //                  << ',' << detection.x2
+                //                  << ',' << detection.y2 << ']';
+                // Validator::info(detectionMessage.str());
             }
         }
     }

@@ -31,11 +31,11 @@
 int main()
 {
     // enginePath：传给 readEngine() 的 TensorRT engine 文件路径。
-    std::string const enginePath = "C:/Users/autumn/CLionProjects/tensorrt/model/win.engine";
+    std::string const enginePath = "D:/autumn/Documents/CLionProjects/tensorrt/model/win.engine";
     // imagePaths：传给 loadImages() 的图片路径集合；元素数量就是待推理图片数量。
     std::vector<std::string> const imagePaths{
         // 第 0 张待推理图片的路径。
-        "C:/Users/autumn/CLionProjects/tensorrt/model/2.jpg"
+        "D:/autumn/Documents/CLionProjects/tensorrt/model/1.jpg"
     };
     // confidenceThreshold：传给 printBatchResults() 的最低置信度；低于 0.7 的框会被过滤。
     float const confidenceThreshold = 0.7F;
@@ -61,8 +61,8 @@ int main()
         // 把当前实际图片数量 batch.size 写入 TensorRT context 的动态输入 shape。
         setBatchSize(model, batch.size);
 
-        // while (true)
-        // {
+        while (true)
+        {
             // 记录当前批次预处理开始时间；steady_clock 不受系统时间调整影响。
             auto const preprocessStart = std::chrono::steady_clock::now();
             // 上传当前批次原图并执行 CUDA letterbox，直接生成 [N,3,H,W] FP32 模型输入。
@@ -123,7 +123,7 @@ int main()
                 << " total=" << preprocessMilliseconds + inferenceMilliseconds + postprocessMilliseconds << " ms\n";
             std::cout.flags(previousFlags);
             std::cout.precision(previousPrecision);
-        // }
+        }
     }
 
     // 释放 initModel() 创建的显存、CUDA stream、context、engine 和 runtime。
