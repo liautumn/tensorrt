@@ -1,38 +1,78 @@
 # SPDX-FileCopyrightText: 2026 liqiuzhuang and contributors
 # SPDX-License-Identifier: GPL-3.0-only
 
-
 # 要求 CMake 至少为 3.21
 cmake_minimum_required(VERSION 3.21)
 
+# ============================================================
+# 第三方库路径
+# ============================================================
+
+if (WIN32)
+
+    # CUDA Toolkit 根目录
+    set(CUDAToolkit_ROOT
+            "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
+            CACHE PATH
+            "CUDA Toolkit installation directory"
+    )
+
+    # OpenCVConfig.cmake 所在目录
+    set(OpenCV_DIR
+            "D:/dev/opencv/build/x64/vc16/lib"
+            CACHE PATH
+            "Directory containing OpenCVConfig.cmake"
+    )
+
+    # TensorRT 根目录
+    set(TENSORRT_ROOT
+            "D:/dev/TensorRT-11.2.1.2"
+            CACHE PATH
+            "TensorRT installation directory"
+    )
+
+else ()
+
+    # Linux CUDA Toolkit
+    set(CUDAToolkit_ROOT
+            "/usr/local/cuda-13.3"
+            CACHE PATH
+            "CUDA Toolkit installation directory"
+    )
+
+    # nvcc
+    set(CMAKE_CUDA_COMPILER "${CUDAToolkit_ROOT}/bin/nvcc")
+
+    # TensorRT
+    set(TENSORRT_ROOT
+            "/home/autumn/dev/TensorRT-11.2.1.2"
+            CACHE PATH
+            "TensorRT installation directory"
+    )
+
+endif ()
 
 # 定义项目名称，同时启用 C++ 和 CUDA 编译语言
 project(yolo26_trt
         LANGUAGES CXX CUDA
 )
 
-
 # ============================================================
 # C++ / CUDA 标准配置
 # ============================================================
 
-
 # 使用 C++20
 set(CMAKE_CXX_STANDARD 20)
-
 # 编译器不支持 C++20 时直接失败
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 # 关闭 GNU 私有扩展
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 
 # CUDA 使用 C++20
 set(CMAKE_CUDA_STANDARD 20)
-
 # CUDA 不支持 C++20 时直接失败
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-
 # 关闭 CUDA 非标准扩展
 set(CMAKE_CUDA_EXTENSIONS OFF)
 
@@ -44,69 +84,12 @@ set(CMAKE_CUDA_EXTENSIONS OFF)
 # 120 : RTX50
 set(CMAKE_CUDA_ARCHITECTURES 75 86 89 120)
 
-
-# ============================================================
-# 第三方库路径
-# ============================================================
-
-
-if (WIN32)
-
-
-    # CUDA Toolkit 根目录
-    set(CUDAToolkit_ROOT
-            "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3"
-            CACHE PATH
-            "CUDA Toolkit installation directory"
-    )
-
-
-    # OpenCVConfig.cmake 所在目录
-    set(OpenCV_DIR
-            "D:/dev/opencv/build/x64/vc16/lib"
-            CACHE PATH
-            "Directory containing OpenCVConfig.cmake"
-    )
-
-
-    # TensorRT 根目录
-    set(TENSORRT_ROOT
-            "D:/dev/TensorRT-11.2.1.2"
-            CACHE PATH
-            "TensorRT installation directory"
-    )
-
-
-else ()
-
-
-    # Linux CUDA Toolkit
-    set(CUDAToolkit_ROOT
-            "/usr/local/cuda-13.3"
-            CACHE PATH
-            "CUDA Toolkit installation directory"
-    )
-
-
-    # TensorRT
-    set(TENSORRT_ROOT
-            "/home/autumn/dev/TensorRT-11.2.1.2"
-            CACHE PATH
-            "TensorRT installation directory"
-    )
-
-
-endif ()
-
-
 # ============================================================
 # 查找 CUDA / OpenCV
 # ============================================================
 
-
 # CUDA Runtime
 find_package(CUDAToolkit REQUIRED)
-
 
 # OpenCV
 find_package(OpenCV REQUIRED COMPONENTS
@@ -116,11 +99,9 @@ find_package(OpenCV REQUIRED COMPONENTS
         highgui
 )
 
-
 # ============================================================
 # 查找 TensorRT
 # ============================================================
-
 
 # 查找 NvInfer.h
 find_path(
@@ -134,7 +115,6 @@ find_path(
         PATH_SUFFIXES
         include
 )
-
 
 # 查找 TensorRT 库
 find_library(
@@ -154,7 +134,6 @@ find_library(
         lib64
 )
 
-
 # TensorRT 检查
 if (NOT TENSORRT_INCLUDE_DIR)
 
@@ -164,7 +143,6 @@ if (NOT TENSORRT_INCLUDE_DIR)
 
 endif ()
 
-
 if (NOT TENSORRT_LIBRARY)
 
     message(FATAL_ERROR
@@ -173,11 +151,9 @@ if (NOT TENSORRT_LIBRARY)
 
 endif ()
 
-
 # ============================================================
 # 创建目标
 # ============================================================
-
 
 add_executable(yolo26_trt
 
@@ -200,11 +176,9 @@ add_executable(yolo26_trt
         src/result.cpp
 )
 
-
 # ============================================================
 # MSVC UTF-8
 # ============================================================
-
 
 if (MSVC)
 
@@ -226,11 +200,9 @@ if (MSVC)
 
 endif ()
 
-
 # ============================================================
 # Include
 # ============================================================
-
 
 # 当前项目头文件
 target_include_directories(
@@ -240,7 +212,6 @@ target_include_directories(
 
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-
 
 # TensorRT 和 OpenCV 第三方头文件
 # TensorRT 可能产生 deprecated warning，因此作为 SYSTEM
@@ -256,11 +227,9 @@ target_include_directories(
         ${OpenCV_INCLUDE_DIRS}
 )
 
-
 # ============================================================
 # Link
 # ============================================================
-
 
 target_link_libraries(
         yolo26_trt
@@ -279,11 +248,9 @@ target_link_libraries(
         ${OpenCV_LIBS}
 )
 
-
 # ============================================================
 # CUDA 属性
 # ============================================================
-
 
 set_target_properties(
         yolo26_trt
