@@ -23,11 +23,12 @@ Batches splitByMaxBatch(std::size_t imageCount, int maxBatch)
     {
         // 当前批次取“模型最大 batch”和“剩余图片数”中的较小值。
         // 例如共有 10 张图片、maxBatch 为 4，三次得到的 batchSize 是 4、4、2。
-        int const batchSize
-            = std::min<int>(maxBatch, static_cast<int>(imageCount - offset));
+        auto const batchSize = static_cast<int>(std::min(
+            static_cast<std::size_t>(maxBatch),
+            imageCount - offset));
 
         // 保存当前批次：从 offset 开始，共包含 batchSize 张图片。
-        batches.push_back({offset, batchSize});
+        batches.push_back(Batch{.offset = offset, .size = batchSize});
 
         // 跳过刚刚分入当前批次的图片，让 offset 指向下一批的第一张图片。
         offset += batchSize;

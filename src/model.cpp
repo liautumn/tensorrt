@@ -9,6 +9,8 @@
 // 提供输出流和字符串流，用于格式化模型输入输出张量信息。
 #include <ostream>
 #include <sstream>
+#include <string_view>
+#include <utility>
 
 // 集中使用 Assertf、checkRuntime、模型契约校验和文件日志。
 #include "validator.h"
@@ -18,7 +20,7 @@ namespace
 {
 
 // 实现 TensorRT 要求的日志接口，用于接收 TensorRT 初始化和运行期间的日志。
-struct Logger : nvinfer1::ILogger
+struct Logger final : nvinfer1::ILogger
 {
     // TensorRT 产生一条日志时会调用此函数。
     // 参数 severity：日志级别，例如内部错误、错误、警告、信息或详细信息。
@@ -69,7 +71,7 @@ void readModelIoNames(nvinfer1::ICudaEngine const& engine, Model& model)
 }
 
 // 将 TensorRT 数据类型转换为便于阅读的名称。
-char const* dataTypeName(nvinfer1::DataType dataType)
+[[nodiscard]] constexpr std::string_view dataTypeName(nvinfer1::DataType const dataType) noexcept
 {
     switch (dataType)
     {
@@ -155,26 +157,64 @@ void printModelIo(nvinfer1::ICudaEngine const& engine)
 // 结束匿名命名空间。
 } // namespace
 
+Model::~Model() noexcept
+{
+    synchronizeCudaStreamNoexcept(stream.get());
+}
+
+Model& Model::operator=(Model&& other) noexcept
+{
+    if (this != &other)
+    {
+        Model moved(std::move(other));
+        swap(moved);
+    }
+    return *this;
+}
+
+void Model::swap(Model& other) noexcept
+{
+    using std::swap;
+
+    swap(runtime, other.runtime);
+    swap(engine, other.engine);
+    swap(stream, other.stream);
+    swap(inputDevice, other.inputDevice);
+    swap(outputDevice, other.outputDevice);
+    swap(preprocessHost, other.preprocessHost);
+    swap(preprocessDevice, other.preprocessDevice);
+    swap(context, other.context);
+    swap(preprocessCapacity, other.preprocessCapacity);
+    swap(inputName, other.inputName);
+    swap(outputName, other.outputName);
+    swap(inputShape, other.inputShape);
+    swap(inputHeight, other.inputHeight);
+    swap(inputWidth, other.inputWidth);
+    swap(maxBatch, other.maxBatch);
+    swap(maxDetections, other.maxDetections);
+}
+
 // 读取指定路径的 TensorRT Engine 二进制文件。
 // 参数 enginePath：Engine 文件路径，只读传入。
 // 返回值：保存文件全部字节的 EngineData。
-EngineData readEngine(std::string const& enginePath)
+EngineData readEngine(std::filesystem::path const& enginePath)
 {
+    std::string const pathText = enginePath.string();
     // 以二进制模式打开文件，并让初始读取位置停在文件末尾，以便直接取得文件大小。
     std::ifstream file(enginePath, std::ios::binary | std::ios::ate);
     // 检查文件是否成功打开。
-    Assertf(file, "Cannot open engine: %s", enginePath.c_str());
+    Assertf(file, "Cannot open engine: %s", pathText.c_str());
 
     // file.tellg() 返回当前位置，即文件字节数；据此一次性创建足够大的字节数组。
     auto const engineSize = file.tellg();
-    Assertf(engineSize > std::streampos(0), "TensorRT engine is empty: %s", enginePath.c_str());
+    Assertf(engineSize > std::streampos(0), "TensorRT engine is empty: %s", pathText.c_str());
     EngineData engineData(static_cast<std::size_t>(engineSize));
     // 将文件读取位置从末尾移回第 0 个字节，为读取完整文件做准备。
     file.seekg(0);
     // 从文件读取 engineData.size() 个字节，并写入 engineData 的连续内存。
     file.read(engineData.data(), static_cast<std::streamsize>(engineData.size()));
     Assertf(file.gcount() == static_cast<std::streamsize>(engineData.size()),
-        "TensorRT engine was not read completely: %s", enginePath.c_str());
+        "TensorRT engine was not read completely: %s", pathText.c_str());
     // 返回已经装入内存的 Engine 二进制数据。
     return engineData;
 }
@@ -182,7 +222,7 @@ EngineData readEngine(std::string const& enginePath)
 // 把 Engine 二进制数据初始化成可执行、可重复使用的 TensorRT 模型。
 // 参数 engineData：Engine 文件的完整字节内容，只读传入。
 // 返回值：持有 TensorRT 对象、CUDA 流、输入输出显存及模型尺寸信息的 Model。
-Model initModel(EngineData const& engineData)
+Model initModel(std::span<char const> const engineData)
 {
     // 创建一个字段均为默认初始值的 Model，随后逐项填充所需资源和尺寸。
     Model model;
@@ -190,10 +230,10 @@ Model initModel(EngineData const& engineData)
     // 提前触发 CUDA Runtime 初始化，驱动或设备不可用时在反序列化模型前报告。
     checkRuntime(cudaFree(nullptr));
     // 使用本文件的 logger 创建 TensorRT Runtime；Runtime 负责反序列化 Engine。
-    model.runtime = nvinfer1::createInferRuntime(logger);
+    model.runtime.reset(nvinfer1::createInferRuntime(logger));
     Assertf(model.runtime != nullptr, "Failed to create TensorRT runtime");
     // 将 engineData.data() 指向的 engineData.size() 个字节反序列化为 CUDA Engine。
-    model.engine = model.runtime->deserializeCudaEngine(engineData.data(), engineData.size());
+    model.engine.reset(model.runtime->deserializeCudaEngine(engineData.data(), engineData.size()));
     Assertf(model.engine != nullptr,
         "Engine is corrupted or incompatible with the current TensorRT, CUDA, GPU, or operating system");
     // 枚举 Engine 自带的 I/O 信息，自动保存真实输入和输出张量名称。
@@ -201,7 +241,7 @@ Model initModel(EngineData const& engineData)
     // 在创建 context 和分配显存前集中拒绝类型、位置、格式或 shape 不兼容的模型。
     Validator::checkModel(*model.engine, model.inputName, model.outputName);
     // 从 Engine 创建执行上下文；后续输入形状设置和 enqueueV3 推理都通过它完成。
-    model.context = model.engine->createExecutionContext();
+    model.context.reset(model.engine->createExecutionContext());
     Assertf(model.context != nullptr, "Failed to create TensorRT execution context");
 
     // 读取第 0 个优化配置中输入张量的最优形状；kOPT 是 Engine 重点优化的常用形状。
@@ -223,9 +263,9 @@ Model initModel(EngineData const& engineData)
     model.maxBatch = static_cast<int>(maxShape.d[0]);
 
     // 创建一条 CUDA 流，并把创建结果写入 model.stream，供后续推理过程持续复用。
-    checkRuntime(cudaStreamCreate(&model.stream));
+    model.stream = createCudaStream();
     // 在 model.stream 上选择编号为 0 的优化配置，使 context 使用上面查询的同一套形状范围。
-    Assertf(model.context->setOptimizationProfileAsync(0, model.stream),
+    Assertf(model.context->setOptimizationProfileAsync(0, model.stream.get()),
         "Failed to set TensorRT optimization profile 0");
 
     // 暂时把当前输入形状的 batch 设为最大值，用最大输出形状计算和分配显存。
@@ -243,57 +283,18 @@ Model initModel(EngineData const& engineData)
     printModelIo(*model.engine);
 
     // 为最大 batch 的输入分配 GPU 显存；每张图有 3 个通道、H*W 个 float 元素。
-    checkRuntime(cudaMalloc(&model.inputDevice,
-        // 总字节数 = 最大图片数 * 3 通道 * 输入高度 * 输入宽度 * 单个 float 的字节数。
-        static_cast<std::size_t>(model.maxBatch) * 3 * model.inputHeight * model.inputWidth * sizeof(float)));
+    model.inputDevice = allocateCudaDevice(
+        static_cast<std::size_t>(model.maxBatch) * 3 * model.inputHeight * model.inputWidth * sizeof(float));
     // 为最大 batch 的输出分配 GPU 显存；每个检测框由 6 个 float 数值组成。
-    checkRuntime(cudaMalloc(&model.outputDevice,
-        // 总字节数 = 最大图片数 * 每张图最大检测框数 * 每个检测框 6 个值 * float 字节数。
-        static_cast<std::size_t>(model.maxBatch) * model.maxDetections * 6 * sizeof(float)));
+    model.outputDevice = allocateCudaDevice(
+        static_cast<std::size_t>(model.maxBatch) * model.maxDetections * 6 * sizeof(float));
 
     // 将输入张量名称绑定到输入显存，enqueueV3 时 TensorRT 会从该地址读取图片数据。
-    Assertf(model.context->setTensorAddress(model.inputName.c_str(), model.inputDevice),
+    Assertf(model.context->setTensorAddress(model.inputName.c_str(), model.inputDevice.get()),
         "Failed to bind input tensor '%s'", model.inputName.c_str());
     // 将输出张量名称绑定到输出显存，enqueueV3 时 TensorRT 会把检测结果写到该地址。
-    Assertf(model.context->setTensorAddress(model.outputName.c_str(), model.outputDevice),
+    Assertf(model.context->setTensorAddress(model.outputName.c_str(), model.outputDevice.get()),
         "Failed to bind output tensor '%s'", model.outputName.c_str());
     // 返回初始化完成的模型；调用者可重复使用其中的 context、流和显存执行多轮推理。
     return model;
-}
-
-// 释放 Model 持有的 CUDA 和 TensorRT 资源。
-// 参数 model：initModel() 返回的 Model，以可修改引用传入。
-// 返回值：无。
-void releaseModel(Model& model)
-{
-    // 清理阶段不使用会抛异常的 checkRuntime，避免一次释放失败阻断后续资源回收。
-    // 只有执行过 CUDA 预处理时 workspace 才会被懒分配；空指针表示没有资源需要释放。
-    if (model.preprocessDevice != nullptr)
-    {
-        // 释放为最近批次原图和 d2i 矩阵复用的 GPU workspace。
-        cudaFree(model.preprocessDevice);
-    }
-    if (model.preprocessHost != nullptr)
-    {
-        // 释放与 GPU workspace 同布局、供 cudaMemcpyAsync 使用的 pinned CPU workspace。
-        cudaFreeHost(model.preprocessHost);
-    }
-    // 清空已释放的设备地址，避免 Model 中保留悬空指针。
-    model.preprocessDevice = nullptr;
-    // 清空已释放的 pinned host 地址。
-    model.preprocessHost = nullptr;
-    // 两块 workspace 都已释放，对应的可复用容量恢复为 0。
-    model.preprocessCapacity = 0;
-    // 释放保存模型输入数据的 GPU 显存。
-    cudaFree(model.inputDevice);
-    // 释放保存模型输出数据的 GPU 显存。
-    cudaFree(model.outputDevice);
-    // 销毁初始化时创建并在各轮推理中复用的 CUDA 流。
-    cudaStreamDestroy(model.stream);
-    // 销毁执行上下文，释放它维护的输入形状和执行状态。
-    delete model.context;
-    // 销毁反序列化得到的 CUDA Engine。
-    delete model.engine;
-    // 最后销毁创建 Engine 的 TensorRT Runtime。
-    delete model.runtime;
 }

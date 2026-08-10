@@ -143,9 +143,9 @@ Results printBatchResults(
     // 当前批次的起始下标 offset 和实际图片数量 size。
     Batch const& batch,
     // CUDA letterbox 为当前批次每张图片生成的网络坐标到原图坐标逆矩阵。
-    AffineMatrices const& affineMatrices,
-    // copyToCpu 返回的一维 float 输出，使用常量引用避免复制整份结果。
-    std::vector<float> const& output,
+    std::span<AffineMatrix const> const affineMatrices,
+    // copyToCpu 返回的一维 float 输出，以只读 span 借用，避免复制整份结果。
+    std::span<float const> const output,
     // 检测框的最低置信度，只保留 confidence 大于或等于该值的框。
     float confidenceThreshold)
 {
@@ -173,9 +173,9 @@ Results printBatchResults(
         {
             // item 指向第 b 张图片的第 i 个候选框在一维 output 中的起始位置。
             // 使用 size_t 计算偏移，避免较大 batch 和 maxDetections 的 int 乘法溢出。
-            float const* item
-                = output.data()
-                + (static_cast<std::size_t>(b) * model.maxDetections + i) * 6;
+            std::size_t const itemOffset
+                = (static_cast<std::size_t>(b) * model.maxDetections + i) * 6;
+            std::span<float const> const item = output.subspan(itemOffset, 6);
             // item[4] 是置信度；仅处理达到调用方传入阈值的候选框。
             if (item[4] >= confidenceThreshold)
             {
@@ -196,17 +196,17 @@ Results printBatchResults(
 
                 Detection detection{
                     // 与目标分支一致，保留映射后的 x1，不在这里额外裁剪图片边界。
-                    projectedX1,
+                    .x1 = projectedX1,
                     // 映射后的原图 y1。
-                    projectedY1,
+                    .y1 = projectedY1,
                     // 映射后的原图 x2。
-                    projectedX2,
+                    .x2 = projectedX2,
                     // 映射后的原图 y2。
-                    projectedY2,
+                    .y2 = projectedY2,
                     // item[4] 直接保存模型给出的置信度。
-                    item[4],
+                    .confidence = item[4],
                     // item[5] 在输出中是 float，这里转换为 Detection 使用的整数类别编号。
-                    static_cast<int>(item[5])};
+                    .classId = static_cast<int>(item[5])};
 
                 // results[b] 对应当前批次第 b 张图片，把有效检测框加入它的结果集合。
                 results[b].push_back(detection);
@@ -227,7 +227,9 @@ Results printBatchResults(
 }
 
 // 在原图副本上绘制一张图片的检测结果，供静态图片和视频显示共同复用。
-cv::Mat drawImageResults(cv::Mat const& image, ImageResults const& results)
+cv::Mat drawImageResults(
+    cv::Mat const& image,
+    std::span<Detection const> const results)
 {
     Assertf(!image.empty(), "Cannot draw results on an empty image");
 
@@ -240,7 +242,9 @@ cv::Mat drawImageResults(cv::Mat const& image, ImageResults const& results)
 }
 
 // 从汇总后的 results 获取检测数据，在原图副本上绘制并通过 OpenCV 窗口显示。
-void showResults(Images const& images, Results const& results)
+void showResults(
+    std::span<cv::Mat const> const images,
+    std::span<ImageResults const> const results)
 {
     // main() 按批次顺序把 batchResults 追加到 results，因此两者正常情况下长度相同。
     // 若长度不一致，继续按下标访问会导致图片与结果错配，必须立即报告错误。

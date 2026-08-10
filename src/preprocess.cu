@@ -15,6 +15,7 @@
 #include <cmath>
 // std::memcpy 用于把普通 cv::Mat 数据复制到 pinned memory。
 #include <cstring>
+#include <utility>
 // std::vector 用于保存批次内每张图片在 workspace 中的偏移。
 #include <vector>
 
@@ -31,7 +32,9 @@ constexpr std::size_t kWorkspaceAlignment = 256;
 
 // 把 value 向上取整到 alignment 的整数倍；调用方保证 alignment 大于 0。
 // 返回值仍以字节为单位，用作 workspace 中下一段数据的起点。
-std::size_t alignUp(std::size_t value, std::size_t alignment)
+[[nodiscard]] constexpr std::size_t alignUp(
+    std::size_t const value,
+    std::size_t const alignment) noexcept
 {
     // 先补 alignment-1 再做整数除法，可得到不小于 value 的最小对齐值。
     return (value + alignment - 1) / alignment * alignment;
@@ -98,40 +101,19 @@ void ensureWorkspaceCapacity(Model& model, std::size_t requiredBytes)
     // 从这一刻起旧容量不再可复用；即使释放中途抛异常，下次也不会错误地提前返回。
     model.preprocessCapacity = 0;
     // 先释放 device workspace；公开函数在上一轮返回前已经同步同一 stream。
-    if (model.preprocessDevice != nullptr)
-    {
-        checkRuntime(cudaFree(model.preprocessDevice));
-        // 释放成功后立即清空地址，使后续异常恢复时可以判断哪些资源仍然存在。
-        model.preprocessDevice = nullptr;
-    }
+    model.preprocessDevice.reset();
     // device 释放成功后再释放配对的 pinned host workspace。
-    if (model.preprocessHost != nullptr)
-    {
-        checkRuntime(cudaFreeHost(model.preprocessHost));
-        // 清空旧 host 地址，避免 Model 保留悬空指针。
-        model.preprocessHost = nullptr;
-    }
+    model.preprocessHost.reset();
 
     // cudaMallocHost 创建 page-locked 内存，使下面的 H2D 真正支持 cudaMemcpyAsync。
-    void* newHost = nullptr;
-    checkRuntime(cudaMallocHost(&newHost, requiredBytes));
+    CudaPinnedMemory newHost = allocateCudaPinned(requiredBytes);
 
     // 为同一批打包数据申请 device 端镜像 workspace。
-    void* newDevice = nullptr;
-    try
-    {
-        checkRuntime(cudaMalloc(&newDevice, requiredBytes));
-    }
-    catch (...)
-    {
-        // 回滚不使用会抛异常的 checkRuntime，避免销毁错误覆盖真正的 device 分配错误。
-        cudaFreeHost(newHost);
-        throw;
-    }
+    CudaDeviceMemory newDevice = allocateCudaDevice(requiredBytes);
 
     // 两次分配均成功后一次性提交地址和容量，Model 再次处于完整可用状态。
-    model.preprocessHost = newHost;
-    model.preprocessDevice = newDevice;
+    model.preprocessHost = std::move(newHost);
+    model.preprocessDevice = std::move(newDevice);
     model.preprocessCapacity = requiredBytes;
 }
 
@@ -266,7 +248,10 @@ __global__ void letterboxKernel(
 } // namespace
 
 // 打包并预处理当前推理批次；函数不会一次处理 images 中不属于 batch 的其他图片。
-AffineMatrices preprocessBatchToGpu(Model& model, Images const& images, Batch const& batch)
+AffineMatrices preprocessBatchToGpu(
+    Model& model,
+    std::span<cv::Mat const> const images,
+    Batch const& batch)
 {
     // batch 至少包含一张图片，并且不能超出 Engine profile 允许的最大 batch。
     Assertf(batch.size > 0 && batch.size <= model.maxBatch,
@@ -308,8 +293,8 @@ AffineMatrices preprocessBatchToGpu(Model& model, Images const& images, Batch co
     // 循环结束后的 nextImageOffset 就是矩阵表、对齐区和全部原图的总字节数。
     ensureWorkspaceCapacity(model, nextImageOffset);
     // 转成字节指针后才能按上面计算的 byte offset 访问两块 workspace。
-    auto* hostWorkspace = static_cast<unsigned char*>(model.preprocessHost);
-    auto* deviceWorkspace = static_cast<unsigned char*>(model.preprocessDevice);
+    auto* hostWorkspace = static_cast<unsigned char*>(model.preprocessHost.get());
+    auto* deviceWorkspace = static_cast<unsigned char*>(model.preprocessDevice.get());
 
     // 第二遍把每张图的 d2i 和原始 BGR 数据写入 pinned host workspace。
     for (int index = 0; index < batch.size; ++index)
@@ -336,7 +321,7 @@ AffineMatrices preprocessBatchToGpu(Model& model, Images const& images, Batch co
 
     // 整批矩阵和原图只发起一次异步 H2D；后续 kernel 在同一 stream 中自然等待复制完成。
     checkRuntime(cudaMemcpyAsync(deviceWorkspace, hostWorkspace, nextImageOffset,
-        cudaMemcpyHostToDevice, model.stream));
+        cudaMemcpyHostToDevice, model.stream.get()));
 
     // 使用目标分支相同的 32x32 thread block，每个 block 最多处理 1024 个目标像素。
     dim3 const block(32, 32);
@@ -359,11 +344,11 @@ AffineMatrices preprocessBatchToGpu(Model& model, Images const& images, Batch co
         auto const* destinationToImage
             = reinterpret_cast<float const*>(deviceWorkspace + static_cast<std::size_t>(index) * 6 * sizeof(float));
         // destination 直接指向 TensorRT 输入显存中的第 index 个 NCHW batch slot。
-        auto* destination = static_cast<float*>(model.inputDevice)
+        auto* destination = static_cast<float*>(model.inputDevice.get())
             + static_cast<std::size_t>(index) * inputElements;
 
         // sourceStride 使用 packed 后的 width*3，而不是原 cv::Mat 可能更大的 step。
-        checkKernel(letterboxKernel<<<grid, block, 0, model.stream>>>(
+        checkKernel(letterboxKernel<<<grid, block, 0, model.stream.get()>>>(
             source,
             image.cols * 3,
             image.cols,
@@ -377,7 +362,7 @@ AffineMatrices preprocessBatchToGpu(Model& model, Images const& images, Batch co
 
     // 当前项目按阶段同步执行：这里等待 H2D 和本批全部预处理 kernel 完成。
     // 因此 CPU chrono 的 preprocess 数值包含 GPU 工作，pinned workspace 也可在下一轮安全复用。
-    checkRuntime(cudaStreamSynchronize(model.stream));
+    checkRuntime(cudaStreamSynchronize(model.stream.get()));
     // 返回 CPU 端矩阵；其 d2i 与 kernel 使用的矩阵来自同一份数据，不会出现公式偏差。
     return matrices;
 }

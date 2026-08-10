@@ -168,6 +168,8 @@ add_executable(yolo26_trt
 
         src/image.cpp
 
+        src/cuda_raii.cpp
+
         src/preprocess.cu
 
         src/inference.cpp

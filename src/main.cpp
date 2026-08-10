@@ -15,13 +15,18 @@
 #include <opencv2/videoio.hpp>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cctype>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
+#include <ranges>
+#include <span>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -31,15 +36,15 @@ namespace
 struct DetectionRun
 {
     Results results;
-    double preprocessMilliseconds;
-    float inferenceMilliseconds;
-    double postprocessMilliseconds;
+    double preprocessMilliseconds{};
+    float inferenceMilliseconds{};
+    double postprocessMilliseconds{};
 };
 
 // 图片目录和视频帧共同使用的预处理、推理及后处理流程。
-DetectionRun runDetection(
+[[nodiscard]] DetectionRun runDetection(
     Model& model,
-    Images const& images,
+    std::span<cv::Mat const> const images,
     Batch const& batch,
     float confidenceThreshold,
     trt_timer::Timer& inferenceTimer)
@@ -50,7 +55,7 @@ DetectionRun runDetection(
     AffineMatrices affineMatrices = preprocessBatchToGpu(model, images, batch);
     auto const preprocessEnd = std::chrono::steady_clock::now();
 
-    inferenceTimer.start(model.stream);
+    inferenceTimer.start(model.stream.get());
     infer(model);
     std::vector<float> output = copyToCpu(model, batch.size);
     float const inferenceMilliseconds = inferenceTimer.stop("inference", false);
@@ -65,14 +70,16 @@ DetectionRun runDetection(
     auto const postprocessEnd = std::chrono::steady_clock::now();
 
     return {
-        std::move(results),
-        std::chrono::duration<double, std::milli>(preprocessEnd - preprocessStart).count(),
-        inferenceMilliseconds,
-        std::chrono::duration<double, std::milli>(postprocessEnd - postprocessStart).count()};
+        .results = std::move(results),
+        .preprocessMilliseconds
+            = std::chrono::duration<double, std::milli>(preprocessEnd - preprocessStart).count(),
+        .inferenceMilliseconds = inferenceMilliseconds,
+        .postprocessMilliseconds
+            = std::chrono::duration<double, std::milli>(postprocessEnd - postprocessStart).count()};
 }
 
 void printTiming(
-    char const* itemName,
+    std::string_view const itemName,
     std::size_t itemIndex,
     int batchSize,
     DetectionRun const& run)
@@ -94,52 +101,48 @@ void printTiming(
     std::cout.precision(previousPrecision);
 }
 
-bool isImagePath(std::filesystem::path const& path)
+[[nodiscard]] bool isImagePath(std::filesystem::path const& path)
 {
+    static constexpr std::array<std::string_view, 7> supportedExtensions{
+        ".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"};
+
     std::string extension = path.extension().string();
-    std::transform(
-        extension.begin(),
-        extension.end(),
+    std::ranges::transform(
+        extension,
         extension.begin(),
         [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
 
-    return extension == ".jpg"
-        || extension == ".jpeg"
-        || extension == ".png"
-        || extension == ".bmp"
-        || extension == ".webp"
-        || extension == ".tif"
-        || extension == ".tiff";
+    return std::ranges::find(supportedExtensions, extension) != supportedExtensions.end();
 }
 
-std::vector<std::string> findImagePaths(std::string const& imageDirectory)
+[[nodiscard]] ImagePaths findImagePaths(std::filesystem::path const& imageDirectory)
 {
-    std::filesystem::path const directory(imageDirectory);
-    Assertf(std::filesystem::is_directory(directory),
-        "Image directory does not exist: %s", imageDirectory.c_str());
+    std::string const directoryText = imageDirectory.string();
+    Assertf(std::filesystem::is_directory(imageDirectory),
+        "Image directory does not exist: %s", directoryText.c_str());
 
-    std::vector<std::string> imagePaths;
+    ImagePaths imagePaths;
     for (std::filesystem::directory_entry const& entry
-        : std::filesystem::directory_iterator(directory))
+        : std::filesystem::directory_iterator(imageDirectory))
     {
         if (entry.is_regular_file() && isImagePath(entry.path()))
         {
-            imagePaths.push_back(entry.path().string());
+            imagePaths.push_back(entry.path());
         }
     }
 
-    std::sort(imagePaths.begin(), imagePaths.end());
+    std::ranges::sort(imagePaths);
     Assertf(!imagePaths.empty(),
-        "No supported images found in directory: %s", imageDirectory.c_str());
+        "No supported images found in directory: %s", directoryText.c_str());
     return imagePaths;
 }
 
 void detectImageDirectory(
     Model& model,
-    std::string const& imageDirectory,
+    std::filesystem::path const& imageDirectory,
     float confidenceThreshold)
 {
-    std::vector<std::string> const imagePaths = findImagePaths(imageDirectory);
+    ImagePaths const imagePaths = findImagePaths(imageDirectory);
     Images images = loadImages(imagePaths);
     Batches const batches = splitByMaxBatch(images.size(), model.maxBatch);
 
@@ -157,7 +160,7 @@ void detectImageDirectory(
             confidenceThreshold,
             inferenceTimer);
         printTiming("batch", batchIndex, batch.size, run);
-        results.insert(results.end(), run.results.begin(), run.results.end());
+        std::ranges::move(run.results, std::back_inserter(results));
     }
 
     showResults(images, results);
@@ -165,16 +168,17 @@ void detectImageDirectory(
 
 void detectVideo(
     Model& model,
-    std::string const& videoPath,
+    std::filesystem::path const& videoPath,
     float confidenceThreshold)
 {
-    cv::VideoCapture capture(videoPath);
-    Assertf(capture.isOpened(), "Cannot open video: %s", videoPath.c_str());
+    std::string const videoPathText = videoPath.string();
+    cv::VideoCapture capture(videoPathText);
+    Assertf(capture.isOpened(), "Cannot open video: %s", videoPathText.c_str());
 
     std::string const windowName = "YOLO video detection";
     cv::namedWindow(windowName, cv::WINDOW_NORMAL);
 
-    Batch const batch{0, 1};
+    Batch const batch{.offset = 0, .size = 1};
     trt_timer::Timer inferenceTimer;
     std::size_t frameIndex = 0;
     double smoothedFps = 0.0;
@@ -227,9 +231,10 @@ void detectVideo(
 
 int main()
 {
-    std::string const enginePath = R"(/home/autumn/CLionProjects/tensorrt/model/linux.engine)";
-    std::string const videoPath = R"(/home/autumn/CLionProjects/tensorrt/model/test.mp4)";
-    std::string const imageDirectory = R"(/home/autumn/CLionProjects/tensorrt/model)";
+    std::filesystem::path const enginePath = R"(/home/autumn/CLionProjects/tensorrt/model/linux.engine)";
+    [[maybe_unused]] std::filesystem::path const videoPath
+        = R"(/home/autumn/CLionProjects/tensorrt/model/test.mp4)";
+    std::filesystem::path const imageDirectory = R"(/home/autumn/CLionProjects/tensorrt/model)";
     float const confidenceThreshold = 0.25F;
 
     EngineData engineData = readEngine(enginePath);
@@ -238,6 +243,5 @@ int main()
     // detectVideo(model, videoPath, confidenceThreshold);
     detectImageDirectory(model, imageDirectory, confidenceThreshold);
 
-    releaseModel(model);
     return 0;
 }

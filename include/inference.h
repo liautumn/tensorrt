@@ -25,4 +25,4 @@ void infer(Model& model);
 // model：已经完成推理的模型对象，model.outputDevice 是输出显存地址。
 // batchSize：本轮图片数量，用于计算本轮实际需要复制多少个输出元素。
 // 返回值：一维 float 集合，按“图片、检测框、6 个字段”的顺序连续存放结果。
-std::vector<float> copyToCpu(Model const& model, int batchSize);
+[[nodiscard]] std::vector<float> copyToCpu(Model const& model, int batchSize);

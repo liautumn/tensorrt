@@ -4,6 +4,7 @@
 // 引入 CUDA Event 计时器声明。
 #include "timer.h"
 
+#include <algorithm>
 // std::snprintf 用于格式化计时结果。
 #include <cstdio>
 
@@ -14,64 +15,34 @@ namespace trt_timer
 {
 
 Timer::Timer()
+    : start_(createCudaEvent())
+    , stop_(createCudaEvent())
 {
-    checkRuntime(cudaEventCreate(&start_));
-    try
-    {
-        checkRuntime(cudaEventCreate(&stop_));
-    }
-    catch (...)
-    {
-        // 回滚不抛新的销毁异常，保留 stop event 创建失败这一原始错误。
-        cudaEventDestroy(start_);
-        start_ = nullptr;
-        throw;
-    }
-}
-
-Timer::~Timer()
-{
-    // 析构函数不能抛异常；销毁失败时只输出 CUDA 错误。
-    if (stop_ != nullptr)
-    {
-        if (cudaError_t const status = cudaEventDestroy(stop_); status != cudaSuccess)
-        {
-            char message[256]{};
-            std::snprintf(message, sizeof(message),
-                "cudaEventDestroy(stop) failed: %s", cudaGetErrorString(status));
-            Validator::log(message);
-        }
-    }
-    if (start_ != nullptr)
-    {
-        if (cudaError_t const status = cudaEventDestroy(start_); status != cudaSuccess)
-        {
-            char message[256]{};
-            std::snprintf(message, sizeof(message),
-                "cudaEventDestroy(start) failed: %s", cudaGetErrorString(status));
-            Validator::log(message);
-        }
-    }
 }
 
 void Timer::start(cudaStream_t stream)
 {
     stream_ = stream;
-    checkRuntime(cudaEventRecord(start_, stream_));
+    checkRuntime(cudaEventRecord(start_.get(), stream_));
 }
 
-float Timer::stop(char const* prefix, bool print)
+float Timer::stop(std::string_view const prefix, bool const print)
 {
-    checkRuntime(cudaEventRecord(stop_, stream_));
-    checkRuntime(cudaEventSynchronize(stop_));
+    checkRuntime(cudaEventRecord(stop_.get(), stream_));
+    checkRuntime(cudaEventSynchronize(stop_.get()));
 
     float latency = 0.0F;
-    checkRuntime(cudaEventElapsedTime(&latency, start_, stop_));
+    checkRuntime(cudaEventElapsedTime(&latency, start_.get(), stop_.get()));
 
     if (print)
     {
+        constexpr std::size_t maxPrefixLength = 200;
+        int const prefixLength = static_cast<int>(std::min(prefix.size(), maxPrefixLength));
+        char const* const prefixData = prefix.empty() ? "" : prefix.data();
+
         char message[256]{};
-        std::snprintf(message, sizeof(message), "[%s]: %.3f ms", prefix, latency);
+        std::snprintf(message, sizeof(message), "[%.*s]: %.3f ms",
+            prefixLength, prefixData, latency);
         Validator::info(message);
     }
     return latency;

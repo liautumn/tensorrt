@@ -3,8 +3,9 @@
 
 #pragma once
 
-// CUDA Runtime 接口：提供 cudaEvent_t、cudaStream_t 和事件计时函数。
-#include <cuda_runtime_api.h>
+#include "cuda_raii.h"
+
+#include <string_view>
 
 namespace trt_timer
 {
@@ -14,19 +15,21 @@ class Timer
 {
 public:
     Timer();
-    ~Timer();
+    ~Timer() = default;
 
     Timer(Timer const&) = delete;
     Timer& operator=(Timer const&) = delete;
+    Timer(Timer&&) noexcept = default;
+    Timer& operator=(Timer&&) noexcept = default;
 
     // 在 stream 上记录起始事件。
     void start(cudaStream_t stream = nullptr);
     // 记录并等待结束事件，返回两个事件之间的毫秒数。
-    float stop(char const* prefix = "Timer", bool print = true);
+    [[nodiscard]] float stop(std::string_view prefix = "Timer", bool print = true);
 
 private:
-    cudaEvent_t start_{};
-    cudaEvent_t stop_{};
+    CudaEvent start_{};
+    CudaEvent stop_{};
     cudaStream_t stream_{};
 };
 

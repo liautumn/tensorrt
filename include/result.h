@@ -13,6 +13,7 @@
 // 引入 CUDA letterbox 生成的逆仿射矩阵类型。
 #include "preprocess.h"
 
+#include <span>
 // 引入 std::vector，用于保存单张图片以及全部图片的检测结果。
 #include <vector>
 
@@ -20,17 +21,17 @@
 struct Detection
 {
     // 目标框左上角的 x 坐标，已经通过 d2i 逆仿射矩阵映射到原图坐标系。
-    float x1;
+    float x1{};
     // 目标框左上角的 y 坐标，已经通过 d2i 逆仿射矩阵映射到原图坐标系。
-    float y1;
+    float y1{};
     // 目标框右下角的 x 坐标，已经通过 d2i 逆仿射矩阵映射到原图坐标系。
-    float x2;
+    float x2{};
     // 目标框右下角的 y 坐标，已经通过 d2i 逆仿射矩阵映射到原图坐标系。
-    float y2;
+    float y2{};
     // 模型给出的目标置信度，用于判断该检测框是否可信。
-    float confidence;
+    float confidence{};
     // 模型给出的类别编号，例如具体编号对应的人、车等类别由模型标签定义。
-    int classId;
+    int classId{};
 };
 
 // 一张图片的检测结果：vector 中的每个 Detection 对应一个有效目标。
@@ -45,21 +46,25 @@ using Results = std::vector<ImageResults>;
 // output：从 GPU 复制回来的本批次输出，布局为 [batchSize, maxDetections, 6]。
 // confidenceThreshold：最低置信度；小于该值的检测框不会放入返回集合。
 // 返回值：当前批次的有效结果集合；即使某张图片没有有效框，也保留对应的空集合。
-Results printBatchResults(
+[[nodiscard]] Results printBatchResults(
     Model const& model,
     Batch const& batch,
-    AffineMatrices const& affineMatrices,
-    std::vector<float> const& output,
+    std::span<AffineMatrix const> affineMatrices,
+    std::span<float const> output,
     float confidenceThreshold);
 
 // 在原图副本上绘制一张图片的全部检测框和标签。
 // image：待绘制的原始 BGR 图片，函数不会修改它。
 // results：与 image 对应的检测结果。
 // 返回值：已经画好检测框和标签的独立图片，可直接交给 cv::imshow()。
-cv::Mat drawImageResults(cv::Mat const& image, ImageResults const& results);
+[[nodiscard]] cv::Mat drawImageResults(
+    cv::Mat const& image,
+    std::span<Detection const> results);
 
 // 使用已经汇总完成的 results 绘制并显示全部推理结果。
 // images[i] 与 results[i] 必须一一对应；函数会在原图副本上画框，不会修改原始图片或检测数据。
 // 每张图片使用一个包含全局下标的独立 OpenCV 窗口，并显示类别编号和置信度。
 // 所有窗口创建完成后，函数等待用户在任意结果窗口中按键，然后统一关闭窗口。
-void showResults(Images const& images, Results const& results);
+void showResults(
+    std::span<cv::Mat const> images,
+    std::span<ImageResults const> results);

@@ -13,6 +13,7 @@
 
 // std::array 保存固定长度的 2x3 仿射矩阵。
 #include <array>
+#include <span>
 // std::vector 保存当前批次每张图片对应的仿射矩阵。
 #include <vector>
 
@@ -35,7 +36,7 @@ using AffineMatrices = std::vector<AffineMatrix>;
 // batch：指定本轮的起始下标和实际图片数，size 不能超过 Engine 的 max batch。
 // 返回值：与当前 batch 等长，元素顺序和 batch 内图片顺序完全一致。
 // 时序：H2D 使用 cudaMemcpyAsync 提交，但函数返回前会同步 model.stream。
-AffineMatrices preprocessBatchToGpu(
+[[nodiscard]] AffineMatrices preprocessBatchToGpu(
     Model& model,
-    Images const& images,
+    std::span<cv::Mat const> images,
     Batch const& batch);

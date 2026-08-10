@@ -30,10 +30,10 @@ void setBatchSize(Model& model, int batchSize)
 void infer(Model& model)
 {
     // enqueueV3 把一次模型执行提交到指定 CUDA stream；返回 false 表示提交失败。
-    Assertf(model.context->enqueueV3(model.stream), "TensorRT enqueueV3 failed");
+    Assertf(model.context->enqueueV3(model.stream.get()), "TensorRT enqueueV3 failed");
     // 等待这个 stream 中已提交的工作完成，使当前接口表现为同步推理。
     // 同步完成后，model.outputDevice 中才是本轮可读取的完整输出。
-    checkRuntime(cudaStreamSynchronize(model.stream));
+    checkRuntime(cudaStreamSynchronize(model.stream.get()));
 }
 
 // 把当前批次的推理结果从 GPU 输出显存复制到 CPU，并作为 vector 返回。
@@ -56,7 +56,7 @@ std::vector<float> copyToCpu(Model const& model, int batchSize)
         // 目标地址：CPU 端 vector 的首元素地址。
         output.data(),
         // 源地址：初始化模型时为输出张量申请的 GPU 显存。
-        model.outputDevice,
+        model.outputDevice.get(),
         // 复制字节数：输出 float 元素数量乘以一个 float 的字节数。
         output.size() * sizeof(float),
         // 复制方向：从 GPU Device 复制到 CPU Host。
