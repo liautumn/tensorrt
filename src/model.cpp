@@ -10,7 +10,6 @@
 #include <ostream>
 #include <sstream>
 #include <string_view>
-#include <utility>
 
 // 集中使用 Assertf、checkRuntime、模型契约校验和文件日志。
 #include "validator.h"
@@ -159,39 +158,29 @@ void printModelIo(nvinfer1::ICudaEngine const& engine)
 
 Model::~Model() noexcept
 {
+    reset();
+}
+
+void Model::reset() noexcept
+{
     synchronizeCudaStreamNoexcept(stream.get());
-}
+    context.reset();
+    preprocessDevice.reset();
+    preprocessHost.reset();
+    outputDevice.reset();
+    inputDevice.reset();
+    stream.reset();
+    engine.reset();
+    runtime.reset();
 
-Model& Model::operator=(Model&& other) noexcept
-{
-    if (this != &other)
-    {
-        Model moved(std::move(other));
-        swap(moved);
-    }
-    return *this;
-}
-
-void Model::swap(Model& other) noexcept
-{
-    using std::swap;
-
-    swap(runtime, other.runtime);
-    swap(engine, other.engine);
-    swap(stream, other.stream);
-    swap(inputDevice, other.inputDevice);
-    swap(outputDevice, other.outputDevice);
-    swap(preprocessHost, other.preprocessHost);
-    swap(preprocessDevice, other.preprocessDevice);
-    swap(context, other.context);
-    swap(preprocessCapacity, other.preprocessCapacity);
-    swap(inputName, other.inputName);
-    swap(outputName, other.outputName);
-    swap(inputShape, other.inputShape);
-    swap(inputHeight, other.inputHeight);
-    swap(inputWidth, other.inputWidth);
-    swap(maxBatch, other.maxBatch);
-    swap(maxDetections, other.maxDetections);
+    preprocessCapacity = 0;
+    inputName.clear();
+    outputName.clear();
+    inputShape = {};
+    inputHeight = 0;
+    inputWidth = 0;
+    maxBatch = 0;
+    maxDetections = 0;
 }
 
 // 读取指定路径的 TensorRT Engine 二进制文件。
@@ -221,11 +210,10 @@ EngineData readEngine(std::filesystem::path const& enginePath)
 
 // 把 Engine 二进制数据初始化成可执行、可重复使用的 TensorRT 模型。
 // 参数 engineData：Engine 文件的完整字节内容，只读传入。
-// 返回值：持有 TensorRT 对象、CUDA 流、输入输出显存及模型尺寸信息的 Model。
-Model initModel(std::span<char const> const engineData)
+// 参数 model：要初始化的模型；函数会先释放其中已有的模型资源。
+void initModel(Model& model, std::span<char const> const engineData)
 {
-    // 创建一个字段均为默认初始值的 Model，随后逐项填充所需资源和尺寸。
-    Model model;
+    model.reset();
     Assertf(!engineData.empty(), "TensorRT engine data is empty");
     // 提前触发 CUDA Runtime 初始化，驱动或设备不可用时在反序列化模型前报告。
     checkRuntime(cudaFree(nullptr));
@@ -295,6 +283,4 @@ Model initModel(std::span<char const> const engineData)
     // 将输出张量名称绑定到输出显存，enqueueV3 时 TensorRT 会把检测结果写到该地址。
     Assertf(model.context->setTensorAddress(model.outputName.c_str(), model.outputDevice.get()),
         "Failed to bind output tensor '%s'", model.outputName.c_str());
-    // 返回初始化完成的模型；调用者可重复使用其中的 context、流和显存执行多轮推理。
-    return model;
 }

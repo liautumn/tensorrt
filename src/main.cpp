@@ -235,10 +235,11 @@ int main()
     [[maybe_unused]] std::filesystem::path const videoPath
         = R"(/home/autumn/CLionProjects/tensorrt/model/test.mp4)";
     std::filesystem::path const imageDirectory = R"(/home/autumn/CLionProjects/tensorrt/model)";
-    float const confidenceThreshold = 0.25F;
+    constexpr float confidenceThreshold = 0.25F;
 
     EngineData engineData = readEngine(enginePath);
-    Model model = initModel(engineData);
+    Model model;
+    initModel(model, engineData);
 
     // detectVideo(model, videoPath, confidenceThreshold);
     detectImageDirectory(model, imageDirectory, confidenceThreshold);

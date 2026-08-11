@@ -8,7 +8,6 @@
 #include <NvInfer.h>
 
 #include <cstddef>
-#include <concepts>
 #include <filesystem>
 #include <memory>
 #include <span>
@@ -25,14 +24,10 @@ struct Model
 
     Model(Model const&) = delete;
     Model& operator=(Model const&) = delete;
-    Model(Model&&) noexcept = default;
-    Model& operator=(Model&& other) noexcept;
+    Model(Model&&) = delete;
+    Model& operator=(Model&&) = delete;
 
-    void swap(Model& other) noexcept;
-    friend void swap(Model& left, Model& right) noexcept
-    {
-        left.swap(right);
-    }
+    void reset() noexcept;
 
     std::unique_ptr<nvinfer1::IRuntime> runtime{};
     std::unique_ptr<nvinfer1::ICudaEngine> engine{};
@@ -53,8 +48,5 @@ struct Model
     int maxDetections{};
 };
 
-static_assert(std::movable<Model>);
-static_assert(!std::copyable<Model>);
-
 [[nodiscard]] EngineData readEngine(std::filesystem::path const& enginePath);
-[[nodiscard]] Model initModel(std::span<char const> engineData);
+void initModel(Model& model, std::span<char const> engineData);
