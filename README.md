@@ -11,7 +11,9 @@
 
 ## C++20 与资源所有权
 
-项目同时以 C++20 和 CUDA C++20 编译。`Model` 是不可复制、可移动的 RAII 类型：
+项目同时以 C++20 和 CUDA C++20 编译。`Model` 是不可复制、不可移动的 RAII 类型，通过
+`Model&` 显式传给初始化、预处理、推理和后处理函数。`initModel(model, engineData)` 会先
+释放该实例已有的模型资源，再加载新 Engine，因此也可以分别初始化和使用多个 `Model` 实例。
 TensorRT runtime、engine、execution context，以及 CUDA stream、event、device memory 和
 pinned memory 都由 `std::unique_ptr` 与对应 deleter 管理。正常退出或初始化、推理过程中抛出
 异常时，资源都会按依赖顺序自动释放，不需要手动调用清理函数。
