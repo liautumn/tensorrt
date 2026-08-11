@@ -16,8 +16,7 @@
 释放该实例已有的模型资源，再加载新 Engine，因此也可以分别初始化和使用多个 `Model` 实例。
 TensorRT runtime、engine、execution context，以及 CUDA stream、event、device memory 和
 pinned memory 都由 `std::unique_ptr` 与对应 deleter 管理。正常退出或初始化、推理过程中抛出
-异常时，资源都会按依赖顺序自动释放，不需要手动调用清理函数；但 worker 线程中的异常若
-未捕获会触发 `std::terminate`，不会走正常的错误汇总流程。
+异常时，资源都会按依赖顺序自动释放，不需要手动调用清理函数。
 
 只读连续数据接口使用 `std::span` 表达非拥有关系，路径使用 `std::filesystem::path`；实现中
 同时使用 ranges、指定初始化器、`[[nodiscard]]` 和 `constexpr` 等现代 C++ 写法。
@@ -28,23 +27,20 @@ pinned memory 都由 `std::unique_ptr` 与对应 deleter 管理。正常退出�
 `modelA` 和 `modelB`。在实际部署中，两个实例也可以分别读取各自的 Engine plan；无论
 plan 是否相同，每次 `initModel()` 反序列化都会创建自己的 TensorRT `IRuntime`、
 `ICudaEngine` 和 `IExecutionContext`，并分配自己的 CUDA stream、输入/输出显存以及
-pinned/device 预处理 workspace。因此两个 worker 不会共享 TensorRT context、workspace
+pinned/device 预处理 workspace。因此两个实例不会共享 TensorRT context、workspace
 或 I/O 缓冲区，`modelA` 的 batch/shape 状态也不会改写 `modelB`。
 
 隔离是“同一进程内的对象所有权隔离”，不是进程级沙箱或 GPU 资源配额。两个实例仍共享
 当前 CUDA device/primary context、GPU 显存与算力、TensorRT/CUDA 驱动，以及进程级日志和
-OpenCV HighGUI 后端。显存压力会累加；代码通过 `Model.deviceId` 在初始化和每个 worker
-入口显式调用 `cudaSetDevice`。默认 `modelADevice/modelBDevice` 都是 0；有第二张 GPU
+OpenCV HighGUI 后端。显存压力会累加；代码通过 `Model.deviceId` 在初始化和每次推理入口
+显式调用 `cudaSetDevice`。默认 `modelADevice/modelBDevice` 都是 0；有第二张 GPU
 时可将后者改为 1，并让对应模型始终固定在该设备上。
 
-每个 worker 的一轮调用都遵循“设置 batch -> 预处理 -> `enqueueV3` -> D2H -> 后处理”。
-预处理和推理会同步自己的 stream，所以同一个 `Model` 不能被多个线程同时调用；两个不同
-实例的独立 stream 可以由 GPU 调度器重叠执行，但会竞争同一块 GPU 的资源。`std::jthread`
-在析构时等待 worker 结束，随后 `Model` 的 RAII 清理才会同步 stream 并释放资源。
+每次模型调用都遵循“设置 batch -> 预处理 -> `enqueueV3` -> D2H -> 后处理”。预处理和推理
+会同步自己的 stream；两个模型在主线程中顺序执行，不会并发访问 HighGUI。
 
-示例中的两个 worker 会分别打开同一个视频文件，各自解码和维护帧计数；它们不是把同一帧
-广播给两个模型，帧进度也不保证同步。若要实现同帧多模型 ensemble，需要在上游共享解码帧，
-再为每个模型复制只读视图，并额外设计结果汇聚和停止控制。
+视频模式会依次打开同一个视频文件两次，分别交给 `modelA` 和 `modelB` 处理。这样实现简单，
+但两个模型不会同时显示；若要让它们共享同一帧并行推理，需要额外设计帧共享和结果汇聚。
 
 ```mermaid
 flowchart LR
@@ -56,33 +52,27 @@ flowchart LR
     subgraph Process[同一进程]
         subgraph LaneA[Model A：独占运行态]
             InitA --> AState[Runtime A / Engine A / Context A<br/>Stream A + Input/Output A<br/>Pinned/Device workspace A]
-            AState --> AWorker[worker t1<br/>预处理 -> enqueueV3 -> D2H -> 后处理]
+            AState --> ARun[主线程调用 A<br/>预处理 -> enqueueV3 -> D2H -> 后处理]
         end
         subgraph LaneB[Model B：独占运行态]
             InitB --> BState[Runtime B / Engine B / Context B<br/>Stream B + Input/Output B<br/>Pinned/Device workspace B]
-            BState --> BWorker[worker t2<br/>预处理 -> enqueueV3 -> D2H -> 后处理]
+            BState --> BRun[主线程调用 B<br/>预处理 -> enqueueV3 -> D2H -> 后处理]
         end
-        AWorker -. "独立 stream，可并行" .-> GPU[同一 CUDA device<br/>GPU 调度 / 显存 / 算力：共享竞争]
-        BWorker -. "独立 stream，可并行" .-> GPU
-        AWorker --> Shared[stdout / daily log / HighGUI<br/>进程级共享边界]
-        BWorker --> Shared
+        ARun --> Shared[stdout / daily log / HighGUI<br/>进程级共享边界]
+        BRun --> Shared
     end
 
-    AWorker --> Join[jthread join]
-    BWorker --> Join
-    Join --> ReleaseA[reset modelA<br/>同步 Stream A -> 释放 A 的 context、显存、stream、engine、runtime]
-    Join --> ReleaseB[reset modelB<br/>同步 Stream B -> 释放 B 的 context、显存、stream、engine、runtime]
+    ARun --> ReleaseA[reset modelA<br/>同步 Stream A -> 释放 A 的 context、显存、stream、engine、runtime]
+    BRun --> ReleaseB[reset modelB<br/>同步 Stream B -> 释放 B 的 context、显存、stream、engine、runtime]
 ```
 
-图中“独占”只表示 `Model` 对象的逻辑所有权；GPU、日志和 GUI 仍是共享边界。日志现在会
-自动添加 `[modelA]`/`[modelB]` 标签，但为避免推理线程等待，控制台和文件写入不加互斥，
-高并发时行间可能交错。HighGUI 是 OpenCV 的窗口和事件模块（`namedWindow`、`imshow`、
-`waitKey` 等）；其后端通常要求由单一 UI 线程处理事件。当前视频示例仍由 worker 刷新窗口，
-生产代码应让 worker 只产出帧，由 UI 线程统一显示和处理按键。
+图中“独占”只表示 `Model` 对象的逻辑所有权；GPU、日志和 GUI 仍是共享边界。HighGUI 是
+OpenCV 的窗口和事件模块（`namedWindow`、`imshow`、`waitKey` 等），当前所有窗口调用都在
+主线程中顺序执行。
 
 目录模式通过 `runVideo = false` 依次调用 `detectImageDirectory(modelA, ...)` 和
-`detectImageDirectory(modelB, ...)`，窗口名也会带模型前缀。依次显示是为了避免两个线程
-同时驱动 HighGUI；视频模式才使用两个 worker 并行推理。
+`detectImageDirectory(modelB, ...)`，窗口名也会带模型前缀。目录和视频模式都按模型顺序执行，
+不会同时驱动 HighGUI。
 
 如果需要真正的硬隔离，不能只在当前进程里增加 `Model` 实例；应把模型拆到不同进程，分别
 绑定独立 GPU、MIG 实例或外部显存/资源配额。当前实现提供的是同一进程内的逻辑隔离。
@@ -130,9 +120,8 @@ BGR 到 RGB 和 `1/255` 归一化，并直接写入 FP32 NCHW 输入显存。后
 
 图片目录模式在所有图片处理完成后为每张图片创建一个结果窗口。框和 `class`、`score` 标签
 直接来自 `results[i]`，绘制发生在原图副本上，不会修改原始图片或检测数据。在任意结果窗口
-按键后，目录模式会关闭该显示阶段创建的全部窗口并返回。视频模式则由每个 worker 自己刷新
-窗口；按键只结束当前 worker，另一个 worker 不会自动停止。绘制、窗口刷新和按键等待均位于
-耗时统计之外。
+按键后，目录模式会关闭该显示阶段创建的全部窗口并返回。视频模式由主线程刷新当前模型窗口；
+按键结束当前模型的视频循环。绘制、窗口刷新和按键等待均位于耗时统计之外。
 
 `main()` 只负责拼装：
 
@@ -145,13 +134,13 @@ BGR 到 RGB 和 `1/255` 归一化，并直接写入 FP32 NCHW 输入显存。后
 - `printBatchResults` / `showResults`：`src/result.cpp`
 
 在 CLion 中点击 `main()` 里的函数名即可跳到对应流程。图片目录路径仍由
-`detectImageDirectory()` 按批次串行处理；当前默认入口则创建两个 `std::jthread`，分别
-对同一个视频文件使用 `modelA` 和 `modelB`。H2D 虽通过各自 CUDA stream 异步提交，但
-预处理和推理函数返回前都会同步该实例的 stream，因此当前没有同一实例内的跨批次流水线。
-`main()` 返回时，`jthread` 先等待 worker，再由 `Model` 自动释放全部 TensorRT 和 CUDA 资源。
+`detectImageDirectory()` 按批次串行处理；当前默认入口依次对同一个视频文件使用 `modelA`
+和 `modelB`。H2D 虽通过各自 CUDA stream 异步提交，但预处理和推理函数返回前都会同步该
+实例的 stream，因此当前没有同一实例内的跨批次流水线。`main()` 返回时，`Model` 自动释放
+全部 TensorRT 和 CUDA 资源。
 
 图片目录模式会把各批次结果按输入顺序追加到 `results`，因此 `results[i]` 始终与
-`images[i]` 一一对应；视频模式则在每个 worker 内即时显示当前帧。
+`images[i]` 一一对应；视频模式则在主线程内即时显示当前帧。
 
 # Linux 环境配置
 

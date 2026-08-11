@@ -11,7 +11,7 @@
 // batchSize 是当前批次的图片数，例如 10 张图按最大 batch 4 拆分时依次为 4、4、2。
 void setBatchSize(Model& model, int batchSize)
 {
-    // 该函数会修改传入实例的 context 和 inputShape，因此不能并发操作同一个 Model。
+    // 该函数会修改传入实例的 context 和 inputShape，因此按顺序操作该 Model。
     // 防止把 profile 范围外的 batch 写入 context。
     Assertf(batchSize > 0 && batchSize <= model.maxBatch,
         "Batch size %d is outside [1,%d]", batchSize, model.maxBatch);

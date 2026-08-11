@@ -87,7 +87,7 @@ CudaStream createCudaStream()
 
 CudaEvent createCudaEvent()
 {
-    // 每个 Timer 创建一对事件，事件本身不跨 worker 共享。
+    // 每个 Timer 创建一对独立事件。
     cudaEvent_t event{};
     checkRuntime(cudaEventCreate(&event));
     return CudaEvent{event};
@@ -100,7 +100,7 @@ void selectCudaDevice(int const deviceId)
     checkRuntime(cudaGetDeviceCount(&deviceCount));
     Assertf(deviceId >= 0 && deviceId < deviceCount,
         "CUDA device %d is outside [0,%d)", deviceId, deviceCount);
-    // CUDA 的当前 device 是线程局部状态，初始化线程和每个 worker 都必须显式设置。
+    // CUDA 的当前 device 由当前调用显式设置。
     checkRuntime(cudaSetDevice(deviceId));
 }
 

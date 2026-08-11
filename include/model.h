@@ -29,12 +29,12 @@ struct Model
     // 句柄和显存属于唯一 owner，禁止复制以避免 double free 或共享可变 context。
     Model(Model const&) = delete;
     Model& operator=(Model const&) = delete;
-    // 线程入口捕获 Model&，禁止移动以避免已绑定地址的运行态失去所有者。
+    // 禁止移动，避免已绑定地址的运行态失去所有者。
     Model(Model&&) = delete;
     Model& operator=(Model&&) = delete;
 
     // 本项目把 context、workspace、buffer 和 stream 作为一个复合运行态；同一实例应由
-    // 一个 worker 按顺序使用。需要并发推理时应创建多个 Model 实例，各自传递 Model&。
+    // 一个调用流程按顺序使用。
     void reset() noexcept;
 
     // 该实例的日志和窗口标签，例如 modelA；由 initModel() 设置。
@@ -80,7 +80,7 @@ struct Model
 [[nodiscard]] EngineData readEngine(std::filesystem::path const& enginePath);
 // 用只读 plan 字节初始化一个 Model；函数会先 reset 旧实例，再创建该实例的完整运行态。
 // 同一份 engineData 可以顺序传给多个 Model，但每次调用都会独立反序列化和分配资源。
-// modelName 会成为该实例及其 worker 日志的前缀；deviceId 会在资源创建前绑定。
+// modelName 会成为该实例日志的前缀；deviceId 会在资源创建前绑定。
 void initModel(
     Model& model,
     std::span<char const> engineData,

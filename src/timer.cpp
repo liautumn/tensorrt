@@ -19,7 +19,7 @@ Timer::Timer()
     : start_(createCudaEvent())
     , stop_(createCudaEvent())
 {
-    // 两个事件在构造线程的当前 CUDA device 上创建，后续应绑定同一设备的 Model stream。
+    // 两个事件在创建时的当前 CUDA device 上创建，后续应绑定同一设备的 Model stream。
 }
 
 void Timer::start(cudaStream_t stream)

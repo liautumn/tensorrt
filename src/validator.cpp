@@ -63,7 +63,7 @@ std::tm localTime(std::time_t value)
     return result;
 }
 
-// 无锁写入每日文件；高频日志不会在这里等待其他 worker。
+// 无锁写入每日文件；高频日志不会在这里等待其他调用。
 void writeDailyLog(
     char const* level,
     std::string_view label,
@@ -96,7 +96,7 @@ void writeDailyLog(
     }
 }
 
-// 添加线程局部标签后直接输出；不加互斥，多个 worker 的日志行可能交错。
+// 添加线程局部标签后直接输出；不加互斥时日志行可能交错。
 void writeLogLine(
     FILE* console,
     char const* level,
@@ -168,13 +168,13 @@ void checkInputShape(nvinfer1::Dims const& shape, char const* selector)
 LogContext::LogContext(std::string_view const label) noexcept
     : previous_(threadLogLabel)
 {
-    // 只替换当前线程的非拥有视图，不分配内存，也不影响其他 worker 的标签。
+    // 只替换当前执行上下文的非拥有视图，不分配内存。
     threadLogLabel = label.empty() ? std::string_view{"app"} : label;
 }
 
 LogContext::~LogContext() noexcept
 {
-    // 恢复进入作用域前的标签，支持初始化和 worker 中的嵌套日志上下文。
+    // 恢复进入作用域前的标签，支持嵌套日志上下文。
     threadLogLabel = previous_;
 }
 
