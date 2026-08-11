@@ -11,6 +11,7 @@
 // batchSize 是当前批次的图片数，例如 10 张图按最大 batch 4 拆分时依次为 4、4、2。
 void setBatchSize(Model& model, int batchSize)
 {
+    // 该函数会修改传入实例的 context 和 inputShape，因此不能并发操作同一个 Model。
     // 防止把 profile 范围外的 batch 写入 context。
     Assertf(batchSize > 0 && batchSize <= model.maxBatch,
         "Batch size %d is outside [1,%d]", batchSize, model.maxBatch);
@@ -29,6 +30,7 @@ void setBatchSize(Model& model, int batchSize)
 // model 中的 context 必须已经设置本轮 batch，输入显存中也必须已有预处理数据。
 void infer(Model& model)
 {
+    // enqueueV3 使用该实例已经绑定的 input/output 地址和专属 stream。
     // enqueueV3 把一次模型执行提交到指定 CUDA stream；返回 false 表示提交失败。
     Assertf(model.context->enqueueV3(model.stream.get()), "TensorRT enqueueV3 failed");
     // 等待这个 stream 中已提交的工作完成，使当前接口表现为同步推理。

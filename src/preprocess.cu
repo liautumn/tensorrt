@@ -92,6 +92,7 @@ AffineMatrix makeAffineMatrix(int sourceWidth, int sourceHeight, int destination
 // 两块内存始终使用相同容量与布局，并在后续批次复用，避免每轮 cudaMalloc/cudaFree。
 void ensureWorkspaceCapacity(Model& model, std::size_t requiredBytes)
 {
+    // workspace 属于传入的 Model；调用方必须保证同一实例没有并发预处理。
     // 已有容量足够时直接复用，不进行任何分配或释放。
     if (model.preprocessCapacity >= requiredBytes)
     {

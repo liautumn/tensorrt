@@ -10,6 +10,7 @@
 #include <ostream>
 #include <sstream>
 #include <string_view>
+#include <utility>
 
 // 集中使用 Assertf、checkRuntime、模型契约校验和文件日志。
 #include "validator.h"
@@ -163,17 +164,29 @@ Model::~Model() noexcept
 
 void Model::reset() noexcept
 {
-    synchronizeCudaStreamNoexcept(stream.get());
-    context.reset();
-    preprocessDevice.reset();
-    preprocessHost.reset();
-    outputDevice.reset();
-    inputDevice.reset();
-    stream.reset();
-    engine.reset();
-    runtime.reset();
+    {
+        // 清理日志沿用该实例的标签；空壳 Model 使用通用 app 标签。
+        LogContext logContext(name.empty() ? std::string_view{"app"} : std::string_view{name});
+        // CUDA device 是线程局部状态，释放前切回资源创建时的 device。
+        selectCudaDeviceNoexcept(deviceId);
+        // 先等待本实例唯一的 stream，确保 kernel、TensorRT enqueue 和异步拷贝都已结束；
+        // 随后才能安全释放 context 依赖的显存和 workspace。Model 之间不会等待彼此的 stream。
+        synchronizeCudaStreamNoexcept(stream.get());
+        // 按“使用者先于被使用资源”逆序销毁：context -> buffers -> stream -> engine -> runtime。
+        context.reset();
+        preprocessDevice.reset();
+        preprocessHost.reset();
+        outputDevice.reset();
+        inputDevice.reset();
+        stream.reset();
+        engine.reset();
+        runtime.reset();
+    }
 
+    // 资源释放后清空派生容量和描述信息，避免复用对象时残留上一次模型状态。
     preprocessCapacity = 0;
+    name.clear();
+    deviceId = -1;
     inputName.clear();
     outputName.clear();
     inputShape = {};
@@ -211,10 +224,25 @@ EngineData readEngine(std::filesystem::path const& enginePath)
 // 把 Engine 二进制数据初始化成可执行、可重复使用的 TensorRT 模型。
 // 参数 engineData：Engine 文件的完整字节内容，只读传入。
 // 参数 model：要初始化的模型；函数会先释放其中已有的模型资源。
-void initModel(Model& model, std::span<char const> const engineData)
+// 参数 modelName/deviceId：该实例的日志标签和 CUDA 设备编号。
+void initModel(
+    Model& model,
+    std::span<char const> const engineData,
+    std::string_view const modelName,
+    int const deviceId)
 {
+    // 先复制名称，保证后续异常路径中的 Model 标签拥有稳定存储。
+    std::string requestedName(modelName);
+    Assertf(!requestedName.empty(), "Model name must not be empty");
     model.reset();
     Assertf(!engineData.empty(), "TensorRT engine data is empty");
+    // 先把标签保存到 Model，再让 LogContext 借用稳定的成员存储。
+    model.name = std::move(requestedName);
+    model.deviceId = deviceId;
+    // 初始化过程中的 TensorRT/CUDA 日志都标记为目标实例。
+    LogContext logContext(model.name);
+    // 在创建 runtime、stream 和显存前固定当前线程的目标 CUDA device。
+    selectCudaDevice(deviceId);
     // 提前触发 CUDA Runtime 初始化，驱动或设备不可用时在反序列化模型前报告。
     checkRuntime(cudaFree(nullptr));
     // 使用本文件的 logger 创建 TensorRT Runtime；Runtime 负责反序列化 Engine。

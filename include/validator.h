@@ -17,6 +17,22 @@
 #include <string>
 #include <string_view>
 
+// 为当前线程的日志设置模型标签；标签只借用调用方保证有效的字符串存储。
+class LogContext final
+{
+public:
+    explicit LogContext(std::string_view label) noexcept;
+    ~LogContext() noexcept;
+
+    LogContext(LogContext const&) = delete;
+    LogContext& operator=(LogContext const&) = delete;
+    LogContext(LogContext&&) = delete;
+    LogContext& operator=(LogContext&&) = delete;
+
+private:
+    std::string_view previous_{};
+};
+
 // 集中保存项目使用的 CUDA、普通条件和模型契约校验，不持有业务状态。
 class Validator final
 {

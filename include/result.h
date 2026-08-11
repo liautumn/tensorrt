@@ -14,6 +14,7 @@
 #include "preprocess.h"
 
 #include <span>
+#include <string_view>
 // 引入 std::vector，用于保存单张图片以及全部图片的检测结果。
 #include <vector>
 
@@ -63,8 +64,9 @@ using Results = std::vector<ImageResults>;
 
 // 使用已经汇总完成的 results 绘制并显示全部推理结果。
 // images[i] 与 results[i] 必须一一对应；函数会在原图副本上画框，不会修改原始图片或检测数据。
-// 每张图片使用一个包含全局下标的独立 OpenCV 窗口，并显示类别编号和置信度。
+// 每张图片使用一个包含 windowPrefix 和全局下标的独立 OpenCV 窗口，并显示类别编号和置信度。
 // 所有窗口创建完成后，函数等待用户在任意结果窗口中按键，然后统一关闭窗口。
 void showResults(
     std::span<cv::Mat const> images,
-    std::span<ImageResults const> results);
+    std::span<ImageResults const> results,
+    std::string_view windowPrefix = {});

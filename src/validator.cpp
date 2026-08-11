@@ -12,7 +12,6 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
-#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -26,6 +25,9 @@
 
 namespace
 {
+
+// 每个线程只保存一个非拥有标签；Model.name 在对应线程结束前始终有效。
+thread_local std::string_view threadLogLabel = "app";
 
 // 返回当前可执行文件所在目录；日志位置不依赖进程的工作目录。
 std::filesystem::path executableDirectory()
@@ -61,14 +63,14 @@ std::tm localTime(std::time_t value)
     return result;
 }
 
-// 每次写日志都重新计算日期，跨过零点后会自动切换到新的 yyyy-MM-dd.log。
-void writeDailyLog(char const* level, std::string_view message) noexcept
+// 无锁写入每日文件；高频日志不会在这里等待其他 worker。
+void writeDailyLog(
+    char const* level,
+    std::string_view label,
+    std::string_view message) noexcept
 {
     try
     {
-        static std::mutex mutex;
-        std::lock_guard<std::mutex> lock(mutex);
-
         auto const now = std::chrono::system_clock::now();
         std::time_t const time = std::chrono::system_clock::to_time_t(now);
         std::tm const local = localTime(time);
@@ -84,8 +86,37 @@ void writeDailyLog(char const* level, std::string_view message) noexcept
         std::ofstream output(directory / (std::string(date) + ".log"), std::ios::app);
         if (output)
         {
-            output << timestamp << " [" << level << "] " << message << '\n';
+            output << timestamp << " [" << level << "] [" << label << "] "
+                   << message << '\n';
         }
+    }
+    catch (...)
+    {
+        // 日志失败不能覆盖真正需要报告的模型或 CUDA 错误。
+    }
+}
+
+// 添加线程局部标签后直接输出；不加互斥，多个 worker 的日志行可能交错。
+void writeLogLine(
+    FILE* console,
+    char const* level,
+    std::string_view message) noexcept
+{
+    try
+    {
+        std::fwrite("[", sizeof(char), 1, console);
+        if (!threadLogLabel.empty())
+        {
+            std::fwrite(threadLogLabel.data(), sizeof(char), threadLogLabel.size(), console);
+        }
+        std::fwrite("] ", sizeof(char), 2, console);
+        if (!message.empty())
+        {
+            std::fwrite(message.data(), sizeof(char), message.size(), console);
+        }
+        std::fputc('\n', console);
+
+        writeDailyLog(level, threadLogLabel, message);
     }
     catch (...)
     {
@@ -133,6 +164,19 @@ void checkInputShape(nvinfer1::Dims const& shape, char const* selector)
 }
 
 } // namespace
+
+LogContext::LogContext(std::string_view const label) noexcept
+    : previous_(threadLogLabel)
+{
+    // 只替换当前线程的非拥有视图，不分配内存，也不影响其他 worker 的标签。
+    threadLogLabel = label.empty() ? std::string_view{"app"} : label;
+}
+
+LogContext::~LogContext() noexcept
+{
+    // 恢复进入作用域前的标签，支持初始化和 worker 中的嵌套日志上下文。
+    threadLogLabel = previous_;
+}
 
 // CUDA 失败统一记录 API、错误名称、说明和数值错误码，然后抛出异常。
 void Validator::checkCuda(
@@ -191,22 +235,14 @@ void Validator::assertionf(
 // 日志入口使用 string_view，TensorRT noexcept 回调和析构路径无需构造临时字符串。
 void Validator::log(std::string_view message) noexcept
 {
-    if (!message.empty())
-    {
-        std::fwrite(message.data(), sizeof(char), message.size(), stderr);
-    }
-    std::fputc('\n', stderr);
-    writeDailyLog("ERROR", message);
+    // 错误输出走 stderr；writeLogLine 负责添加当前线程的模型标签。
+    writeLogLine(stderr, "ERROR", message);
 }
 
 void Validator::info(std::string_view message) noexcept
 {
-    if (!message.empty())
-    {
-        std::fwrite(message.data(), sizeof(char), message.size(), stdout);
-    }
-    std::fputc('\n', stdout);
-    writeDailyLog("INFO", message);
+    // 普通信息输出走 stdout；高频路径不等待日志锁，行间交错属于已知取舍。
+    writeLogLine(stdout, "INFO", message);
 }
 
 // 校验 Engine 与当前 FP32 NCHW 输入、线性 Device I/O 和 YOLO 输出解析方式兼容。

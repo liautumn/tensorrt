@@ -15,8 +15,6 @@
 #include <cmath>
 // std::fixed 和 std::setprecision() 用于把标签置信度固定显示为两位小数。
 #include <iomanip>
-// std::cout 用于窗口等待提示；检测结果改由 Validator 同时输出到控制台和日志。
-#include <iostream>
 // std::numeric_limits 用于确认模型给出的浮点类别编号可以安全转换为 int。
 #include <limits>
 // std::ostringstream 用于拼接类别编号和置信度标签。
@@ -244,7 +242,8 @@ cv::Mat drawImageResults(
 // 从汇总后的 results 获取检测数据，在原图副本上绘制并通过 OpenCV 窗口显示。
 void showResults(
     std::span<cv::Mat const> const images,
-    std::span<ImageResults const> const results)
+    std::span<ImageResults const> const results,
+    std::string_view const windowPrefix)
 {
     // main() 按批次顺序把 batchResults 追加到 results，因此两者正常情况下长度相同。
     // 若长度不一致，继续按下标访问会导致图片与结果错配，必须立即报告错误。
@@ -262,8 +261,13 @@ void showResults(
         // 绘制接口返回独立像素缓冲区，不会污染 images 中保存的原始 BGR 图片。
         cv::Mat displayImage = drawImageResults(images[imageIndex], results[imageIndex]);
 
-        // 全局图片下标保证多批次、多图片情况下每个窗口名称都唯一。
-        std::string const windowName = "result " + std::to_string(imageIndex);
+        // 模型前缀和全局图片下标共同保证多模型窗口名称唯一。
+        std::string windowName(windowPrefix);
+        if (!windowName.empty())
+        {
+            windowName += ' ';
+        }
+        windowName += "result " + std::to_string(imageIndex);
         // WINDOW_NORMAL 允许用户调整窗口大小，OpenCV 会同步缩放显示内容。
         cv::namedWindow(windowName, cv::WINDOW_NORMAL);
         // imshow() 只提交待显示图片；后面的 waitKey() 负责处理窗口刷新和键盘事件。
@@ -271,7 +275,7 @@ void showResults(
     }
 
     // 所有推理与计时都已结束后才进入这里，因此等待键盘不会计入任何 timing 字段。
-    std::cout << "\nPress any key in an OpenCV result window to close all windows.\n";
+    Validator::info("Press any key in an OpenCV result window to close all windows.");
     // 0 表示一直等待；用户在任意结果窗口按键后返回。
     cv::waitKey(0);
     // 统一销毁本函数创建的全部结果窗口，避免窗口资源一直保留到进程退出。
