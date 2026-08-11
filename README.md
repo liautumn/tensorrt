@@ -24,12 +24,12 @@ pinned memory 都由 `std::unique_ptr` 与对应 deleter 管理。正常退出�
 
 ## 多模型运行与隔离边界
 
-当前 `main()` 读取一次 Engine plan，然后用同一份只读 `EngineData` 初始化 `modelA` 和
-`modelB`。`EngineData` 只在初始化阶段被两个 `initModel()` 顺序读取；每次反序列化都会
-创建自己的 TensorRT `IRuntime`、`ICudaEngine` 和 `IExecutionContext`，并分配自己的
-CUDA stream、输入/输出显存以及 pinned/device 预处理 workspace。因此两个 worker 不会
-共享 TensorRT context、workspace 或 I/O 缓冲区，`modelA` 的 batch/shape 状态也不会改写
-`modelB`。
+当前 `main()` 为便于测试只读取一次 Engine plan，然后用同一份只读 `EngineData` 初始化
+`modelA` 和 `modelB`。在实际部署中，两个实例也可以分别读取各自的 Engine plan；无论
+plan 是否相同，每次 `initModel()` 反序列化都会创建自己的 TensorRT `IRuntime`、
+`ICudaEngine` 和 `IExecutionContext`，并分配自己的 CUDA stream、输入/输出显存以及
+pinned/device 预处理 workspace。因此两个 worker 不会共享 TensorRT context、workspace
+或 I/O 缓冲区，`modelA` 的 batch/shape 状态也不会改写 `modelB`。
 
 隔离是“同一进程内的对象所有权隔离”，不是进程级沙箱或 GPU 资源配额。两个实例仍共享
 当前 CUDA device/primary context、GPU 显存与算力、TensorRT/CUDA 驱动，以及进程级日志和
@@ -48,9 +48,10 @@ OpenCV HighGUI 后端。显存压力会累加；代码通过 `Model.deviceId` �
 
 ```mermaid
 flowchart LR
-    Plan[Engine plan 文件] --> Data[readEngine<br/>EngineData：只读字节]
-    Data --> InitA[initModel A]
-    Data --> InitB[initModel B]
+    PlanA[Model A<br/>Engine plan 文件] --> DataA[readEngine A<br/>EngineData A：只读字节]
+    PlanB[Model B<br/>Engine plan 文件] --> DataB[readEngine B<br/>EngineData B：只读字节]
+    DataA --> InitA[initModel A]
+    DataB --> InitB[initModel B]
 
     subgraph Process[同一进程]
         subgraph LaneA[Model A：独占运行态]
